@@ -16,6 +16,7 @@ Track progress in strength training while minimizing interaction during workouts
 - REST/API and MCP are first-class interfaces to common application logic.
 - MVP workouts start from a **user-selectable template in the current program** (e.g. leg day, back and shoulders, chest and shoulders, upper body). Free-form/empty workout creation is excluded. Template names and number are user/program-defined; no fixed rotation is required.
 - During a workout, use a compact list (typically 4–5 exercises, without a hard limit) and a **dedicated exercise detail screen** to log/correct weights, repetitions and sets. Actual performed set count can differ from planned set count without rewriting the program.
+- Each new working set defaults to **planned** weight/repetitions, not the last completed actual set. Display per-set rep progress against the plan, including both under- and over-target results, and separate overall working-set count. Distinguish different actual weights in text.
 
 ## Candidate MVP capabilities (not yet approved in detail)
 

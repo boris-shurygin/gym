@@ -8,7 +8,7 @@ This list deliberately separates **unresolved** design questions from accepted A
 - What is the minimal local history cache?
 - How are concurrent changes to the same set from two devices reconciled?
 - How are unsynced local changes handled on logout, account switch, browser data deletion and app upgrade?
-- Accepted navigation: compact overview (normally 4–5 exercises) → dedicated exercise logger. Open: how to adjust intended set count separately from actual extra/missing sets and the edit/undo UX.
+- Accepted navigation: compact overview (normally 4–5 exercises) → dedicated exercise logger, with plan-based defaults and per-set bars for under/over target (ADR-0007). Open: intended vs actual set count editing; editing/removing set results; display geometry and target-rep selection within a range.
 
 ## Data / training logic
 
@@ -40,7 +40,7 @@ Next review these priorities:
 
 1. Offline prefetch/freshness policy for any selectable program template (no ad-hoc session creation in MVP).
 2. Exact interaction for logging/editing/removing sets and changing intended vs actual set count on the dedicated exercise screen.
-3. How next-set defaults should work (planned vs last performed).
+3. How backend plans provide exact suggested reps for ranges; bar overflow scale and whether an aggregate repetition bar adds value. Defaults are always planned (ADR-0007).
 4. Completion with skipped/incomplete exercises.
 5. Cross-device sync conflicts and account switching with pending operations.
 
