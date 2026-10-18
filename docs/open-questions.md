@@ -32,6 +32,16 @@ This list deliberately separates **unresolved** design questions from accepted A
 - Formal REST/MCP contracts and client operation envelope.
 - MVP cutline and acceptance tests across iOS and Android.
 
-## Suggested next design session
+## Current design work
 
-Specify the **workout UX as a state machine** (open, start, record, modify, complete, recover) together with the minimal offline sync protocol.
+The proposed mobile workout flow, screen responsibilities, independent session/sync states, failure cases and acceptance scenarios are in [mobile-app.md](mobile-app.md). It is a **draft**, not a set of approved UX decisions.
+
+Next review these priorities:
+
+1. How to begin a workout without a cached plan and without network.
+2. Whether logging occurs only in a focused exercise screen or also from the overview.
+3. How next-set defaults should work (planned vs last performed).
+4. Completion with skipped/incomplete exercises.
+5. Cross-device sync conflicts and account switching with pending operations.
+
+Then detail wireframes and the offline operation envelope before coding.
