@@ -1,6 +1,6 @@
 # Mobile PWA — workout UX specification (proposed v0.2)
 
-**Status:** Design proposal for review; not an approved UX contract.
+**Status:** Design proposal for review, with the program-template-only start decision accepted (ADR-0005). Other interaction details remain proposals.
 **Updated:** 2026-10-18
 
 This document expands the earlier mobile app draft. Accepted platform and offline requirements are recorded in [ADR-0002](adr/0002-local-first-pwa.md). Interaction details below are proposals until discussed and approved.
@@ -14,6 +14,7 @@ This document expands the earlier mobile app draft. Accepted platform and offlin
 - Support personal accounts and private, user-scoped local data.
 - Allow viewing exercise progress and graphs, but do not require a visual program editor.
 - The backend calculates prescribed loads. The client records actual results, not progression decisions.
+- **Accepted MVP constraint:** new workouts can only be started from a workout template belonging to the user's program. No free-form/empty workout creation. The user chooses which template to run; the order is not forced.
 
 ## Navigation (proposal)
 
@@ -29,14 +30,18 @@ Account/settings and synchronization diagnostics can live behind a profile/setti
 
 ## Primary screens
 
-### A. Workout home / preview
+### A. Workout home / template selection / preview
 
 When there is no active session:
 
-- Show the suggested next workout (e.g. “Workout A”), number of exercises and a **Start workout** action.
-- Show prescribed sets, rep ranges and load preview, plus the most recent result where cached.
-- Warn only when the displayed plan is stale or unavailable; being offline does not block starting a **cached, ready** plan.
-- If there is no program or no usable cached plan, show a clear, actionable state; ad-hoc offline session creation is an **open decision**.
+- Display the **available workout templates in the user's current program**. Illustrative names: “Leg day”, “Back and shoulders”, “Chest and shoulders”, “Upper body”; these are **not hard-coded global categories**.
+- User can choose **any** available template for today's workout; do not enforce a rigid A→B→C rotation or silently reschedule the whole program.
+- Optionally highlight the backend's suggested next template, if a scheduling policy exists; the user can select a different one.
+- After selection, preview the selected template's exercise list, target sets/reps/loads and recent comparable results, then show **Start workout**.
+- Each template's prescribed weights/reps are calculated by backend progression logic, not by the phone.
+- When offline, show locally cached templates with their available cached prescribed target snapshots. A **usable cached plan** can start offline; if the necessary plan is not cached, explain why start is unavailable rather than inventing calculated loads.
+- Caching/freshness policy and what happens if an agent has revised a cached template on the server remain **open design details**.
+- A new empty/ad-hoc workout is **out of scope for MVP**; adding new long-term templates is done by the agent through API/MCP.
 
 When a session is active: show **Resume workout** instead of silently creating another session.
 
@@ -45,7 +50,7 @@ When a session is active: show **Resume workout** instead of silently creating a
 - Header: workout name, duration/time started, compact sync indicator, **Finish** action.
 - Exercise rows: name/equipment, prescribed sets × reps and load, count of completed sets, previous session result.
 - Selecting any row opens that exercise logger; no enforced sequence.
-- Session-only actions: reorder exercises; skip with optional reason; replace exercise; add an exercise (candidate for MVP).
+- Candidate session-only actions: reorder exercises; skip with optional reason; replace an exercise; possibly add an exercise within an existing template session. These are not a way to create an entirely new free-form workout or to edit the persistent program.
 - Completed exercises remain accessible for inspection/correction.
 - Do not silently commit permanent program changes from this screen.
 
@@ -92,12 +97,12 @@ Suggested defaults (to test): first set inherits prescribed load/reps; subsequen
 flowchart TD
     A[Open Workout] --> B{Active session?}
     B -->|Yes| C[Session overview]
-    B -->|No| D[Next workout preview]
-    D --> E{Usable plan cached?}
-    E -->|Yes| F[Start: save session snapshot locally]
-    E -->|No and online| G[Fetch plan and show preview]
+    B -->|No| D[Choose a program workout template]
+    D --> E{Prescribed plan available?}
+    E -->|Yes cached| F[Preview and start: save session snapshot locally]
+    E -->|No and online| G[Fetch computed targets for selected template]
     G --> F
-    E -->|No and offline| H[Explain unavailable plan; offline ad-hoc flow TBD]
+    E -->|No and offline| H[Explain unavailable cached plan; no free-form workout in MVP]
     F --> C
     C --> I[Choose any exercise]
     I --> J[Exercise logger]
@@ -135,7 +140,7 @@ Connectivity and sync may change without changing the workout lifecycle. A compl
 
 ### Local data (proposed)
 
-- Last known published program snapshot and prefetched workout target(s).
+- Available templates from the user's last known published program and prefetched computed target snapshots for relevant templates (exact prefetch policy open).
 - Active workout snapshot and user-entered results.
 - Outbound operation queue (append/write corrections, completion and skips) plus acknowledgment state.
 - Small history cache and optionally cached chart results.
@@ -189,7 +194,7 @@ A user may have several devices but the same session/set must not be silently ov
 
 ## Open design questions for review
 
-1. **Starting offline:** must a session be started only from a cached, precomputed plan, or should an empty/ad-hoc workout be possible?
+1. **Offline template selection:** which templates and backend-computed target snapshots do we prefetch, and how do we resolve stale cached plans after an agent revision? Empty/ad-hoc workout creation is out of scope for MVP.
 2. **Exercise entry:** one-tap only inside the focused logger, or also a quick-log control in each overview row?
 3. **Prefill for the next set:** planned target vs last actual (possibly separately for weight and repetitions)?
 4. **Finish behavior:** confirmation requirements for missed planned sets and optional subjective summary.
@@ -197,4 +202,6 @@ A user may have several devices but the same session/set must not be silently ov
 6. **Scope:** whether replacement, extra exercises, RIR and rest timer belong in initial MVP.
 7. **Statistics:** minimal graphs and whether locally queued sets influence preview charts.
 
-These choices should be resolved before detailed wireframes, state charts and client/API contracts are considered approved.
+**Accepted:** template-based start with arbitrary user choice among available program templates; no new empty/ad-hoc workouts in MVP. The examples of muscle-group names are illustrative only.
+
+The remaining choices should be resolved before detailed wireframes, state charts and client/API contracts are considered approved.

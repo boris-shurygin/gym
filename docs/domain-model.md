@@ -8,7 +8,7 @@ Conceptual entities; these are **not** final database schemas.
 - **Exercise:** logical exercise plus measurement convention/equipment.
 - **Program:** logical training program with a published current version.
 - **ProgramVersion:** immutable snapshot of a published program, author and rationale.
-- **WorkoutTemplate:** named planned session type (A/B/C) within a version.
+- **WorkoutTemplate:** a user/program-defined named session type within a program version (e.g. “Leg day” or “Upper body”). In MVP a session is started by choosing one of these templates, not from an empty ad-hoc workout.
 - **TemplateExercise:** an exercise occurrence/slot within a template, with target ranges and progression rule.
 - **ProgressionRule:** versioned type and parameters; used by backend.
 - **ProgramChange:** draft patch, base version, justification, validation and publication status.
@@ -17,7 +17,7 @@ An Exercise is not a TemplateExercise. A bench press in A and B may have distinc
 
 ## Execution
 
-- **WorkoutSession:** owner, session status, program version and saved plan snapshot.
+- **WorkoutSession:** owner, session status, selected template reference, program version and saved plan snapshot. Template selection is user-driven; strict template rotation is not required.
 - **SessionExercise:** actual slot/order and planned vs performed exercise, including skip/replacement.
 - **SetResult:** set ID, working/warm-up type, weight, reps, optional RIR/RPE and timestamps.
 - **SessionEvent:** audited changes and corrections.

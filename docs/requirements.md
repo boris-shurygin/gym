@@ -14,11 +14,12 @@ Track progress in strength training while minimizing interaction during workouts
 - Hybrid progression: agent defines/revises rules; backend calculates prescribed loads deterministically.
 - Plans and actual workout results are distinct. Program changes do not rewrite earlier results.
 - REST/API and MCP are first-class interfaces to common application logic.
+- MVP workouts start from a **user-selectable template in the current program** (e.g. leg day, back and shoulders, chest and shoulders, upper body). Free-form/empty workout creation is excluded. Template names and number are user/program-defined; no fixed rotation is required.
 
 ## Candidate MVP capabilities (not yet approved in detail)
 
 - Sign-in and individual program; one active program at a time.
-- Start/resume/finish a session; record, undo and correct a set; warm-up vs working sets.
+- Choose any template from the current program; start/resume/finish a session; record, undo and correct a set; warm-up vs working sets.
 - Weight and repetitions prefilled, adjusted with large buttons.
 - See previous results; reorder or substitute an exercise for an active session.
 - Queue offline edits and show explicit sync status.
@@ -36,7 +37,7 @@ Track progress in strength training while minimizing interaction during workouts
 
 ## Not in initial scope
 
-Social feed, leaderboards, shared sessions, shared programs, native applications, advanced desktop editor or local AI inference.
+Free-form/empty workout creation, social feed, leaderboards, shared sessions, shared programs, native applications, advanced desktop editor or local AI inference.
 
 ## To decide
 

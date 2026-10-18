@@ -4,7 +4,7 @@ This list deliberately separates **unresolved** design questions from accepted A
 
 ## Mobile / synchronization
 
-- How does a user start a brand-new workout entirely offline?
+- Which program templates and computed target snapshots should be prefetched so a chosen template can start offline? What if the cached program version is stale?
 - What is the minimal local history cache?
 - How are concurrent changes to the same set from two devices reconciled?
 - How are unsynced local changes handled on logout, account switch, browser data deletion and app upgrade?
@@ -38,7 +38,7 @@ The proposed mobile workout flow, screen responsibilities, independent session/s
 
 Next review these priorities:
 
-1. How to begin a workout without a cached plan and without network.
+1. Offline prefetch/freshness policy for any selectable program template (no ad-hoc session creation in MVP).
 2. Whether logging occurs only in a focused exercise screen or also from the overview.
 3. How next-set defaults should work (planned vs last performed).
 4. Completion with skipped/incomplete exercises.

@@ -6,5 +6,6 @@ Accepted architectural decisions are listed below. All document bodies record co
 - [ADR-0002: Local-first cross-platform PWA](0002-local-first-pwa.md)
 - [ADR-0003: Hybrid progression](0003-hybrid-progression.md)
 - [ADR-0004: Individual multi-user accounts](0004-multi-user-accounts.md)
+- [ADR-0005: Template-based workouts in MVP](0005-template-based-workouts.md)
 
 Status vocabulary: `Accepted`, `Proposed`, `Superseded`.
