@@ -1,0 +1,10 @@
+# Architecture Decision Records
+
+Accepted architectural decisions are listed below. All document bodies record context, decision and consequences. Later changes should supersede an ADR rather than silently erase its rationale.
+
+- [ADR-0001: Agent-oriented service boundaries](0001-agent-oriented-service.md)
+- [ADR-0002: Local-first cross-platform PWA](0002-local-first-pwa.md)
+- [ADR-0003: Hybrid progression](0003-hybrid-progression.md)
+- [ADR-0004: Individual multi-user accounts](0004-multi-user-accounts.md)
+
+Status vocabulary: `Accepted`, `Proposed`, `Superseded`.
