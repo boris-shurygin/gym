@@ -1,0 +1,26 @@
+# Interactive mobile UX prototype
+
+Open **[index.html](index.html)** in a modern browser (locally or via VS Code Live Preview/Live Server). It is a self-contained HTML/CSS/JS prototype with no build dependencies or external requests.
+
+## Screens and clickable interactions
+
+- Workout home and selection among program templates (Chest & Shoulders, Legs, Back & Shoulders, Upper).
+- Preview a program template and start the workout.
+- Active workout with a list of 4–5 exercises, exercise detail and planned targets.
+- Log a set, adjust weight/reps, see **per-set tonnage (weight × reps) progress bars**, edit or remove recorded sets. New sets default to **planned**, not previous actual values.
+- Complete/review a partial workout, then inspect it in History.
+- History details and correction of existing sets.
+- Statistics: exercise selector, volume/working-weight/estimated-1RM graph, period filters and tap-to-inspect data points.
+- Settings: simulate offline, sync queue, switching between two isolated demo accounts.
+
+## Limitations
+
+- Pure **UX mockup**, not the actual PWA or backend.
+- All workouts, names, dates, program targets, stats and calculations are fictional examples.
+- The local-state/session/sync behaviors are **simulations in memory only**: no actual IndexedDB, authentication, MCP, background synchronization, networking or real-data persistence.
+- Reloading the page resets the demo.
+- Some detailed UX decisions remain open for review; see [mobile app specification](../docs/mobile-app.md).
+
+## Suggested review
+
+Start a workout, adjust a set above/below plan, log several sets, correct one, switch exercise, finish with incomplete exercises, inspect History/Statistics, then try the offline toggle in Settings.

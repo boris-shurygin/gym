@@ -18,6 +18,10 @@ This document expands the earlier mobile app draft. Accepted platform and offlin
 - **Accepted workout navigation:** a compact list (typically 4–5 exercises, not a hard limit) leads to a dedicated screen for logging/editing weights, repetitions and sets.
 - **Accepted default and visual comparison:** every new working set is prefilled from **planned** values, not last actual values. The per-set progress bar compares **actual volume (weight × reps)** with **planned volume (weight × reps)**, including shortfall and overflow. Show the separate performed/planned working-set count.
 
+## Clickable UX prototype
+
+A self-contained, reviewable browser prototype is available at [`prototype/index.html`](../prototype/index.html). It provides working navigation across workout selection, preview, active session, detailed logger, completion, history, statistics, settings and simulated offline/account switching. The prototype deliberately uses fictional data and in-memory state only; it is **not** the actual PWA and does not implement IndexedDB/server synchronization. Its interactions are candidates for UX review, not approved contracts.
+
 ## Navigation (proposal)
 
 Three primary tabs:
