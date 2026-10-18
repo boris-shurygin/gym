@@ -28,7 +28,9 @@ An Exercise is not a TemplateExercise. A bench press in A and B may have distinc
 
 The training plan must expose a **concrete suggested weight and repetition count** for each working set displayed in the mobile logger, even if the progression rule also allows a range (e.g. 8–12 reps). UI defaults always come from these planned values, not the previously recorded actual set.
 
-The per-set repetition completion ratio is `actual_reps / suggested_reps` (where the suggested count is positive), with values above 1 displayed visibly beyond the 100% plan marker; changes in actual weight are shown separately. This is a visualization of **repetitions**, not a strength or progression success metric. A separate indicator compares the **count of recorded working sets** to the planned count, with extra sets visible beyond the plan. Backend progression rules are evaluated on raw results and configured qualification criteria, never on visual fill ratios.
+For weight-and-repetitions working sets with a positive planned volume, compute `planned_set_volume = planned_weight_kg × suggested_reps` and `actual_set_volume = actual_weight_kg × actual_reps`. The **per-set display ratio** is `actual_set_volume / planned_set_volume`, showing values above 100% beyond the plan marker. Display both weight and repetition values because equal kg × reps does not imply equal load or effort. A separate indicator compares the **count of recorded working sets** to the planned count, with extra sets beyond plan visible. Do not compute a volume ratio for zero/undefined planned volume or incompatible modalities (e.g. unweighted bodyweight) until a metric policy is defined.
+
+This is **recorded tonnage**, not mechanical work, a universal strength indicator or the success condition for progression. Backend progression rules are evaluated on raw set results and configured qualification criteria, never on visual fill ratios.
 
 The storage details for explicit per-set planned targets and warm-up associations are still open.
 

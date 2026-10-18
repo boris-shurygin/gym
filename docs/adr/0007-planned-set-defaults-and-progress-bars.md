@@ -1,6 +1,7 @@
 # ADR-0007: Planned set defaults and progress bars
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0008](0008-set-volume-progress-bars.md)
+- **Note:** ADR-0008 preserves plan-based input defaults and the separate set-count indicator, but replaces repetition-only bars with kg × reps volume bars. This record remains for historical context.
 - **Date:** 2026-10-18
 
 ## Context

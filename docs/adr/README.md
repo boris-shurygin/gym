@@ -8,6 +8,7 @@ Accepted architectural decisions are listed below. All document bodies record co
 - [ADR-0004: Individual multi-user accounts](0004-multi-user-accounts.md)
 - [ADR-0005: Template-based workouts in MVP](0005-template-based-workouts.md)
 - [ADR-0006: Focused exercise logger](0006-focused-exercise-logger.md)
-- [ADR-0007: Planned set defaults and progress bars](0007-planned-set-defaults-and-progress-bars.md)
+- [ADR-0007: Planned set defaults and progress bars (superseded)](0007-planned-set-defaults-and-progress-bars.md)
+- [ADR-0008: Set-volume progress bars and planned defaults](0008-set-volume-progress-bars.md)
 
 Status vocabulary: `Accepted`, `Proposed`, `Superseded`.

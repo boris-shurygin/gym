@@ -1,6 +1,6 @@
 # Mobile PWA — workout UX specification (proposed v0.2)
 
-**Status:** Working UX draft. Accepted: template-based workout start (ADR-0005), dedicated exercise logger (ADR-0006), planned-value prefill and plan-vs-actual bars (ADR-0007). Remaining interactions are proposals.
+**Status:** Working UX draft. Accepted: template-based workout start (ADR-0005), dedicated exercise logger (ADR-0006), planned-value prefill and set-volume plan-vs-actual bars (ADR-0008, superseding ADR-0007). Remaining interactions are proposals.
 **Updated:** 2026-10-18
 
 This document expands the earlier mobile app draft. Accepted platform and offline requirements are recorded in [ADR-0002](adr/0002-local-first-pwa.md). Interaction details below are proposals until discussed and approved.
@@ -16,7 +16,7 @@ This document expands the earlier mobile app draft. Accepted platform and offlin
 - The backend calculates prescribed loads. The client records actual results, not progression decisions.
 - **Accepted MVP constraint:** new workouts can only be started from a workout template belonging to the user's program. No free-form/empty workout creation. The user chooses which template to run; the order is not forced.
 - **Accepted workout navigation:** a compact list (typically 4–5 exercises, not a hard limit) leads to a dedicated screen for logging/editing weights, repetitions and sets.
-- **Accepted default and visual comparison:** every new working set is prefilled from the **planned** values, not the last actual set. Display per-set deviation from planned repetitions and overall performed/planned set count, including under- and over-fulfilment.
+- **Accepted default and visual comparison:** every new working set is prefilled from **planned** values, not last actual values. The per-set progress bar compares **actual volume (weight × reps)** with **planned volume (weight × reps)**, including shortfall and overflow. Show the separate performed/planned working-set count.
 
 ## Navigation (proposal)
 
@@ -67,8 +67,8 @@ Proposed layout, from top to bottom:
 1. Exercise title and back to the compact workout list. Show prescribed targets, previous comparable result and compact sync status.
 2. Current set editor: **weight**, **repetitions**, +/- controls (optional numeric entry) and a prominent **Log set** button.
 3. Actual sets already recorded, each with number, weight, reps and working/warm-up type; tap a row to **edit/correct**, or undo/remove it. Corrections must not silently disappear from the audit/sync history.
-5. **Set count adjustment:** the user can perform fewer or more sets than prescribed. The actual number is derived from logged sets; provide an explicit way to add another set, remove an erroneous one and stop the exercise early.
-6. Back to overview; switching exercises must preserve results and pending input.
+4. **Set count adjustment:** the user can perform fewer or more sets than prescribed. The actual number is derived from logged sets; provide an explicit way to add another set, remove an erroneous one and stop the exercise early.
+5. Back to overview; switching exercises must preserve results and pending input.
 
 **Plan vs fact:** the planned number of sets (for example, 3) remains visible and unchanged in the plan snapshot; completed/actual sets can be 2, 3, 4 etc. A fourth performed set is an extra **session result**, not a silent persistent change of the template. The exact UI for changing an *intended* target set count before logging versus simply adding/removing *actual* sets is an open detail.
 
@@ -76,19 +76,20 @@ Proposed layout, from top to bottom:
 
 **Precise reference values:** a rep-range prescription (for example 8–12) also needs an **explicit backend-provided suggested repetition count** for input and comparison, e.g. 10, so the phone does not invent a target. The displayed range remains visible separately. The schema for per-set target values is to be designed.
 
-**Proposed visual approach for plan vs fact (details to validate with usability testing):**
+**Accepted volume bar (final styling still open):**
 
-- **Per recorded working set:** display actual weight × actual repetitions and a thin progress bar for **repetitions relative to that set's suggested repetitions**. A visible marker denotes 100% of the target.
-- **Below target:** the bar stops short of the marker, with readable numbers/delta (e.g. `8/10 · −2`).
-- **On target:** reaches the 100% marker (`10/10`).
-- **Above target:** fill extends past the 100% marker into a bounded overflow area (`12/10 · +2`); keep the numeric difference even when visual overflow is capped. The bar must not simply stop at 100%, hiding overperformance.
-- **Different actual weight:** mark it separately (e.g. `55 kg vs planned 60 kg`). Rep-bar percent alone is **not** a judgement that the set was heavier/easier, more productive or qualified for progression.
-- **Overall exercise:** show a **separate set-count indicator** (`2 / 3 working sets`; `4 / 3 · +1 extra`), with overflow distinguishable from the planned count. Do not conflate it with rep completion.
-- **Skipped/unlogged sets:** empty/missing from the set-count indicator, not fabricated as a zero-rep performed set. Warm-ups are tracked separately and do not count toward planned working-set completion.
-- No color-only meaning: show counts, plan markers and deviations in text for accessibility.
-- Graphical bars are a **user-requested direction**; exact visual geometry, maximum overflow scale and mobile accessibility remain UX design choices.
+- For each logged working set, compute the **set volume / tonnage**: `actual_weight_kg × actual_reps`. Compare it with `planned_weight_kg × suggested_reps` from that set's frozen plan snapshot. The displayed ratio is `actual_volume / planned_volume` when the planned volume is positive.
+- **Below plan:** fill stops before the visible 100% marker. Example: `60 kg × 8 = 480 kg` against `60 kg × 10 = 600 kg` → **80%**.
+- **At plan:** fill reaches the 100% marker. Example: `60 kg × 10 = 600 kg` → **100%**.
+- **Above plan:** fill continues past the visible 100% marker, with capped visual overflow but **uncapped numerical percentage**. Example: `70 kg × 9 = 630 kg` → **105%**.
+- **Trade-off visible:** `65 kg × 9 = 585 kg` → **97.5%**, rather than a simple “9 out of 10 reps” (90%). Always display both actual weight and repetitions; if either differs from plan, their differences can be read without a second graph.
+- Show **actual and planned volume numerically** (e.g. `585 / 600 kg · 97.5%`) and a clearly labeled 100% marker. Use a separate **working-set count indicator** (`2 / 3`, `4 / 3 · +1 extra`) to make extra or missing sets visible. Set-count fill is not the set-volume bar.
+- **No valid positive planned volume:** do not divide by zero or show a fake 0%/100% bar. Bodyweight, assisted, distance/time-based and other non-kg-load modalities need appropriate measurement semantics; those rules are outside the current bar decision and remain open.
+- **Warm-ups and unlogged sets:** warm-ups do not count as completed planned working sets; unlogged planned sets are not fabricated as 0-volume performance.
+- **Interpretation:** volume here is a comparison of recorded kilograms × repetitions, **not mechanical work**, a universal strength measure or an automatic success criterion for progression. Backend progression still uses raw sets and explicit rules.
+- Do not encode completion with color alone; show labels, actual/planned numbers and volume differences. Exact overflow width and accessibility treatment remain UX design details.
 
-**Not yet decided:** exact weight step buttons per exercise/equipment; optional RIR/RPE, rest timing, and whether to show an additional aggregate total-rep bar. None should add mandatory taps.
+**Not yet decided:** exact weight-step buttons per exercise/equipment; optional RIR/RPE, rest timing, and whether a whole-exercise total-volume chart is useful. None should add mandatory taps.
 
 **Interaction invariant:** one tap logs an ordinary set when suggested values were achieved, but a local-save failure is **not** a successful log. Log set only after local persistence succeeds.
 
@@ -181,7 +182,7 @@ For each operation, use a stable operation ID, user-scoped session ID, kind, pay
 3. While online and foregrounded, try immediate delivery. Retry on startup/resume and connectivity changes.
 4. Optionally register browser Background Sync where supported, without relying on it.
 5. Server deduplicates repeated operations and acknowledges the exact operation ID.
-7. Keep pending operations until acknowledged; do not silently drop conflicts.
+6. Keep pending operations until acknowledged; do not silently drop conflicts.
 
 Expired authorization should **not** block local logging under an already established local identity; syncing resumes after a safe reauthentication flow. Account switching/logging out with pending data must explicitly protect unsynced records.
 
@@ -209,11 +210,11 @@ A user may have several devices but the same session/set must not be silently ov
 
 1. With an already cached session plan and no network, start a workout, log three sets and finish; the locally saved result survives a PWA restart.
 2. A normal matching set takes one tap; a different weight/reps can be entered with large controls. After logging `60 kg × 8` against planned `60 kg × 10`, the next set still defaults to its planned values, not `60 × 8`.
-3. A progress bar distinguishes `8/10`, `10/10` and `12/10` (including overflow beyond the 100% marker), while a separate label flags differences between planned and actual weight.
+3. A progress bar compares recorded **weight × reps** with planned weight × reps: `60×8 / 60×10 = 80%`, `60×10 / 60×10 = 100%`, `65×9 / 60×10 = 97.5%`, and `70×9 / 60×10 = 105%` (visible overflow). Display weight and repetition values as well.
 4. The set-count indicator distinguishes `2/3` from `4/3` without rewriting the plan. Switching exercises mid-workout preserves any logged results.
-4. A locally completed, unsynced workout is visible in history with an accurate status.
-5. After reconnecting, sync retries do not duplicate any set even if a prior acknowledgment was lost.
-6. Changing a program from the agent does not alter an in-progress workout snapshot.
+5. A locally completed, unsynced workout is visible in history with an accurate status.
+6. After reconnecting, sync retries do not duplicate any set even if a prior acknowledgment was lost.
+7. Changing a program from the agent does not alter an in-progress workout snapshot.
 8. iOS works correctly when background sync never fires; resuming the app retries pending operations.
 9. Expired auth and conflicting remote edits do not cause silent loss of pending records.
 10. No user can see another user's local or server data through a normal account switch.
@@ -223,12 +224,12 @@ A user may have several devices but the same session/set must not be silently ov
 
 1. **Offline template selection:** which templates and backend-computed target snapshots do we prefetch, and how do we resolve stale cached plans after an agent revision? Empty/ad-hoc workout creation is out of scope for MVP.
 2. **Exercise details:** dedicated screen is accepted; decide how to adjust the intended set count vs recording extra/missed actual sets, and how to edit/remove a logged set.
-3. **Progress-bar presentation:** final overflow scale, whether there is an additional aggregate repetition indicator and how rep ranges get a specific backend-provided target. Prefill-from-plan is accepted (ADR-0007).
+3. **Volume-bar presentation:** final overflow scale, optional whole-exercise aggregate volume, measurement types where kg × repetitions is inapplicable, and backend-provided suggested reps within a range. Plan prefill and per-set volume bars are accepted (ADR-0008).
 4. **Finish behavior:** confirmation requirements for missed planned sets and optional subjective summary.
 5. **Offline sync and conflicts:** exact operation ordering, conflict resolution UI and account-switch handling.
 6. **Scope:** whether replacement, extra exercises, RIR and rest timer belong in initial MVP.
 7. **Statistics:** minimal graphs and whether locally queued sets influence preview charts.
 
-**Accepted:** template-based start with arbitrary choice among program templates (ADR-0005); short overview list + dedicated exercise logger (ADR-0006); planned targets as defaults for each set and bars showing both under- and over-fulfilment (ADR-0007). Muscle-group names and 4–5 exercises are illustrative, not enforced limits.
+**Accepted:** template-based start (ADR-0005); short overview list and focused logger (ADR-0006); each set defaults to planned values and its progress bar measures **kg × repetitions** relative to planned set volume, showing under- and over-fulfilment (ADR-0008 supersedes ADR-0007). Muscle-group names and 4–5 exercises are illustrative, not enforced limits.
 
 The remaining choices should be resolved before detailed wireframes, state charts and client/API contracts are considered approved.
