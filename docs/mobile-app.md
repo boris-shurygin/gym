@@ -1,6 +1,6 @@
 # Mobile PWA — workout UX specification (proposed v0.2)
 
-**Status:** Design proposal for review, with the program-template-only start decision accepted (ADR-0005). Other interaction details remain proposals.
+**Status:** Working UX draft. Accepted: program-template-only start (ADR-0005), short exercise overview with a separate detailed exercise logger (ADR-0006). Other interactions remain proposals.
 **Updated:** 2026-10-18
 
 This document expands the earlier mobile app draft. Accepted platform and offline requirements are recorded in [ADR-0002](adr/0002-local-first-pwa.md). Interaction details below are proposals until discussed and approved.
@@ -15,6 +15,7 @@ This document expands the earlier mobile app draft. Accepted platform and offlin
 - Allow viewing exercise progress and graphs, but do not require a visual program editor.
 - The backend calculates prescribed loads. The client records actual results, not progression decisions.
 - **Accepted MVP constraint:** new workouts can only be started from a workout template belonging to the user's program. No free-form/empty workout creation. The user chooses which template to run; the order is not forced.
+- **Accepted workout navigation:** a compact list (typically 4–5 exercises, not a hard limit) leads to a dedicated screen for logging/editing weights, repetitions and sets.
 
 ## Navigation (proposal)
 
@@ -45,26 +46,34 @@ When there is no active session:
 
 When a session is active: show **Resume workout** instead of silently creating another session.
 
-### B. Active session overview (list-first)
+### B. Active session overview (list-first; accepted navigation)
 
+- The normal workout is short (about **4–5 exercises**); show the whole list in a compact overview without imposing a numerical limit on a template.
 - Header: workout name, duration/time started, compact sync indicator, **Finish** action.
 - Exercise rows: name/equipment, prescribed sets × reps and load, count of completed sets, previous session result.
-- Selecting any row opens that exercise logger; no enforced sequence.
+- **Tap an exercise row to enter a dedicated logger.** Do not put the primary log-set and weight/repetition editing controls into every overview row in MVP.
+- Exercise order is flexible; returning to the list and opening another exercise is always possible.
 - Candidate session-only actions: reorder exercises; skip with optional reason; replace an exercise; possibly add an exercise within an existing template session. These are not a way to create an entirely new free-form workout or to edit the persistent program.
 - Completed exercises remain accessible for inspection/correction.
 - Do not silently commit permanent program changes from this screen.
 
-### C. Exercise logger (focus view)
+### C. Exercise logger (dedicated screen; accepted scope)
 
-Prioritize the current set and large touch targets:
+The detailed exercise screen is the **primary interaction surface for recording and correcting actual weights, repetitions and sets**, with large touch targets.
 
-1. Exercise name, target sets/reps/weight and recent comparable result.
-2. Clearly labeled **weight** and **reps** values, with +/- buttons (and optional numeric editing).
-3. Prominent **Log set** control.
-4. Logged sets with set number, weight, reps, type (warm-up/working) and edit/undo affordance.
-5. Back to overview; freely switch exercises without losing draft input.
+Proposed layout, from top to bottom:
 
-Suggested defaults (to test): first set inherits prescribed load/reps; subsequent sets inherit the just-recorded actual load/reps. Adjustment increments depend on exercise/equipment and may need configuration; do not assume every exercise uses +2.5 kg. Optional RIR/RPE should not add mandatory taps.
+1. Exercise title and back to the compact workout list. Show prescribed targets, previous comparable result and compact sync status.
+2. Current set editor: **weight**, **repetitions**, +/- controls (optional numeric entry) and a prominent **Log set** button.
+3. Actual sets already recorded, each with number, weight, reps and working/warm-up type; tap a row to **edit/correct**, or undo/remove it. Corrections must not silently disappear from the audit/sync history.
+4. **Set count adjustment:** the user can perform fewer or more sets than prescribed. The actual number is derived from logged sets; provide an explicit way to add another set, remove an erroneous one and stop the exercise early.
+5. Back to overview; switching exercises must preserve results and pending input.
+
+**Plan vs fact:** the planned number of sets (for example, 3) remains visible and unchanged in the plan snapshot; completed/actual sets can be 2, 3, 4 etc. A fourth performed set is an extra **session result**, not a silent persistent change of the template. The exact UI for changing an *intended* target set count before logging versus simply adding/removing *actual* sets is an open detail.
+
+**Defaults to test, not decided:** first set inherits prescribed load/reps; later sets could inherit the just-recorded actual values or the planned target. Weight steps depend on exercise/equipment, not a global +2.5 kg. RIR/RPE should not add mandatory taps.
+
+**Interaction invariant:** one tap logs an ordinary set when suggested values were achieved, but a local-save failure is **not** a successful log. Log set only after local persistence succeeds.
 
 **Important:** a successful button press is acknowledged only **after** the set and sync operation are durably committed to local storage. Otherwise show an error and leave the entry on screen for retry.
 
@@ -195,13 +204,13 @@ A user may have several devices but the same session/set must not be silently ov
 ## Open design questions for review
 
 1. **Offline template selection:** which templates and backend-computed target snapshots do we prefetch, and how do we resolve stale cached plans after an agent revision? Empty/ad-hoc workout creation is out of scope for MVP.
-2. **Exercise entry:** one-tap only inside the focused logger, or also a quick-log control in each overview row?
+2. **Exercise details:** dedicated screen is accepted; decide how to adjust the intended set count vs recording extra/missed actual sets, and how to edit/remove a logged set.
 3. **Prefill for the next set:** planned target vs last actual (possibly separately for weight and repetitions)?
 4. **Finish behavior:** confirmation requirements for missed planned sets and optional subjective summary.
 5. **Offline sync and conflicts:** exact operation ordering, conflict resolution UI and account-switch handling.
 6. **Scope:** whether replacement, extra exercises, RIR and rest timer belong in initial MVP.
 7. **Statistics:** minimal graphs and whether locally queued sets influence preview charts.
 
-**Accepted:** template-based start with arbitrary user choice among available program templates; no new empty/ad-hoc workouts in MVP. The examples of muscle-group names are illustrative only.
+**Accepted:** template-based start with arbitrary choice among program templates (ADR-0005), plus a short overview list and a dedicated exercise logger for weights, reps and sets (ADR-0006). Names of muscle-group templates are illustrative; 4–5 exercises is a common case, not a fixed limit.
 
 The remaining choices should be resolved before detailed wireframes, state charts and client/API contracts are considered approved.

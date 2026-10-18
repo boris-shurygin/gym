@@ -7,5 +7,6 @@ Accepted architectural decisions are listed below. All document bodies record co
 - [ADR-0003: Hybrid progression](0003-hybrid-progression.md)
 - [ADR-0004: Individual multi-user accounts](0004-multi-user-accounts.md)
 - [ADR-0005: Template-based workouts in MVP](0005-template-based-workouts.md)
+- [ADR-0006: Focused exercise logger](0006-focused-exercise-logger.md)
 
 Status vocabulary: `Accepted`, `Proposed`, `Superseded`.

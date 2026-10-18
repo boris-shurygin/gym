@@ -8,7 +8,7 @@ This list deliberately separates **unresolved** design questions from accepted A
 - What is the minimal local history cache?
 - How are concurrent changes to the same set from two devices reconciled?
 - How are unsynced local changes handled on logout, account switch, browser data deletion and app upgrade?
-- Default interaction: exercise list + focused logger is a proposal, not a final UX decision.
+- Accepted navigation: compact overview (normally 4–5 exercises) → dedicated exercise logger. Open: how to adjust intended set count separately from actual extra/missing sets and the edit/undo UX.
 
 ## Data / training logic
 
@@ -39,7 +39,7 @@ The proposed mobile workout flow, screen responsibilities, independent session/s
 Next review these priorities:
 
 1. Offline prefetch/freshness policy for any selectable program template (no ad-hoc session creation in MVP).
-2. Whether logging occurs only in a focused exercise screen or also from the overview.
+2. Exact interaction for logging/editing/removing sets and changing intended vs actual set count on the dedicated exercise screen.
 3. How next-set defaults should work (planned vs last performed).
 4. Completion with skipped/incomplete exercises.
 5. Cross-device sync conflicts and account switching with pending operations.
