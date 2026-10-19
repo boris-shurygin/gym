@@ -28,10 +28,11 @@ This list deliberately separates **unresolved** design questions from accepted A
 
 ## Implementation
 
-- Approve stack: PWA framework, backend runtime and storage. Russian-region hosting is required (ADR-0009), Yandex Cloud preferred. Evaluate the [Yandex Compute Cloud one-VM proposal](hosting.md), exact VM resources and billing.
+- Selected infrastructure: Russian Yandex Cloud, YDB Serverless/SQLAlchemy 2.0 with Cloud Functions API (ADR-0010). Detail [hosting](hosting.md) and review [proposed CI/CD](ci-cd.md).
 - Confirm real MCP write/modify availability for intended ChatGPT accounts; write support in ChatGPT is plan/workspace dependent.
 - Choose identity provider and OAuth strategy before publicly onboarding friends; check storage/data flows and relevant Russian personal-data rules.
-- Select a domain, define backup/restore targets, confirm CI image delivery and budget monitoring for Russian hosting.
+- Choose frontend HTTPS domain/API origin, backup/restore requirements, Cloud Functions release permissions and staging/production isolation.
+- Validate migrations and recovery when YDB DDL partially succeeds; old offline PWA clients must remain compatible.
 - Formal REST/MCP contracts and client operation envelope.
 - MVP cutline and acceptance tests across iOS and Android.
 

@@ -12,7 +12,7 @@ Neither MCP nor the mobile client should bypass domain validation. The backend i
 
 ## Candidate modular monolith (proposal)
 
-Modules: identity, programs, progression engine, sessions, synchronization, analytics. Suggested but **not approved** technologies: React/TypeScript PWA + IndexedDB; Python/FastAPI; PostgreSQL; MCP SDK.
+Modules: identity, programs, progression engine, sessions, synchronization, analytics. **Accepted deployment direction (ADR-0010):** Python Cloud Functions with Yandex API Gateway, YDB Serverless via SQLAlchemy 2.0 and `ydb-sqlalchemy`, React/TypeScript PWA with IndexedDB and static Yandex Object Storage hosting. MCP host/transport remains open. See [hosting](hosting.md) and proposed [CI/CD](ci-cd.md).
 
 ## Program flow
 
@@ -47,4 +47,4 @@ Best-effort background delivery may be used on supported Android browsers. iOS P
 
 ## Operational choices still open
 
-Russian hosting is a **confirmed requirement** (ADR-0009), with **Yandex Cloud preferred**. A single-VM Compute Cloud + Docker Compose + PostgreSQL + Object Storage backup proposal is in [hosting.md](hosting.md); provider products, authentication, deployment pipeline and topology remain unapproved.
+Russian hosting and Yandex Cloud are required (ADR-0009); YDB Serverless and Cloud Functions API are selected (ADR-0010). Detailed database migrations, API compatibility, authentication, MCP transport and CI/CD release gates remain open. See [hosting](hosting.md) and proposed [CI/CD](ci-cd.md).
