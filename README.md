@@ -15,6 +15,7 @@ The **agent defines training strategy and progression rules**; the **backend cal
 | --- | --- |
 | [Requirements](docs/requirements.md) | Product scope and quality requirements |
 | [Architecture](docs/architecture.md) | System components and data flows |
+| [Hosting](docs/hosting.md) | Russian-region deployment; Yandex Cloud preferred (proposal) |
 | [Domain model](docs/domain-model.md) | Core concepts, invariants, workout and progression states |
 | [Mobile app](docs/mobile-app.md) | UX, offline logging and statistics |
 | [Agent integration](docs/agent-integration.md) | MCP, API and agent responsibilities |

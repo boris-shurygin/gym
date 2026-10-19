@@ -28,9 +28,10 @@ This list deliberately separates **unresolved** design questions from accepted A
 
 ## Implementation
 
-- Approve stack: PWA framework, backend runtime, storage, hosting. See the [hosting proposal](hosting.md) for Railway (EU West), single-origin FastAPI PWA/API/MCP, and private PostgreSQL.
+- Approve stack: PWA framework, backend runtime and storage. Russian-region hosting is required (ADR-0009), Yandex Cloud preferred. Evaluate the [Yandex Compute Cloud one-VM proposal](hosting.md), exact VM resources and billing.
 - Confirm real MCP write/modify availability for intended ChatGPT accounts; write support in ChatGPT is plan/workspace dependent.
-- Choose identity provider and OAuth strategy before publicly onboarding friends.
+- Choose identity provider and OAuth strategy before publicly onboarding friends; check storage/data flows and relevant Russian personal-data rules.
+- Select a domain, define backup/restore targets, confirm CI image delivery and budget monitoring for Russian hosting.
 - Formal REST/MCP contracts and client operation envelope.
 - MVP cutline and acceptance tests across iOS and Android.
 

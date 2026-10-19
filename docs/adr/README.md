@@ -10,5 +10,6 @@ Accepted architectural decisions are listed below. All document bodies record co
 - [ADR-0006: Focused exercise logger](0006-focused-exercise-logger.md)
 - [ADR-0007: Planned set defaults and progress bars (superseded)](0007-planned-set-defaults-and-progress-bars.md)
 - [ADR-0008: Set-volume progress bars and planned defaults](0008-set-volume-progress-bars.md)
+- [ADR-0009: Russian hosting, Yandex Cloud preferred](0009-russian-hosting.md)
 
 Status vocabulary: `Accepted`, `Proposed`, `Superseded`.

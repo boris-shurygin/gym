@@ -1,74 +1,98 @@
-# Hosting and deployment — proposal
+# Hosting and deployment — Russia, Yandex Cloud proposal
 
-**Status: Proposed / not accepted.** Last reviewed: 2026-10-19. No live infrastructure has been provisioned.
+**Status:** Russian hosting is **required** (ADR-0009); **Yandex Cloud is preferred**. The VM-based topology and exact products are **proposed**, not deployed or accepted as a final infrastructure specification.
 
-## Purpose
+**Reviewed:** 2026-10-19.
 
-Host a small, multi-user, offline-first workout PWA with a REST API, a planned remote MCP adapter, and PostgreSQL. Optimize for simple operation, reproducibility and data durability rather than premature scaling.
+## Requirements and provider preference
 
-## Recommended MVP topology (to approve)
+- The Gym application, its operational database, user-associated logs and backups should reside in the **Russian region**, not in a European Yandex Cloud zone or an overseas provider.
+- Prefer **Yandex Cloud**, using region `ru-central1`; `ru-central1-d` is a reasonable initial zone (Yandex currently recommends it for new projects).
+- This geography requirement does not imply that every third-party integration or data export is lawful; review applicable personal-data and cross-border-transfer obligations (including Russian 152-FZ if applicable) before inviting real users.
+- Keep GitHub as the source code repository. Do not store private workout data, access tokens or database backups in Git.
 
-- **Railway Hobby**: one long-running **FastAPI** service, in the **EU West (Amsterdam)** region.
-- The same app origin serves production-built **React/TypeScript PWA** assets at `/`, authenticated REST routes at `/api/v1`, and remote MCP tools at `/mcp` (only after they are implemented and tested).
-- A **PostgreSQL** service in the same Railway project/environment, reachable only through private networking. It is the source of truth; never expose its public TCP proxy unless explicitly required for administrative access.
-- Source of application truth: this GitHub repo. GitHub Actions checks on PR; approved changes to `main` deploy to Railway, with migrations and health checks. Keep production secrets in Railway variables, not in Git.
-- First address: platform-provided HTTPS domain. Use a custom domain later, without redesigning the app.
+## Recommended MVP: one VM, three containers (proposed)
 
-The production app is **not** the existing `prototype/index.html`; that prototype is a static in-memory simulation. As an optional short-term step, publish the existing public prototype with GitHub Pages for review, keeping it visibly separate from the real app.
+**Yandex Compute Cloud**, one Ubuntu Linux VM with a static public IP and persistent SSD-backed disk(s), in `ru-central1`:
 
-### Why start with one application origin?
+| Component | Implementation | Access |
+| --- | --- | --- |
+| HTTPS / frontend | Caddy (or nginx) and the production-built React/TypeScript PWA | public 443 |
+| API + MCP | FastAPI process/container with `/api/v1`, eventual `/mcp` and `/health` | internal reverse-proxy upstream only |
+| Database | PostgreSQL in Docker with its own persistent volume/disk | **private Docker network only**, never published publicly |
+| Database backups | scheduled `pg_dump` + encryption + upload to private Yandex Object Storage bucket in Russia | private service account privileges |
 
-Simpler TLS, cookie/session handling, URL routing, CI/deploys and no cross-origin PWA/API calls. The frontend may later move to a static CDN without changing business logic.
+Provision with Docker Compose, deployment scripts and (optionally) Terraform committed in the repo. Only the ingress web service exposes ports 80/443; enable a host firewall/security groups; SSH access should be limited and key-only, ideally via an operator-approved secure path. Production credentials are supplied through secured cloud/runtime configuration and never exposed to the frontend.
 
-## Authentication, authorizations and privacy
+The domain should use HTTPS (a custom domain is easiest for predictable PWA and OAuth callbacks). Caddy can obtain and renew Let's Encrypt certificates once DNS points to the reserved VM address. A dedicated Yandex Application Load Balancer and Certificate Manager are unnecessary for a single-VM MVP.
 
-- Use an established identity provider; do **not** implement a password database from scratch. Exact provider and sign-in methods (email magic link, social login) are still open.
-- For the PWA, favor a secure HttpOnly cookie session with CSRF protections and explicit user/device isolation. Never include secrets in the public JS bundle.
-- Each operation in the backend derives its owner from verified identity; do not trust arbitrary user IDs.
-- MCP needs **its own scoped, delegated OAuth** integration suitable for remote clients. Authenticate every tool call and require explicit consent for published program changes.
-- Important: as of 2026-10-19, ChatGPT documentation describes full custom MCP write/modify support for **Business / Enterprise / Edu** workspaces; do not assume Plus/Pro ChatGPT clients can edit programs through this MCP server. Validate intended accounts/client capability before relying on agent-driven modifications. Build the common API independently so an alternate capable MCP client or application-based authoring can be integrated later.
-- The service should follow EU privacy/data deletion principles for users, with encrypted transport and appropriate provider terms.
+### Initial capacity to test
 
-## Data safety and offline requirements
+- **Proposed:** 2 vCPU, **4 GB RAM**, 20–30 GB SSD, Ubuntu LTS. Add a separate persistent SSD data disk for PostgreSQL if doing so improves recoverability and allows replacing the application VM independently.
+- **Lower-cost test only:** Yandex's preconfigured 2 vCPU / 2 GB example is less comfortable when Postgres and a web API run together.
+- This is capacity planning, not a guaranteed benchmark; measure actual memory pressure, disk usage, concurrent sessions and sync spikes before sizing production.
+- No load balancer, Kubernetes, container orchestration service or managed database is needed for the initial pilot.
 
-- Persist training data in PostgreSQL, not an ephemeral application container filesystem.
-- Enable Railway volume backups and a separate periodic `pg_dump` export kept offsite; test restoring a dump into an isolated database. Consider PITR later if warranted.
-- The mobile PWA must save each set and its outbound operation atomically in IndexedDB, sync idempotently upon reconnection, and visibly distinguish locally-saved from server-confirmed.
-- Avoid deployments that discard pending changes in a running local PWA; version cached assets carefully and test app updates/offline restart.
-- Keep test/staging data separate from production users. Logs must not expose tokens or private workout details.
+## Why self-hosted PostgreSQL first?
 
-## Initial delivery sequence
+At tiny pilot scale it avoids a second, separately priced always-on managed service. In exchange, **we** own updates, database maintenance, monitoring, point-in-time availability constraints, backup and restore. A single VM remains a single failure domain. The normal offline-first app can keep logging during server downtime, but those records remain unsynced until the backend is restored.
 
-1. **Technical skeleton**: choose stack, create API/SPA layout, Dockerfile, local Compose+Postgres, test suite and a health endpoint.
-2. **Authoritative backend**: user identity/ownership, migrations, program/template versions, session snapshots, set writes and server-side progression rules.
-3. **Working PWA**: migrate prototype UI into React/TypeScript, implement durable IndexedDB/outbox, installability, correct active-session resumption and historical corrections.
-4. **First hosted environment**: Railway service + private PostgreSQL + HTTPS, secrets, backup/restore check, smoke tests from iOS and Android.
-5. **Agent bridge**: add MCP adapter using the same services; validate remote OAuth and client-specific read/write availability separately before promising ChatGPT agent edits.
-6. **Small pilot**: invite friends, monitor logs/errors, exercise offline recovery and cross-device conflicts, review cost and restore reliability.
+Move PostgreSQL to **Yandex Managed Service for PostgreSQL** (with a private network connection) if backup/SLA/maintenance needs outweigh the added price. Evaluate real managed-service prices using the calculator; a multi-host configuration is substantially more expensive than this first VM.
 
-A lower-effort alternative for static UI preview is GitHub Pages; **it cannot replace** the authenticated backend, database or remote MCP endpoint.
+## Data durability, backups and upgrades
 
-## Costs (indicative, not a quote)
+1. Database data lives on persistent disk rather than an ephemeral container layer.
+2. Run **daily** application-consistent PostgreSQL dumps to a **private Object Storage bucket in Yandex's Russian region**. Set a reasonable initial retention (e.g. 14–30 days), rotate backups, encrypt them and grant the upload service account minimal permissions.
+3. Optionally take scheduled VM/data-disk snapshots, but do **not** treat a raw online database disk snapshot as a substitute for a consistent PostgreSQL backup.
+4. Test restore into an isolated VM/DB and validate exercise/workout counts before accepting real users.
+5. Maintain an explicit RPO (daily backups can lose up to roughly 24 hours of server-confirmed changes) and recovery procedure; improve backup frequency if actual use requires it.
+6. Version PWA assets and service worker carefully, ensuring client IndexedDB outbox migrations do not discard pending entries.
+7. Use separate staging data or a separate environment for changes that may affect the database schema.
 
-Railway Hobby starts at **US$5/month** with **US$5 included resource usage**. Additional billing depends on CPU, RAM, disk, backups and outbound traffic. A preliminary small-instance budget for API + always-on Postgres is **US$10–25/month** before optional paid identity, domain, email, and AI API costs. Verify using live billing after deployment rather than assuming a guaranteed minimum.
+## CI, deploy, and ops
 
-## Alternative worth reconsidering
+- GitHub Actions on PR: lint, type checks, tests, build frontend/backend images.
+- Controlled deployment on an approved merge to `main`: transfer a versioned container image to the VM through an authenticated deployment channel (or pull from an approved registry), run tested schema migrations, health-check and restart services. Avoid baking secrets into the image.
+- Verify reachability from the intended operator's network and from Russian mobile networks. GitHub Actions and any international package registries must be tested for actual connectivity from the VM.
+- Enable health/status checks, free disk/RAM monitoring and backup success/failure alerts.
+- Set **Yandex Cloud Billing budget alerts**. Note: budget notifications do **not** automatically stop resource consumption.
 
-**Render** can run an API and managed PostgreSQL in **Frankfurt**, with separately priced services and static hosting. It is a reasonable choice if German region is preferable to Amsterdam or if the operator values its managed database setup more than keeping costs low.
+## Costs — preliminary, not a quote
 
-## Open decisions
+The published Yandex Compute Cloud examples for Russian region include:
+- roughly **1,659 ₽/month** for a minimal 2 vCPU / 2 GB with HDD and a dynamic IP;
+- roughly **2,513 ₽/month** for a 2 vCPU / 2 GB with SSD and a dynamic IP.
 
-1. Accept Railway/EU West or select another host; allocate hosting accounts and billing.
-2. Exact auth provider, user-invite onboarding and recovery mechanism; MCP OAuth provider/scopes.
-3. Whether to deploy static frontend separately later.
-4. Backups/retention/privacy policy and alerting.
-5. ChatGPT plan/client capabilities for remote MCP modifications; fallback agent workflow if unavailable.
+Our suggested **2 vCPU / 4 GB + SSD**, plus a reserved static IP, backup storage and related services, will cost more. For a small pilot, use a **3,000–5,000 ₽/month planning envelope**, *not* a guaranteed tariff. Confirm the exact bill with the live Yandex Cloud calculator before provisioning. Domain/identity provider, extra backup retention, disk snapshots, email, outbound traffic, and AI/API calls may add costs.
 
-### Documentation reviewed
+Object Storage has a small standard-storage free tier (first 1 GB and included operations) and usage-based storage/operation pricing. Compute Cloud outbound traffic has a published included monthly allowance, subject to provider rules.
 
-- [Railway deployment regions](https://docs.railway.com/deployments/regions)
-- [Railway pricing](https://docs.railway.com/pricing)
-- [Railway PostgreSQL](https://docs.railway.com/databases/postgresql)
-- [Railway Postgres backups](https://docs.railway.com/guides/postgres-backups-restores)
-- [Render regions](https://render.com/docs/regions)
-- [ChatGPT custom MCP server availability](https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt)
+## Rollout plan
+
+1. Confirm Yandex Cloud billing account, Russian region, domain and identity provider; keep secrets out of chat/repo.
+2. Scaffold Docker Compose with the frontend build, API, PostgreSQL, reverse proxy and initial migration tool.
+3. Run smoke tests locally; provision test VM + static IP + private Object Storage backups in Yandex Cloud.
+4. Connect GitHub Actions, HTTPS/domain, uptime/error/disk monitoring, restore procedure and budget alerts.
+5. Convert prototype functionality to production React/TypeScript PWA + FastAPI REST + IndexedDB outbox and verify offline behavior on iPhone and Android.
+6. Add progression services and MCP adapter; validate client-specific authentication/write permissions separately.
+7. Invite a few users after verifying multi-tenant authorization, data retention, backups and actual connectivity.
+
+## Pending decisions
+
+- Approve the specific Yandex Cloud VM-based layout (provider preference and Russian location already captured).
+- Exact VM size and disks after calculator quote.
+- Domain name, signup/identity provider, where user identity data is stored and legal data flows.
+- Whether to add shorter backup RPO, snapshots or a managed database.
+- CI registry/artifact route and monitoring tools.
+
+## Official provider documentation (reviewed 2026-10-19)
+
+- [Yandex Cloud regions](https://yandex.cloud/ru/docs/overview/concepts/region)
+- [Availability zones](https://yandex.cloud/ru/docs/overview/concepts/geo-scope)
+- [Compute Cloud preconfigured prices](https://yandex.cloud/ru/services/compute)
+- [Compute Cloud prices](https://yandex.cloud/ru/docs/compute/pricing)
+- [Static public IPv4](https://yandex.cloud/ru/docs/compute/operations/vm-control/vm-set-static-ip)
+- [Managed PostgreSQL prices](https://yandex.cloud/ru/docs/managed-postgresql/pricing)
+- [Object Storage prices](https://yandex.cloud/ru/docs/storage/pricing)
+- [Disk snapshots and consistency](https://yandex.cloud/ru/docs/compute/concepts/snapshot)
+- [Cloud billing budgets](https://yandex.cloud/ru/docs/billing/concepts/budget)

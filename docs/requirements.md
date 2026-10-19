@@ -8,6 +8,7 @@ Track progress in strength training while minimizing interaction during workouts
 
 - Multi-user service: every person has their own account and private history.
 - Support both iOS/iPhone and Android.
+- Host the Gym application and its operational personal-data storage and backups in **Russia**. **Yandex Cloud is the preferred provider**; specific services/topology remain proposed (ADR-0009).
 - Poor or absent connectivity must not block recording a set.
 - The mobile UI supports active workouts, past sessions, statistics and graphs.
 - A personal AI agent modifies programs via API/MCP; a full visual program editor can wait.
