@@ -28,7 +28,9 @@ This list deliberately separates **unresolved** design questions from accepted A
 
 ## Implementation
 
-- Approve stack: PWA framework, backend runtime, storage, hosting.
+- Approve stack: PWA framework, backend runtime, storage, hosting. See the [hosting proposal](hosting.md) for Railway (EU West), single-origin FastAPI PWA/API/MCP, and private PostgreSQL.
+- Confirm real MCP write/modify availability for intended ChatGPT accounts; write support in ChatGPT is plan/workspace dependent.
+- Choose identity provider and OAuth strategy before publicly onboarding friends.
 - Formal REST/MCP contracts and client operation envelope.
 - MVP cutline and acceptance tests across iOS and Android.
 

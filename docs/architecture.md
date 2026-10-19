@@ -47,4 +47,4 @@ Best-effort background delivery may be used on supported Android browsers. iOS P
 
 ## Operational choices still open
 
-Hosting, auth provider, offline protocol, local cache policy, deployment topology and schema details.
+Hosting, auth provider, offline protocol, local cache policy, deployment topology and schema details. A concrete **unapproved** proposal is in [hosting.md](hosting.md).
