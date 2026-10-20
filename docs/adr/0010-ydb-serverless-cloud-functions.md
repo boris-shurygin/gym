@@ -16,6 +16,6 @@ An optional prepared/provisioned Cloud Function instance can be evaluated as a l
 
 ## Consequences and remaining choices
 
-YDB/YQL differs from PostgreSQL; prove schema/index queries, idempotency, transaction retries and migrations with YDB integration tests. Schema migrations must run independently of function requests. Keep old cached mobile clients compatible across releases. The proposed CI/CD process is described in [ci-cd.md](../ci-cd.md) and is **not accepted by this ADR**.
+YDB/YQL differs from PostgreSQL; prove schema/index queries, idempotency, transaction retries and migrations with YDB integration tests. Schema migrations must run independently of function requests. Keep old cached mobile clients compatible across releases. CI/CD orchestration and release policy are accepted separately in [ADR-0011](0011-github-actions-cicd.md); see the [CI/CD specification](../ci-cd.md).
 
 Open: exact functions and API routing, auth, YDB model and migrations, frontend HTTPS/CORS, MCP host/streaming, backup and production approval.

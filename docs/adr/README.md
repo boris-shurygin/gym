@@ -12,5 +12,6 @@ Accepted architectural decisions are listed below. All document bodies record co
 - [ADR-0008: Set-volume progress bars and planned defaults](0008-set-volume-progress-bars.md)
 - [ADR-0009: Russian hosting, Yandex Cloud preferred](0009-russian-hosting.md)
 - [ADR-0010: YDB Serverless and Cloud Functions for Gym](0010-ydb-serverless-cloud-functions.md)
+- [ADR-0011: GitHub Actions CI/CD and Yandex Cloud deployment](0011-github-actions-cicd.md)
 
 Status vocabulary: `Accepted`, `Proposed`, `Superseded`.

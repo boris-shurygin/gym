@@ -20,7 +20,7 @@ This ADR does **not** approve Compute Cloud vs Serverless Containers, self-hoste
 - Keep public application hosting, database, operational logs and backups in the Russian region.
 - Choose infrastructure, identity integration and service accounts with this constraint in mind.
 - Evaluate privacy law and any cross-border data flows (e.g. external identity providers or AI services) separately; physical placement alone does not establish compliance.
-- Review the single-VM proposal's reliability and backup/restore trade-offs before real-user launch.
+- The VM proposal was superseded by YDB/Cloud Functions (ADR-0010); validate serverless availability and backup/restore before real-user launch.
 
 ## Open details
 

@@ -28,10 +28,13 @@ This list deliberately separates **unresolved** design questions from accepted A
 
 ## Implementation
 
-- Selected infrastructure: Russian Yandex Cloud, YDB Serverless/SQLAlchemy 2.0 with Cloud Functions API (ADR-0010). Detail [hosting](hosting.md) and review [proposed CI/CD](ci-cd.md).
+- Selected infrastructure: Russian Yandex Cloud, YDB Serverless/SQLAlchemy 2.0 with Cloud Functions API (ADR-0010). See [hosting](hosting.md) and accepted [CI/CD](ci-cd.md) (ADR-0011).
 - Confirm real MCP write/modify availability for intended ChatGPT accounts; write support in ChatGPT is plan/workspace dependent.
 - Choose identity provider and OAuth strategy before publicly onboarding friends; check storage/data flows and relevant Russian personal-data rules.
 - Choose frontend HTTPS domain/API origin, backup/restore requirements, Cloud Functions release permissions and staging/production isolation.
+- Implement a one-off **Yandex Cloud-hosted** migration/backfill job triggered and tracked from GitHub Actions; decide YDB migration revision bookkeeping and partial-DDL recovery.
+- Define retention/support window for old offline PWA clients and API contracts; keep backward compatibility until explicitly changed.
+- Monitor GitHub Actions artifact/cache storage quotas; re-evaluate billing if this currently public repository becomes private or if larger runners are needed.
 - Validate migrations and recovery when YDB DDL partially succeeds; old offline PWA clients must remain compatible.
 - Formal REST/MCP contracts and client operation envelope.
 - MVP cutline and acceptance tests across iOS and Android.

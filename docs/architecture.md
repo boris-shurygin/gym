@@ -47,4 +47,4 @@ Best-effort background delivery may be used on supported Android browsers. iOS P
 
 ## Operational choices still open
 
-Russian hosting and Yandex Cloud are required (ADR-0009); YDB Serverless and Cloud Functions API are selected (ADR-0010). Detailed database migrations, API compatibility, authentication, MCP transport and CI/CD release gates remain open. See [hosting](hosting.md) and proposed [CI/CD](ci-cd.md).
+Russian hosting and Yandex Cloud are required (ADR-0009); YDB Serverless and Cloud Functions API are selected (ADR-0010). The GitHub Actions CI/CD workflow and release gates are accepted (ADR-0011). Database migration implementation, offline compatibility period, authentication and MCP transport remain open. See [hosting](hosting.md) and accepted [CI/CD](ci-cd.md).

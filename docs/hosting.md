@@ -9,9 +9,9 @@
 - YDB Serverless for user-owned programs, sessions, sets and sync operation IDs; SQLAlchemy 2.0 with `ydb-sqlalchemy` dialect.
 - Optional Cloud Function provisioned instance to improve cold-start latency; select memory and reserve capacity only after benchmarking the function package and reviewing fixed costs.
 - MCP adapter shares business logic, but the final hosting of Streamable HTTP endpoint requires separate transport validation (possibly Serverless Containers).
-- GitHub Actions (OIDC federation) for deployment, separate staging and production resources; an API version tag controls promotion.
+- **Accepted CI/CD (ADR-0011):** GitHub Actions standard hosted Ubuntu runners for PR builds/tests and deployment orchestration; federated OIDC access to Yandex IAM, separate staging/prod cloud resources; automatic staging on merge to `main`, manually approved production. Production YDB schema/backfill jobs execute inside Yandex Cloud and report status to GitHub; exact one-off job service remains open. API version tags control promotion.
 
-No VM/PostgreSQL is required for this MVP. A prior single-VM plan is superseded.
+No VM/PostgreSQL is required for this MVP. A prior single-VM plan is superseded. No dedicated CI server is needed: GitHub standard hosted runner minutes are currently free for this public repo (subject to artifact/cache quotas), while Yandex Cloud usage is billed separately.
 
 ## Data and operation constraints
 
@@ -21,7 +21,7 @@ Object Storage static hosting requires suitable HTTPS/domain configuration. Plan
 
 Backups of YDB, restore verification, least-privilege cloud identities, isolated environments and private account data are requirements before the first real-user pilot.
 
-See [CI/CD and migrations](ci-cd.md) for the **proposed**, not-yet-accepted release workflow and [open questions](open-questions.md) for unfinished choices.
+See [CI/CD and migrations](ci-cd.md) for the **accepted**, not-yet-implemented release workflow and [open questions](open-questions.md) for unfinished choices.
 
 ## References
 

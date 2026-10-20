@@ -14,9 +14,10 @@ This repository is currently in the **design phase**.
 1. Read README.md and the relevant docs before proposing code or architecture.
 2. Before changing an accepted decision, discuss trade-offs and record the superseding decision in an ADR.
 3. Prefer small reviewable changes, with related documentation updates.
-4. Do not start application implementation until the user asks for it; do not finalize a technical stack by assumption.
+4. Do not start application implementation until the user asks for it. YDB/Cloud Functions (ADR-0010) and GitHub Actions (ADR-0011) are already agreed; do not replace them by assumption.
 5. Explicitly document new assumptions, missing invariants and operational risks.
 6. Prefer tests for progression, authorization, synchronization/idempotency and historical corrections when implementation begins.
+7. Read [CI/CD](docs/ci-cd.md) before creating workflows. PR runners must not access production data; production migrations run in Yandex Cloud separately from HTTP requests.
 
 ## Core product rules
 

@@ -7,7 +7,7 @@ A multi-user workout tracking system built around two complementary workflows:
 
 The **agent defines training strategy and progression rules**; the **backend calculates the actual prescribed loads**. Training logs remain separate from plans and are not rewritten when a program changes.
 
-**Project status:** design. The implementation stack and detailed contracts are not yet finalized.
+**Project status:** design with accepted UX and deployment decisions (ADRs). The production PWA/API, GitHub Actions workflows and Yandex Cloud resources have not been implemented.
 
 ## Documentation
 
@@ -16,7 +16,7 @@ The **agent defines training strategy and progression rules**; the **backend cal
 | [Requirements](docs/requirements.md) | Product scope and quality requirements |
 | [Architecture](docs/architecture.md) | System components and data flows |
 | [Hosting](docs/hosting.md) | Serverless hosting: Yandex Cloud, Cloud Functions, YDB |
-| [CI/CD](docs/ci-cd.md) | Proposed tests, staged releases and YDB migrations |
+| [CI/CD](docs/ci-cd.md) | Accepted GitHub Actions PR tests, staging/production releases and YDB migrations |
 | [Domain model](docs/domain-model.md) | Core concepts, invariants, workout and progression states |
 | [Mobile app](docs/mobile-app.md) | UX, offline logging and statistics |
 | [Agent integration](docs/agent-integration.md) | MCP, API and agent responsibilities |

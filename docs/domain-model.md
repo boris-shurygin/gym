@@ -1,6 +1,6 @@
 # Domain model — draft
 
-Conceptual entities; these are **not** final database schemas.
+Conceptual entities; these are **not** final database schemas. The target DB is YDB Serverless with SQLAlchemy 2.0 (`ydb-sqlalchemy`) per ADR-0010; schema evolution must preserve offline-client compatibility per ADR-0011.
 
 ## Definitions
 
