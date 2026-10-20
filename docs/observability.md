@@ -1,6 +1,6 @@
-# Observability proposal — Gym on Yandex Cloud
+# Observability — Gym on Yandex Cloud
 
-**Status: Proposed, not accepted or implemented.** Reviewed 2026-10-20.
+**Status:** Client telemetry delivery is **Accepted (ADR-0012)**. The rest of the observability plan (backend/platform logs, dashboards, alerts, specific monitoring thresholds) remains **Proposed**. No monitoring infrastructure is implemented. Reviewed 2026-10-20.
 
 Scope: structured backend logs, platform and custom metrics, alarms, dashboards, release correlation, client offline diagnosis and cost control. Selected infrastructure remains **Yandex API Gateway → Cloud Functions → YDB Serverless**, plus static PWA (ADR-0010) and GitHub Actions CI/CD (ADR-0011). This document does not change accepted architecture.
 
@@ -81,13 +81,80 @@ Example log (fictional):
 
 Start with platform metrics plus event logs. For app counters, choose **OTLP custom metrics** or carefully vetted **Monium log-based derived metrics** after testing delivery, cost, correctness and behavior on idle serverless traffic. Monium log-derived metrics are currently **Preview**; avoid making a critical alarm depend solely on them before validation. Do not make synchronous external telemetry calls on every recorded set if they noticeably increase API latency.
 
-## Offline PWA client diagnostics
+## Client PWA telemetry: accepted design (ADR-0012)
 
-Store locally a bounded diagnostic ring buffer (e.g. last 50–100 non-sensitive events) separate from the **durable workout sync outbox**. Expose a Diagnostics screen: app/release version, online/offline state, unsynced operation count, age of oldest unsynced operation, last server ACK, and last IndexedDB/local save problem.
+### Transport and trust boundaries
 
-The server cannot know about a device that has been offline for days. It must not claim a zero global backlog based solely on inbound sync requests. On reconnect, only report safe aggregated diagnostics with user control and bounded frequency; do not allow diagnostic-report retries to clog the main workout outbox or cause recursive failures.
+```text
+PWA TelemetryClient (allowlisted events, counters, timings)
+  → small bounded local diagnostics buffer (NOT the workout outbox)
+    → batched, authenticated POST /api/v1/telemetry
+      → Yandex API Gateway → Python Cloud Function
+        → allowlist validation, rate/size limiting, sanitization
+          → bounded OTLP/HTTP delivery into Yandex Monium
+```
 
-Proposed low-risk events: IndexedDB storage failure, unhandled JS error, repeated failed sync attempts after reconnect, incompatible API error. Never send raw training data or account identifiers in unaudited analytics payloads.
+**No Yandex Cloud or Monium API tokens, IAM secrets, OTLP credentials, or metric writes in browser code.** PWA contacts Gym API, never Monium directly. The endpoint shares the normal application authentication trust boundary, with appropriate CSRF/CORS protections for the final session approach. The Cloud Function maps approved events and aggregated counters to **fixed known** structured logs or Monium metrics. The client must not choose arbitrary metric names, label keys or event fields.
+
+### TelemetryClient behavior
+
+- Record only a **versioned allowlist of event types**: `js_error`, `indexeddb_write_failed`, `sync_failed`, `sync_completed`, `api_request_slow`, `app_started`, `sw_update_failed`. Never forward all `console.log` or raw exceptions.
+- Aggregate repeated noncritical events/counters and timing samples locally. Use a **separate best-effort buffer** (suggested initial bounds: 100 events, 24-hour TTL) with drop-oldest/expiry. IndexedDB is preferred when available, with a bounded in-memory fallback if IndexedDB itself is failing; prevent recursive logging of telemetry failures.
+- While active and online, attempt a **small batch about once per minute** rather than one request per user interaction. A serious local-save failure may trigger an immediate best-effort attempt without blocking the UI.
+- On background/visibility change, optionally attempt `navigator.sendBeacon()` or `fetch(..., {keepalive:true})`, after verifying auth/cookie/header constraints. These are **not delivery guarantees**: a successful `sendBeacon()` only reports that browser accepted the data for sending, not that server received it.
+- When offline, retain only bounded/expiring diagnostics and retry on reconnect/foreground. Drop events once the limit is exceeded or retries are exhausted. **Never store diagnostic sends in the reliable workout operation outbox**, and never let telemetry retries block workout operations or steal their bandwidth indefinitely.
+- Expose a local **Diagnostics** view showing app version, online state, size and age of **workout** pending queue, last sync ACK and any recent local-save errors. The server cannot infer backlog on a device that has not reconnected.
+- Collection/consent UI, precise privacy disclosures and opt-out policy remain **open**, even though this transport is accepted; no broader user analytics or profiling is approved by this decision.
+
+### Accepted event data contract (illustrative schema)
+
+```json
+{
+  "schema_version": 1,
+  "app_version": "1.4.2",
+  "platform": "ios",
+  "events": [{
+    "type": "sync_failed",
+    "occurred_at": "2026-10-20T12:00:00Z",
+    "reason": "timeout",
+    "pending_operations": 5,
+    "duration_ms": 10000
+  }],
+  "summary": {
+    "period_seconds": 60,
+    "counters": {"sync_attempts": 4, "sync_failures": 1, "indexeddb_errors": 0},
+    "sync_duration_ms": [120, 95, 140]
+  }
+}
+```
+
+Field names, schema version and example bounds are illustrative, **not the final OpenAPI definition**. Backend validates authentication, event types, numeric ranges, payload bytes, batch size, request frequency and all labels. Allowed diagnostic data: stable error code/class, coarse platform, app/release version, route **template**, duration, operation counts, queue size/age. **Disallowed:** exercise names, weights/reps, notes, raw exception messages or stacks, full URLs/IDs, emails, passwords, access tokens, request/response bodies and user identifiers as metric dimensions. Client input is untrusted.
+
+### Counters and reliability guarantees
+
+- PWA sends an **aggregated summary**, not direct Monium counters. Cloud Function emits whitelisted structured events and/or converts selected sums/timings to low-cardinality OTLP metrics. The exact choice between native OTLP metrics and vetted log-derived aggregates is an **implementation detail still to verify**; log-based metrics are presently Preview.
+- Best-effort retries can **lose or duplicate batches**, and arbitrary clients can misreport counts. Client telemetry is for diagnostics only, **never authoritative** for progression, number of saved sets, auditing, integrity or billing.
+- A successful workout commit is independent of telemetry delivery. Export to Monium must have a **bounded timeout** and complete/flush inside the function invocation; don't assume post-return background tasks execute. Monium outage must not make a saved set fail or prompt a duplicate workout write. The endpoint may report telemetry failure, but the client retries only within bounded resources.
+- Business history, set corrections and program publication audit remain in **YDB**; the durable IndexedDB → server sync pipeline retains its separate exactly-once-effect/idempotency requirements.
+- Never emit personal production data into GitHub runners, analytics vendors or uncontrolled debug streams.
+
+### Test/acceptance cases
+
+1. PWA JS bundle and API responses contain no Monium credentials or IAM keys.
+2. Normal telemetry emits batches, not per-click HTTP calls, and reaches the authenticated Cloud Function/Monium with validated fields.
+3. Offline use, reload and API outages keep diagnostics bounded, without dropping/changing **workout** outbox records.
+4. IndexedDB failure has a nonrecursive bounded fallback; app still records sets whenever storage is available.
+5. Invalid, oversized, unauthenticated and excessive requests fail/rate-limit safely; arbitrary metric labels/events are rejected.
+6. Simulate Monium failure and slow OTLP delivery: Gym's recording and reliable sync still work.
+7. Background `sendBeacon()` and keepalive sending remain optional and unreliable; no false delivery confirmation.
+8. Raw PII/training details, stack messages and literal IDs are redacted or rejected.
+
+### Still open for implementation
+
+- Final OpenAPI schema, batch max bytes, rate limits, backoff and retention values.
+- Opt-in/out, consent and disclosures for each category of client-side diagnostics.
+- Auth/CSRF for beacon/keepalive; browser platform verification.
+- Bounded Cloud Functions → Monium OTLP exporter/metric conversion, server telemetry costs and Monium credentials handling.
 
 ## Minimal dashboards
 
@@ -143,7 +210,7 @@ Sources: [Monium pricing](https://yandex.cloud/ru/docs/monium/pricing), [Monium 
 5. Durable audit entries for published programs and historical corrections in YDB.
 
 **Next iteration (P1)**
-1. Custom sync outcome counters and latency, client diagnostic events with rate limits, root-cause examples.
+1. Implement the **accepted ADR-0012** PWA telemetry pathway and custom sync outcome counters/latency (if not included in the initial rollout); rate-limit and sanitize client reports.
 2. Train on baseline traffic; adjust low-volume thresholds. Verify alerts with simulated failures.
 3. More detailed RU budget and per-route performance views.
 
@@ -153,12 +220,12 @@ Sources: [Monium pricing](https://yandex.cloud/ru/docs/monium/pricing), [Monium 
 
 ## Open choices for a follow-up decision
 
-- Approve Monium-first observability; final mechanism of structured Cloud Functions logs → Monium.
+- Finalize **Monium-first backend observability** and the Cloud Functions → Monium export mechanism; PWA transport to Cloud Functions is already accepted in ADR-0012.
 - Alert destinations and who is on-call (Telegram vs email); severity thresholds after observing traffic.
-- Client crash-report policy and opt-in/privacy approach.
+- Client crash-report opt-in/privacy policy and exact events/batch constraints (transport is accepted in ADR-0012).
 - Synthetic probe implementation and external/out-of-cloud checks if desired.
 - How backup verification and its last-success metric are scheduled.
 - Whether app counters are sent directly as OTLP metrics or derived from logs.
 - Confirm production budget amounts and thresholds once a billing account exists.
 
-This is a **proposal** for review. Do not mark it Accepted or create an ADR until discussed.
+Only the **PWA telemetry architecture** has been accepted in ADR-0012. All other observability details in this document remain proposals until explicitly agreed.

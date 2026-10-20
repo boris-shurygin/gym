@@ -35,6 +35,7 @@ Track progress in strength training while minimizing interaction during workouts
 
 - **Usability:** very few taps per set; text/voice input not required in the gym.
 - **Durability:** record saved locally before UI acknowledges it; sync retries are safe.
+- **Client diagnostics (ADR-0012):** batched authenticated best-effort telemetry via API Gateway/Cloud Functions to Monium, in a separate bounded buffer, never blocking durable workout operations. Sanitize events and keep Monium keys out of PWA.
 - **Security:** separate ownership, server-side access checks; never trust user_id in a client payload.
 - **Auditability:** versions and corrections are traceable.
 - **Portability:** mobile-first installable PWA where supported.

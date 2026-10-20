@@ -23,6 +23,7 @@ This repository is currently in the **design phase**.
 
 - Personal programs, workouts and analytics belong to individual users. Authenticate and authorize every operation server-side.
 - Logging sets must work offline; background sync is best-effort, never a correctness dependency.
+- PWA diagnostic telemetry is best-effort and separate from the durable workout outbox (ADR-0012); route it through authenticated Gym API and keep Monium credentials out of the browser.
 - The server is authoritative for the published program and progression calculations.
 - Separate planned targets from performed results. Updating a program must not rewrite historical workouts.
 - Agent writes go through application services and validation, with explicit approval for program publication.

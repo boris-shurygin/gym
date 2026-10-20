@@ -28,9 +28,10 @@ This list deliberately separates **unresolved** design questions from accepted A
 
 ## Logging and monitoring (proposal)
 
-- Review the [Monium-first observability proposal](observability.md): structured safe logs, platform/custom metrics, sparse-traffic alerting and client sync diagnostics. No observability decisions are accepted yet.
+- **Accepted (ADR-0012):** PWA TelemetryClient → bounded separate best-effort buffer → batched authenticated `/api/v1/telemetry` → Cloud Functions validation → Monium. Never put diagnostic retries in the workout outbox.
+- Review the **remaining** [observability proposal](observability.md): platform/backend logs, custom metric strategy, sparse-traffic alerting and dashboard design. These parts are not yet accepted.
 - Validate Cloud Functions log delivery directly into Monium rather than relying on the deprecated Cloud Logging pipeline; choose an OTLP strategy safe under function termination.
-- Define production notification recipients, synthetic health checks, backup age/restore verification, actual cost budgets and privacy of optional client reports.
+- Define production notification recipients, synthetic health checks, backup age/restore verification, actual cost budgets and **PWA telemetry consent/opt-out policy, final schema and rate limits**.
 
 ## Implementation
 
