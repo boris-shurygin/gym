@@ -103,7 +103,7 @@ Use Yandex IAM Workload Identity Federation with GitHub Actions OIDC (temporary 
 
 Actual function build package method, Alembic revision bookkeeping and partial-migration recovery scripts, runtime identity provider, approval mechanism, PWA/API compatibility window, domain/CORS/cookies, and available recovery RPO.
 
-**Logging, metrics, counters, alerting and dashboards are explicitly deferred to a separate design discussion.** CI will only require pass/fail checks and release/smoke-test results at this stage.
+**Logging, metrics, counters, alerting and dashboards are outside the accepted CI/CD decisions.** A separate [observability proposal](observability.md) is available for review. CI requires pass/fail checks and minimal release/smoke-test signals.
 
 ## Provider docs
 

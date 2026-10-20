@@ -21,7 +21,7 @@ Object Storage static hosting requires suitable HTTPS/domain configuration. Plan
 
 Backups of YDB, restore verification, least-privilege cloud identities, isolated environments and private account data are requirements before the first real-user pilot.
 
-See [CI/CD and migrations](ci-cd.md) for the **accepted**, not-yet-implemented release workflow and [open questions](open-questions.md) for unfinished choices.
+See [CI/CD and migrations](ci-cd.md) for the **accepted**, not-yet-implemented release workflow, the [observability proposal](observability.md) for monitoring/logging, and [open questions](open-questions.md) for unfinished choices.
 
 ## References
 

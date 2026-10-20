@@ -26,6 +26,12 @@ This list deliberately separates **unresolved** design questions from accepted A
 - What scopes and explicit approval policy are required for agent changes?
 - Shared program templates or social features after MVP?
 
+## Logging and monitoring (proposal)
+
+- Review the [Monium-first observability proposal](observability.md): structured safe logs, platform/custom metrics, sparse-traffic alerting and client sync diagnostics. No observability decisions are accepted yet.
+- Validate Cloud Functions log delivery directly into Monium rather than relying on the deprecated Cloud Logging pipeline; choose an OTLP strategy safe under function termination.
+- Define production notification recipients, synthetic health checks, backup age/restore verification, actual cost budgets and privacy of optional client reports.
+
 ## Implementation
 
 - Selected infrastructure: Russian Yandex Cloud, YDB Serverless/SQLAlchemy 2.0 with Cloud Functions API (ADR-0010). See [hosting](hosting.md) and accepted [CI/CD](ci-cd.md) (ADR-0011).

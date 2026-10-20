@@ -17,6 +17,7 @@ The **agent defines training strategy and progression rules**; the **backend cal
 | [Architecture](docs/architecture.md) | System components and data flows |
 | [Hosting](docs/hosting.md) | Serverless hosting: Yandex Cloud, Cloud Functions, YDB |
 | [CI/CD](docs/ci-cd.md) | Accepted GitHub Actions PR tests, staging/production releases and YDB migrations |
+| [Observability](docs/observability.md) | Proposed logs, metrics, diagnostics, alerts and cost controls |
 | [Domain model](docs/domain-model.md) | Core concepts, invariants, workout and progression states |
 | [Mobile app](docs/mobile-app.md) | UX, offline logging and statistics |
 | [Agent integration](docs/agent-integration.md) | MCP, API and agent responsibilities |
