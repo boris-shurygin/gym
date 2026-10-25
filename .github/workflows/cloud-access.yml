@@ -1,0 +1,53 @@
+name: Cloud access
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Окружение для проверки OIDC без деплоя"
+        required: true
+        default: staging
+        type: choice
+        options: [staging, production]
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Проверить bootstrap без облачного доступа
+        run: |
+          command -v pwsh
+          python3 -m unittest discover -s tests/infra -p 'test_*.py' -v
+
+  oidc:
+    needs: bootstrap-tests
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Проверить OIDC и изоляцию окружений
+        env:
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_OTHER_FOLDER_ID: ${{ vars.YC_OTHER_FOLDER_ID }}
+          YC_SERVICE_ACCOUNT_ID: ${{ vars.YC_SERVICE_ACCOUNT_ID }}
+          YC_OIDC_AUDIENCE: ${{ vars.YC_OIDC_AUDIENCE }}
+          GYM_ENVIRONMENT: ${{ vars.GYM_ENVIRONMENT }}
+        run: python3 infra/verify_oidc.py

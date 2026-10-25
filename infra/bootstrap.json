@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "cloud_id": "b1ghmudqihbvpnscd2fq",
+  "organization_id": "bpf0t8ve1h1ckdn59bot",
+  "repository": "boris-shurygin/gym",
+  "repository_subject_prefix": "repo:boris-shurygin@8566203/gym@1424201451",
+  "monthly_budget_rub": 3000,
+  "billing_account_id": "dn2mofghd2m9jbh95ht1",
+  "budget_end_date": "2027-10-31",
+  "folders": [
+    {"key": "delivery", "name": "gym-delivery"},
+    {"key": "staging", "name": "gym-staging"},
+    {"key": "production", "name": "gym-production"}
+  ],
+  "accounts": [
+    {"key": "artifacts_ci", "folder": "delivery", "name": "gym-artifacts-ci", "subject": "repo:boris-shurygin@8566203/gym@1424201451:ref:refs/heads/main"},
+    {"key": "staging_ci", "folder": "staging", "name": "gym-staging-ci", "subject": "repo:boris-shurygin@8566203/gym@1424201451:environment:staging"},
+    {"key": "production_ci", "folder": "production", "name": "gym-production-ci", "subject": "repo:boris-shurygin@8566203/gym@1424201451:environment:production"},
+    {"key": "staging_api", "folder": "staging", "name": "gym-staging-api"},
+    {"key": "staging_gateway", "folder": "staging", "name": "gym-staging-gateway"},
+    {"key": "staging_migrations", "folder": "staging", "name": "gym-staging-migrations"},
+    {"key": "production_api", "folder": "production", "name": "gym-production-api"},
+    {"key": "production_gateway", "folder": "production", "name": "gym-production-gateway"},
+    {"key": "production_migrations", "folder": "production", "name": "gym-production-migrations"}
+  ],
+  "federation": {
+    "name": "gym-github",
+    "issuer": "https://token.actions.githubusercontent.com",
+    "jwks_url": "https://token.actions.githubusercontent.com/.well-known/jwks",
+    "audience": "https://github.com/boris-shurygin/gym"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "database_name": "gym",
+  "function_name": "gym-api",
+  "gateway_name": "gym-gateway",
+  "migration_container_name": "gym-migrations",
+  "registry_name": "gym-releases",
+  "ydb_throttling_ru_per_second": 10,
+  "ydb_storage_limit": "1GB",
+  "ydb_provisioned_ru": 0,
+  "bucket_max_bytes": 1073741824,
+  "buckets": {
+    "delivery": "gym-delivery-b1ghmudqihbvpnscd2fq",
+    "staging": "gym-staging-b1ghmudqihbvpnscd2fq",
+    "production": "gym-production-b1ghmudqihbvpnscd2fq"
+  }
+}

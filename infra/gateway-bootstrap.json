@@ -1,0 +1,17 @@
+{
+  "openapi": "3.0.0",
+  "info": {"title": "Gym", "version": "bootstrap"},
+  "paths": {
+    "/": {
+      "get": {
+        "responses": {"503": {"description": "Application is not deployed"}},
+        "x-yc-apigateway-integration": {
+          "type": "dummy",
+          "http_code": 503,
+          "http_headers": {"Content-Type": "application/json", "Cache-Control": "no-store"},
+          "content": {"application/json": "{\"code\":\"NOT_DEPLOYED\"}"}
+        }
+      }
+    }
+  }
+}
