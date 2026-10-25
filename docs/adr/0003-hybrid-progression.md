@@ -1,23 +1,23 @@
-# ADR-0003: Hybrid progression
+# ADR-0003: Гибридная прогрессия
 
-- **Status:** Accepted
-- **Date:** 2026-10-18
+- **Статус:** Принят
+- **Дата:** 2026-10-18
 
-## Context
+## Контекст
 
-The agent should be able to adapt long-term training while ordinary workouts do not require a conversation or model call. Calculations should be reproducible and explainable.
+Агент должен адаптировать долгосрочный тренировочный процесс, а обычные тренировки не должны требовать диалога или вызова модели. Расчёты должны быть воспроизводимы и объяснимы.
 
-## Decision
+## Решение
 
-The AI agent sets and revises progression rules and may propose program edits; the backend deterministically computes the concrete planned loads and targets from those rules and workout history. Record version information sufficient to explain a recommendation. Keep the workout plan distinct from actual results.
+ИИ-агент задаёт и пересматривает правила прогрессии и может предлагать изменения программы; сервер детерминированно рассчитывает конкретные плановые нагрузки и цели по этим правилам и истории тренировок. Сохранять достаточно информации о версиях для объяснения рекомендации. Разделять план тренировки и фактические результаты.
 
-## Consequences
+## Последствия
 
-- Rules must have a typed/versioned schema and server-side validation.
-- Computed progression state should be reproducible from authoritative information.
-- Session snapshots prevent program changes from retroactively rewriting workouts.
-- Agent-specific heuristic reasoning stays separate from the calculation engine.
+- Правилам нужны типизированная/версионируемая схема и серверная валидация.
+- Рассчитанное состояние прогрессии должно воспроизводиться из достоверных исходных данных.
+- Снимки занятий не дают изменениям программы переписывать тренировки задним числом.
+- Эвристические рассуждения агента остаются отдельно от расчётного движка.
 
-## Not decided
+## Не решено
 
-Available rule types, exact failure/recovery behavior, deload handling and per-session overrides.
+Доступные типы правил, точное поведение при неудаче/восстановлении, обработка разгрузок и разовые изменения для занятия.

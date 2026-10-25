@@ -1,30 +1,30 @@
-# Hosting: Yandex Cloud serverless
+# Хостинг: бессерверная инфраструктура Yandex Cloud
 
-**Accepted direction:** Russian hosting with Yandex Cloud (ADR-0009), YDB Serverless via SQLAlchemy 2.0 and Python Cloud Functions for REST (ADR-0010). **Not yet deployed.** Details below remain design proposals.
+**Принятое направление:** российский хостинг в Yandex Cloud (ADR-0009), YDB Serverless через SQLAlchemy 2.0 и Python Cloud Functions для REST (ADR-0010). **Ещё не развёрнуто.** Подробности ниже остаются проектными предложениями.
 
-## Planned topology
+## Планируемая топология
 
-- Mobile PWA (React/TypeScript, offline IndexedDB) served via HTTPS from Yandex Object Storage.
-- API Gateway `/api/v1` → Python Cloud Function implementing modular application services.
-- YDB Serverless for user-owned programs, sessions, sets and sync operation IDs; SQLAlchemy 2.0 with `ydb-sqlalchemy` dialect.
-- Optional Cloud Function provisioned instance to improve cold-start latency; select memory and reserve capacity only after benchmarking the function package and reviewing fixed costs.
-- **PWA telemetry (ADR-0012):** authenticated, rate-limited `/api/v1/telemetry` via API Gateway and Cloud Functions; sanitized batched events and fixed counters sent through bounded OTLP/HTTP to Monium. No Monium credentials in PWA, no extra always-on collector.
-- MCP adapter shares business logic, but the final hosting of Streamable HTTP endpoint requires separate transport validation (possibly Serverless Containers).
-- **Accepted CI/CD (ADR-0011):** GitHub Actions standard hosted Ubuntu runners for PR builds/tests and deployment orchestration; federated OIDC access to Yandex IAM, separate staging/prod cloud resources; automatic staging on merge to `main`, manually approved production. Production YDB schema/backfill jobs execute inside Yandex Cloud and report status to GitHub; exact one-off job service remains open. API version tags control promotion.
+- Мобильная PWA (React/TypeScript, IndexedDB для работы без сети) раздаётся по HTTPS из Yandex Object Storage.
+- API Gateway `/api/v1` → Python Cloud Function с модульными прикладными сервисами.
+- YDB Serverless для пользовательских программ, занятий, подходов и идентификаторов операций синхронизации; SQLAlchemy 2.0 с диалектом `ydb-sqlalchemy`.
+- Необязательный подготовленный экземпляр Cloud Function для уменьшения задержки холодного старта; выбирать память и резервировать мощность только после измерения производительности пакета функции и оценки постоянных затрат.
+- **Телеметрия PWA (ADR-0012):** аутентифицированный `/api/v1/telemetry` с ограничением частоты через API Gateway и Cloud Functions; очищенные пакетные события и фиксированные счётчики отправляются в Monium по OTLP/HTTP с ограничением времени/ресурсов. Без учётных данных Monium в PWA и без дополнительного постоянно работающего сборщика.
+- Адаптер MCP использует общую бизнес-логику, но окончательный хостинг точки доступа Streamable HTTP требует отдельной проверки транспорта (возможно, Serverless Containers).
+- **Принятый CI/CD (ADR-0011):** стандартные временные исполнители Ubuntu в GitHub Actions для сборки/тестов PR и оркестрации развёртывания; федеративный доступ OIDC к Yandex IAM, отдельные облачные ресурсы staging/production; автоматический staging при слиянии в `main`, ручное одобрение production. Промышленные задания изменения схемы YDB/заполнения данных выполняются внутри Yandex Cloud и сообщают результат GitHub; конкретный сервис разовых заданий ещё не выбран. Продвижение версии API управляется тегами.
 
-No VM/PostgreSQL is required for this MVP. A prior single-VM plan is superseded. No dedicated CI server is needed: GitHub standard hosted runner minutes are currently free for this public repo (subject to artifact/cache quotas), while Yandex Cloud usage is billed separately.
+Для этого MVP не требуются ВМ/PostgreSQL. Прежний план с одной ВМ заменён. Выделенный сервер CI не нужен: минуты стандартных исполнителей GitHub сейчас бесплатны для этого публичного репозитория (с учётом квот артефактов/кэша), а Yandex Cloud оплачивается отдельно.
 
-## Data and operation constraints
+## Ограничения по данным и эксплуатации
 
-The ORM does not make YDB equivalent to PostgreSQL. Use explicit primary keys, carefully designed indexes and integration tests for operation deduplication, transaction retries, RU cost and authorization. Migration scripts must be tested against YDB DDL semantics. No DDL on function startup or user HTTP requests.
+ORM не делает YDB эквивалентом PostgreSQL. Нужны явные первичные ключи, продуманные индексы и интеграционные тесты устранения дублей операций, повторов транзакций, стоимости RU и авторизации. Скрипты миграций должны проверяться с учётом семантики DDL YDB. Никакого DDL при старте функции или в пользовательских HTTP-запросах.
 
-Object Storage static hosting requires suitable HTTPS/domain configuration. Plan for old, offline PWA clients and cached JS continuing to use supported API versions after a release.
+Статический хостинг Object Storage требует подходящей настройки HTTPS/домена. Нужно учитывать старые клиенты PWA без сети и кэшированный JS, которые после выпуска продолжают использовать поддерживаемые версии API.
 
-Backups of YDB, restore verification, least-privilege cloud identities, isolated environments and private account data are requirements before the first real-user pilot.
+Резервные копии YDB, проверка восстановления, облачные учётные записи с минимальными правами, изолированные окружения и защита личных данных аккаунтов обязательны до первого пилота с реальными пользователями.
 
-See [CI/CD and migrations](ci-cd.md) for the **accepted**, not-yet-implemented release workflow, the [observability design](observability.md) for the accepted PWA telemetry path (ADR-0012) and other monitoring proposals, and [open questions](open-questions.md) for unfinished choices.
+См. [CI/CD и миграции](ci-cd.md) — **принятый**, но ещё не реализованный процесс выпуска; [проект наблюдаемости](observability.md) — принятый путь телеметрии PWA (ADR-0012) и остальные предложения по мониторингу; [открытые вопросы](open-questions.md) — нерешённые задачи.
 
-## References
+## Источники
 
 - https://ydb.tech/docs/ru/integrations/orm/sqlalchemy
 - https://yandex.cloud/ru/docs/api-gateway/concepts/extensions/cloud-functions

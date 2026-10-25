@@ -1,21 +1,21 @@
-# ADR-0010: YDB Serverless and Cloud Functions for Gym
+# ADR-0010: YDB Serverless и Cloud Functions для Gym
 
-- **Status:** Accepted (technology direction)
-- **Date:** 2026-10-19
-- **Related:** [ADR-0009](0009-russian-hosting.md)
+- **Статус:** Принят (технологическое направление)
+- **Дата:** 2026-10-19
+- **Связанные решения:** [ADR-0009](0009-russian-hosting.md)
 
-## Context
+## Контекст
 
-Gym has low, intermittent traffic. The previous one-VM/PostgreSQL topology has idle-time compute and maintenance costs. The project owner prefers YDB through SQLAlchemy, and Yandex Cloud Functions for REST with usage-based billing.
+У Gym низкий, нерегулярный трафик. Прежняя топология с одной ВМ/PostgreSQL требует затрат на вычисления в простое и обслуживание. Владелец проекта предпочитает YDB через SQLAlchemy и Yandex Cloud Functions для REST с оплатой по использованию.
 
-## Decision
+## Решение
 
-Use **YDB Serverless with SQLAlchemy 2.0 + ydb-sqlalchemy**, and **Python Cloud Functions behind Yandex API Gateway** for the REST API. Host the static offline-first PWA on Yandex Cloud, likely Object Storage. Do not provision a persistent Compute Cloud VM or PostgreSQL for MVP. Domain logic must remain reusable by a remote MCP adapter, whose transport hosting is not yet decided.
+Использовать **YDB Serverless с SQLAlchemy 2.0 + ydb-sqlalchemy** и **Python Cloud Functions за Yandex API Gateway** для REST API. Разместить статическую PWA с приоритетом работы без сети в Yandex Cloud, вероятно в Object Storage. Не выделять постоянную ВМ Compute Cloud или PostgreSQL для MVP. Логика предметной области должна оставаться доступной для повторного использования удалённым адаптером MCP, хостинг транспорта которого ещё не определён.
 
-An optional prepared/provisioned Cloud Function instance can be evaluated as a latency/cost trade-off after benchmarking.
+После измерений можно оценить необязательный подготовленный экземпляр Cloud Function как компромисс между задержкой и стоимостью.
 
-## Consequences and remaining choices
+## Последствия и оставшиеся вопросы
 
-YDB/YQL differs from PostgreSQL; prove schema/index queries, idempotency, transaction retries and migrations with YDB integration tests. Schema migrations must run independently of function requests. Keep old cached mobile clients compatible across releases. CI/CD orchestration and release policy are accepted separately in [ADR-0011](0011-github-actions-cicd.md); see the [CI/CD specification](../ci-cd.md).
+YDB/YQL отличается от PostgreSQL; подтвердить работу схемы/индексов/запросов, идемпотентность, повторы транзакций и миграции интеграционными тестами YDB. Миграции схемы должны выполняться независимо от запросов к функции. Сохранять совместимость старых кэшированных мобильных клиентов между выпусками. Оркестрация CI/CD и политика выпусков приняты отдельно в [ADR-0011](0011-github-actions-cicd.md); см. [спецификацию CI/CD](../ci-cd.md).
 
-Open: exact functions and API routing, auth, YDB model and migrations, frontend HTTPS/CORS, MCP host/streaming, backup and production approval.
+Открыто: точный состав функций и маршрутизация API, аутентификация, модель YDB и миграции, HTTPS/CORS интерфейса, хостинг/потоковая передача MCP, резервное копирование и одобрение production.

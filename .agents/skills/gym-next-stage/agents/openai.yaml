@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gym: начать этап"
+  short_description: "Начать или продолжить текущий пункт плана Gym"
+  default_prompt: "Используй $gym-next-stage, чтобы продолжить работу по плану Gym."

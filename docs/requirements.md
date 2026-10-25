@@ -1,49 +1,49 @@
-# Requirements — working draft
+# Требования — рабочий черновик
 
-## Product goal
+## Цель продукта
 
-Track progress in strength training while minimizing interaction during workouts. Use an AI agent for conversational planning, analysis and program modification, and a button-first mobile app for workout logging.
+Отслеживать прогресс в силовых тренировках, сводя взаимодействие с приложением во время занятий к минимуму. Использовать ИИ-агента для планирования в диалоге, анализа и изменения программы, а мобильное приложение с управлением кнопками — для записи тренировок.
 
-## Confirmed requirements
+## Подтверждённые требования
 
-- Multi-user service: every person has their own account and private history.
-- Support both iOS/iPhone and Android.
-- Host Gym and personal-data storage/backups in **Russia**, on Yandex Cloud (ADR-0009). MVP stack: YDB Serverless using SQLAlchemy 2.0 and `ydb-sqlalchemy`; Python Cloud Functions behind API Gateway for REST (ADR-0010).
-- Use GitHub Actions with **standard hosted runners** for CI/CD (ADR-0011): PR checks, automatic staging after `main` merge, manually approved production, Yandex OIDC credentials and migrations executed inside Yandex Cloud. No permanent CI server.
-- Poor or absent connectivity must not block recording a set.
-- The mobile UI supports active workouts, past sessions, statistics and graphs.
-- A personal AI agent modifies programs via API/MCP; a full visual program editor can wait.
-- Hybrid progression: agent defines/revises rules; backend calculates prescribed loads deterministically.
-- Plans and actual workout results are distinct. Program changes do not rewrite earlier results.
-- REST/API and MCP are first-class interfaces to common application logic.
-- MVP workouts start from a **user-selectable template in the current program** (e.g. leg day, back and shoulders, chest and shoulders, upper body). Free-form/empty workout creation is excluded. Template names and number are user/program-defined; no fixed rotation is required.
-- During a workout, use a compact list (typically 4–5 exercises, without a hard limit) and a **dedicated exercise detail screen** to log/correct weights, repetitions and sets. Actual performed set count can differ from planned set count without rewriting the program.
-- Each new working set defaults to **planned** weight/repetitions, not the last completed actual set. Display each working set's **volume (weight × repetitions)** compared to its planned volume, including shortfall and overflow beyond 100%, plus a separate planned-vs-actual working-set count. Show actual weight and repetitions alongside the volume bar; the bar is not a strength/progression verdict.
+- Многопользовательский сервис: у каждого свой аккаунт и закрытая история.
+- Поддержка iOS/iPhone и Android.
+- Размещать Gym, хранилища персональных данных и резервные копии в **России**, в Yandex Cloud (ADR-0009). Стек MVP: YDB Serverless с SQLAlchemy 2.0 и `ydb-sqlalchemy`; Python Cloud Functions за API Gateway для REST (ADR-0010).
+- Использовать GitHub Actions со **стандартными исполнителями GitHub** для CI/CD (ADR-0011): проверки PR, автоматическое развёртывание в staging после слияния в `main`, ручное одобрение production, учётные данные через Yandex OIDC и выполнение миграций внутри Yandex Cloud. Без постоянного сервера CI.
+- Плохое соединение или отсутствие сети не должны мешать записи подхода.
+- Мобильный интерфейс поддерживает активные тренировки, прошлые занятия, статистику и графики.
+- Персональный ИИ-агент изменяет программы через API/MCP; полноценный визуальный редактор программ можно отложить.
+- Гибридная прогрессия: агент задаёт/пересматривает правила, сервер детерминированно рассчитывает предписанные нагрузки.
+- Планы и фактические результаты тренировок разделены. Изменения программы не переписывают прошлые результаты.
+- REST/API и MCP — полноценные интерфейсы к общей прикладной логике.
+- В MVP тренировки начинаются с **выбора пользователем шаблона из текущей программы** (например, день ног, спина и плечи, грудь и плечи, верх тела). Создание произвольной/пустой тренировки исключено. Имена и количество шаблонов определяются пользователем/программой; фиксированное чередование не требуется.
+- Во время тренировки используются компактный список (обычно 4–5 упражнений, без жёсткого ограничения) и **отдельный подробный экран упражнения** для записи/исправления весов, повторений и подходов. Фактическое количество выполненных подходов может отличаться от плана без изменения программы.
+- Каждый новый рабочий подход по умолчанию получает **плановые** вес/повторения, а не значения последнего фактического подхода. Показывать **объём (вес × повторения)** каждого рабочего подхода относительно плана, включая недобор и превышение 100%, а также отдельное сравнение планового и фактического числа рабочих подходов. Рядом с индикатором объёма показывать фактические вес и повторения; индикатор не является оценкой силы или прогрессии.
 
-## Candidate MVP capabilities (not yet approved in detail)
+## Возможности-кандидаты для MVP (подробности ещё не утверждены)
 
-- Sign-in and individual program; one active program at a time.
-- Choose any template from the current program; start/resume/finish a session; record, undo and correct a set; warm-up vs working sets.
-- Weight and repetitions prefilled, adjusted with large buttons.
-- See previous results; reorder or substitute an exercise for an active session.
-- Queue offline edits and show explicit sync status.
-- History; exercise charts for weight, reps, volume and estimated 1RM; weekly training frequency.
-- Agent can read program/history, draft and validate a change, and apply approved changes.
-- Initial rule types: fixed, double progression, explicit/manual target.
+- Вход и личная программа; одна активная программа одновременно.
+- Выбор любого шаблона текущей программы; начало/продолжение/завершение занятия; запись, отмена и исправление подхода; разминочные и рабочие подходы.
+- Предзаполненные вес и повторения с изменением крупными кнопками.
+- Просмотр прошлых результатов; изменение порядка или замена упражнения в активном занятии.
+- Очередь изменений без интернета и явное отображение состояния синхронизации.
+- История; графики веса, повторений, объёма и расчётного одноповторного максимума (1ПМ); частота тренировок по неделям.
+- Агент может читать программу/историю, готовить и проверять изменение, применять одобренные изменения.
+- Начальные типы правил: фиксированные значения, двойная прогрессия, явная/ручная цель.
 
-## Quality attributes
+## Требования к качеству
 
-- **Usability:** very few taps per set; text/voice input not required in the gym.
-- **Durability:** record saved locally before UI acknowledges it; sync retries are safe.
-- **Client diagnostics (ADR-0012):** batched authenticated best-effort telemetry via API Gateway/Cloud Functions to Monium, in a separate bounded buffer, never blocking durable workout operations. Sanitize events and keep Monium keys out of PWA.
-- **Security:** separate ownership, server-side access checks; never trust user_id in a client payload.
-- **Auditability:** versions and corrections are traceable.
-- **Portability:** mobile-first installable PWA where supported.
+- **Удобство:** минимум нажатий на подход; ввод текста/голоса в зале не требуется.
+- **Надёжность сохранения:** запись сохраняется локально до подтверждения в интерфейсе; повторы синхронизации безопасны.
+- **Клиентская диагностика (ADR-0012):** пакетная аутентифицированная телеметрия с доставкой по возможности через API Gateway/Cloud Functions в Monium, в отдельном ограниченном буфере, никогда не блокирующая надёжные операции тренировок. Очищать события и не передавать ключи Monium в PWA.
+- **Безопасность:** разделение данных по владельцам и серверные проверки доступа; никогда не доверять user_id из клиентского запроса.
+- **Аудит:** версии и исправления прослеживаются.
+- **Переносимость:** ориентированная на мобильные устройства устанавливаемая PWA там, где это поддерживается.
 
-## Not in initial scope
+## За пределами начального объёма
 
-Free-form/empty workout creation, social feed, leaderboards, shared sessions, shared programs, native applications, advanced desktop editor or local AI inference.
+Создание произвольной/пустой тренировки, социальная лента, рейтинги, совместные занятия, общие программы, нативные приложения, расширенный настольный редактор и локальный запуск ИИ-моделей.
 
-## To decide
+## Предстоит решить
 
-Exact MVP priority, account provider, sync conflict semantics, progression rule details and technology selection. See [open questions](open-questions.md).
+Точные приоритеты MVP, поставщик учётных записей, семантика конфликтов синхронизации, подробности правил прогрессии и выбор технологий. См. [открытые вопросы](open-questions.md).

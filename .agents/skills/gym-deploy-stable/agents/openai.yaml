@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gym: деплой на стейбл"
+  short_description: "Продвинуть проверенный престейбл-выпуск в прод"
+  default_prompt: "Используй $gym-deploy-stable, чтобы выпустить проверенную версию Gym в стейбл."

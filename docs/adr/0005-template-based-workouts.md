@@ -1,22 +1,22 @@
-# ADR-0005: Template-based workouts in MVP
+# ADR-0005: Тренировки по шаблонам в MVP
 
-- **Status:** Accepted
-- **Date:** 2026-10-18
+- **Статус:** Принят
+- **Дата:** 2026-10-18
 
-## Context
+## Контекст
 
-A free-form workout builder would add exercise search, dynamic plan construction and extra offline behavior to the first version. The user expects a sufficiently varied set of named workouts (for example, leg day, back and shoulders, chest and shoulders, upper body) to cover routine flexibility.
+Конструктор произвольных тренировок добавил бы в первую версию поиск упражнений, динамическое построение плана и дополнительное поведение без сети. Пользователь ожидает достаточно разнообразный набор именованных тренировок (например, день ног, спина и плечи, грудь и плечи, верх тела), обеспечивающий повседневную гибкость.
 
-## Decision
+## Решение
 
-In the initial release a workout is **started only by selecting a template from the user's published training program**. The user can pick **any** available template rather than follow a mandatory fixed rotation. Template names, number and composition are configurable by the program/agent, not a hard-coded set of muscle-group types. Starting an empty, ad-hoc workout is out of scope for the initial release.
+В начальном выпуске тренировка **начинается только с выбора шаблона из опубликованной тренировочной программы пользователя**. Пользователь может выбрать **любой** доступный шаблон без обязательного фиксированного чередования. Имена, количество и состав шаблонов настраиваются программой/агентом, а не жёстко заданным набором мышечных групп. Начало пустой произвольной тренировки не входит в начальный выпуск.
 
-The agent creates and edits persistent templates through API/MCP; the backend calculates prescribed targets. Execution-time changes to recorded loads, set counts and exercise order are distinct from permanent template modifications. The precise permitted session-level substitutions/additions are still to be decided.
+Агент создаёт и редактирует постоянные шаблоны через API/MCP; сервер рассчитывает предписанные цели. Изменения записываемых нагрузок, количества подходов и порядка упражнений во время выполнения отделены от постоянных изменений шаблона. Какие именно замены/добавления допустимы в рамках занятия, ещё предстоит решить.
 
-## Consequences
+## Последствия
 
-- Home screen needs template selection (and optional suggestion), followed by the chosen workout preview/start.
-- The session stores the selected template and a snapshot of its plan.
-- Starting offline requires a locally usable copy of the chosen template **and its backend-calculated targets**; offline plans cannot be invented by the client.
-- Prefetch breadth, cache staleness and whether to schedule workouts on a calendar remain open.
-- Adding free-form workout creation later is possible without changing the accepted model of template-backed sessions.
+- На главном экране нужен выбор шаблона (и необязательная рекомендация), после него — предпросмотр/запуск выбранной тренировки.
+- Занятие сохраняет выбранный шаблон и снимок его плана.
+- Для начала без сети нужна локально доступная копия выбранного шаблона **и рассчитанных сервером целей**; клиент не может самостоятельно придумывать планы без сети.
+- Объём предварительной загрузки, устаревание кэша и необходимость календарного планирования остаются открытыми.
+- Позже можно добавить создание произвольных тренировок, не меняя принятую модель занятий на основе шаблонов.

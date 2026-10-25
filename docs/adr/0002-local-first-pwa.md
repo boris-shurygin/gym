@@ -1,24 +1,24 @@
-# ADR-0002: Local-first cross-platform PWA
+# ADR-0002: Кроссплатформенная PWA с приоритетом локального сохранения
 
-- **Status:** Accepted
-- **Date:** 2026-10-18
+- **Статус:** Принят
+- **Дата:** 2026-10-18
 
-## Context
+## Контекст
 
-Gym internet connectivity can be unreliable. The app must support both iPhone and Android for multiple users.
+Интернет в зале может быть ненадёжным. Приложение должно поддерживать iPhone и Android для нескольких пользователей.
 
-## Decision
+## Решение
 
-Use a mobile-first PWA with locally durable workout recording and later synchronization. Saving a set must not require immediate connectivity. Browser background synchronization is optional and best-effort; correctness must not rely on background execution, particularly on iOS.
+Использовать ориентированную на мобильные устройства PWA с надёжной локальной записью тренировок и последующей синхронизацией. Для сохранения подхода не требуется немедленное подключение к сети. Фоновая синхронизация браузера необязательна и выполняется по возможности; корректность не должна зависеть от фонового выполнения, особенно на iOS.
 
-## Consequences
+## Последствия
 
-- Need a local data store and an outbound operation queue.
-- Need server-side idempotency, acknowledgements, user isolation and conflict handling.
-- Pending/synced states must be clear in the UI.
-- Local browser storage is not an infallible backup; support recovery/precautions.
-- Native apps are not necessary for the first iteration.
+- Нужны локальное хранилище и очередь исходящих операций.
+- Нужны серверная идемпотентность, подтверждения, изоляция пользователей и обработка конфликтов.
+- В интерфейсе должны быть понятны состояния ожидания и завершения синхронизации.
+- Локальное хранилище браузера не является безотказной резервной копией; нужны восстановление/меры предосторожности.
+- Нативные приложения для первой итерации не нужны.
 
-## Not decided
+## Не решено
 
-Detailed sync protocol, conflict UX and whether specific work must also be cached for full offline session creation.
+Подробный протокол синхронизации, UX конфликтов и состав данных, которые нужно дополнительно кэшировать для полноценного создания занятия без сети.

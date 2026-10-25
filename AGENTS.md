@@ -1,34 +1,45 @@
-# Instructions for development agents
+# Инструкции для агентов разработки
 
-This repository is currently in the **design phase**.
+Репозиторий находится на **этапе проектирования**.
 
-## Source of truth
+## Источники истины
 
-- `docs/adr/` records architectural decisions accepted by the user.
-- Other files in `docs/` are evolving specifications. Distinguish confirmed requirements from proposals and open questions.
-- `docs/open-questions.md` tracks unresolved choices.
-- Do not treat sample schemas, example workloads or suggested technologies as approved designs.
+- В `docs/adr/` записаны архитектурные решения, принятые пользователем.
+- Остальные файлы в `docs/` — развивающиеся спецификации. Отличай подтверждённые требования от предложений и открытых вопросов.
+- В `docs/open-questions.md` собраны нерешённые вопросы.
+- Не считай примеры схем, нагрузок и предложенные технологии утверждённым проектом.
 
-## Workflow
+## Рабочий процесс
 
-1. Read README.md and the relevant docs before proposing code or architecture.
-2. Before changing an accepted decision, discuss trade-offs and record the superseding decision in an ADR.
-3. Prefer small reviewable changes, with related documentation updates.
-4. Do not start application implementation until the user asks for it. YDB/Cloud Functions (ADR-0010) and GitHub Actions (ADR-0011) are already agreed; do not replace them by assumption.
-5. Explicitly document new assumptions, missing invariants and operational risks.
-6. Prefer tests for progression, authorization, synchronization/idempotency and historical corrections when implementation begins.
-7. Read [CI/CD](docs/ci-cd.md) before creating workflows. PR runners must not access production data; production migrations run in Yandex Cloud separately from HTTP requests.
+1. Перед предложениями по коду или архитектуре прочитай README.md и соответствующую документацию.
+2. Перед изменением принятого решения обсуди компромиссы и зафиксируй заменяющее решение в ADR.
+3. Предпочитай небольшие изменения, удобные для проверки, с обновлением связанной документации.
+4. Не начинай реализацию приложения, пока пользователь не попросит об этом. YDB/Cloud Functions (ADR-0010) и GitHub Actions (ADR-0011) уже согласованы; не заменяй их на основании предположений.
+5. Явно документируй новые предположения, недостающие инварианты и эксплуатационные риски.
+6. Когда начнётся реализация, отдавай приоритет тестам прогрессии, авторизации, синхронизации/идемпотентности и исправлений истории.
+7. Перед созданием процессов автоматизации прочитай [CI/CD](docs/ci-cd.md). Исполнители PR не должны иметь доступа к промышленным данным; промышленные миграции выполняются в Yandex Cloud отдельно от HTTP-запросов.
 
-## Core product rules
+## Работа по плану
 
-- Personal programs, workouts and analytics belong to individual users. Authenticate and authorize every operation server-side.
-- Logging sets must work offline; background sync is best-effort, never a correctness dependency.
-- PWA diagnostic telemetry is best-effort and separate from the durable workout outbox (ADR-0012); route it through authenticated Gym API and keep Monium credentials out of the browser.
-- The server is authoritative for the published program and progression calculations.
-- Separate planned targets from performed results. Updating a program must not rewrite historical workouts.
-- Agent writes go through application services and validation, with explicit approval for program publication.
-- Preserve a trail of revisions and corrections.
+Порядок и критерии этапов находятся в [плане](docs/development-plan.md), текущее состояние — в [журнале](docs/development-log.md). Перед началом или продолжением работы прочитай их и сверь записи с фактическими Git/PR/CI. Соблюдай [процесс разработки](docs/development-workflow.md).
 
-## Terminology
+- «Начинаем следующий этап», «Продолжаем разработку» — используй [gym-next-stage](.agents/skills/gym-next-stage/SKILL.md).
+- «Завершаем этап» — используй [gym-finish-stage](.agents/skills/gym-finish-stage/SKILL.md).
+- «Мержим ПР» — используй [gym-merge-pr](.agents/skills/gym-merge-pr/SKILL.md).
+- «Деплой на стейбл» — используй [gym-deploy-stable](.agents/skills/gym-deploy-stable/SKILL.md).
 
-`AGENTS.md` guides **development agents**. A future runtime **training-agent Skill** describes how an AI coach should use MCP tools; these are different things.
+Одна команда начала выполняет один пункт плана и заканчивается проверкой результата пользователем. Продолжение незавершённого этапа включает полировку. Завершение, merge и production — отдельные действия, если пользователь явно не объединил их в запросе. Все инструкции агенту пиши с обращением на «ты».
+
+## Основные правила продукта
+
+- Личные программы, тренировки и аналитика принадлежат отдельным пользователям. Проверяй подлинность пользователя и права доступа для каждой операции на сервере.
+- Запись подходов должна работать без интернета; фоновая синхронизация выполняется по возможности и никогда не является условием корректности.
+- Диагностическая телеметрия PWA доставляется по возможности и отделена от надёжной очереди исходящих операций тренировок (ADR-0012); направляй её через аутентифицированный Gym API и не передавай учётные данные Monium в браузер.
+- Сервер — источник истины для опубликованной программы и расчётов прогрессии.
+- Разделяй плановые цели и фактические результаты. Обновление программы не должно переписывать прошлые тренировки.
+- Записи агента проходят через прикладные сервисы и валидацию; публикация программы требует явного одобрения.
+- Сохраняй историю версий и исправлений.
+
+## Терминология
+
+`AGENTS.md` содержит инструкции для **агентов разработки**. Будущий **Skill тренировочного агента**, используемый во время работы приложения, описывает, как ИИ-тренер должен вызывать инструменты MCP; это разные вещи.

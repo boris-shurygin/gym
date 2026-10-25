@@ -1,33 +1,33 @@
-# Interactive mobile UX prototype (v0.2)
+# Интерактивный прототип мобильного UX (v0.2)
 
-Open **[index.html](index.html)** in a modern browser (locally or via VS Code Live Preview/Live Server). It is a self-contained HTML/CSS/JS prototype with no build dependencies or external requests.
+Откройте **[index.html](index.html)** в современном браузере (локально или через VS Code Live Preview/Live Server). Это самостоятельный прототип на HTML/CSS/JS без зависимостей для сборки и внешних запросов.
 
-## Screens and clickable interactions
+## Экраны и доступные действия
 
-- Workout home and selection among program templates (Chest & Shoulders, Legs, Back & Shoulders, Upper).
-- Preview a program template and start the workout.
-- Active workout with a list of 4–5 exercises, exercise detail and planned targets.
-- Log a set, adjust weight/reps with readable decimal values, see **per-set tonnage (weight × reps) progress bars**, edit/remove recorded sets, and switch an already logged set between **working** and **warm-up**. Only working sets count toward planned working-set totals. New sets default to **planned**, not previous actual values.
-- Complete/review a partial workout, then inspect it in History.
-- History details: **tap a full-width set row to open the same detailed exercise editor**, or add a new set to a completed workout. No tiny pencil controls or cramped editing modal.
-- Statistics: exercise selector, volume/working-weight/estimated-1RM graph, period filters and tap-to-inspect data points.
-- Settings: simulate offline, sync queue, switching between two isolated demo accounts.
+- Главный экран тренировок и выбор шаблона программы («Грудь и плечи», «Ноги», «Спина и плечи», «Верх тела»).
+- Предпросмотр шаблона программы и начало тренировки.
+- Активная тренировка со списком из 4–5 упражнений, подробным экраном упражнения и плановыми целями.
+- Запись подхода, изменение веса/повторений с читаемыми дробными значениями, **индикаторы объёма каждого подхода (вес × повторения)**, исправление/удаление записанных подходов и переключение уже записанного подхода между **рабочим** и **разминочным**. В плановое количество рабочих подходов засчитываются только рабочие. Значения нового подхода по умолчанию берутся из **плана**, а не из предыдущего фактического результата.
+- Завершение/просмотр частичной тренировки и её последующий просмотр в истории.
+- Подробности истории: **нажатие на строку подхода во всю ширину открывает тот же подробный редактор упражнения**; к завершённой тренировке можно добавить подход. Нет маленьких кнопок с карандашом или тесного модального окна редактирования.
+- Статистика: выбор упражнения, график объёма/рабочего веса/расчётного 1ПМ, фильтры периода и просмотр точки графика по нажатию.
+- Настройки: имитация отсутствия сети, очередь синхронизации, переключение между двумя изолированными демонстрационными аккаунтами.
 
-## Fixes in v0.2
+## Исправления в v0.2
 
-- Numeric weight input uses unlocalized decimal values for HTML number fields, eliminating disappearing values at fractional weights (e.g. 62.5 kg). Localized formatting is retained for display labels.
-- Set-type selection is available when **creating and editing** sets in active or completed workouts.
-- Warm-ups are excluded when counting/labeling planned working sets; e.g. 1 warm-up + 3 working sets satisfies a 3-working-set target, while a fourth working set is extra.
-- Completed workout details have large tappable rows and use the same full-screen editor, supporting correction, deletion and addition of sets.
+- Числовой ввод веса использует нелокализованные десятичные значения для полей HTML типа number: значения дробного веса больше не исчезают (например, 62,5 кг). В отображаемых подписях сохранено локализованное форматирование.
+- Выбор типа подхода доступен при **создании и редактировании** подходов в активных и завершённых тренировках.
+- Разминочные подходы исключены из подсчёта/подписей плановых рабочих подходов: например, 1 разминочный + 3 рабочих выполняют план из 3 рабочих подходов, а четвёртый рабочий считается дополнительным.
+- В подробностях завершённой тренировки используются крупные строки для нажатия и тот же полноэкранный редактор с исправлением, удалением и добавлением подходов.
 
-## Limitations
+## Ограничения
 
-- Pure **UX mockup**, not the actual PWA or backend.
-- All workouts, names, dates, program targets, stats and calculations are fictional examples.
-- The local-state/session/sync behaviors are **simulations in memory only**: no actual IndexedDB, authentication, MCP, background synchronization, networking or real-data persistence.
-- Reloading the page resets the demo.
-- Some detailed UX decisions remain open for review; see [mobile app specification](../docs/mobile-app.md).
+- Это только **UX-макет**, а не настоящая PWA или серверная часть.
+- Все тренировки, имена, даты, цели программы, статистика и расчёты — вымышленные примеры.
+- Локальное состояние, занятия и синхронизация **имитируются только в памяти**: настоящих IndexedDB, аутентификации, MCP, фоновой синхронизации, сетевого обмена или постоянного хранения реальных данных нет.
+- Перезагрузка страницы сбрасывает демонстрацию.
+- Некоторые подробности UX остаются на обсуждении; см. [спецификацию мобильного приложения](../docs/mobile-app.md).
 
-## Suggested review
+## Предлагаемый сценарий проверки
 
-Start a workout, adjust a set above/below plan, log several sets, correct one, switch exercise, finish with incomplete exercises, inspect History/Statistics, then try the offline toggle in Settings.
+Начните тренировку, задайте значения подхода выше/ниже плана, запишите несколько подходов, исправьте один, переключите упражнение, завершите тренировку с невыполненными упражнениями, просмотрите историю/статистику, затем попробуйте переключатель отсутствия сети в настройках.

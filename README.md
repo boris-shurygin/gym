@@ -1,34 +1,36 @@
 # Gym
 
-A multi-user workout tracking system built around two complementary workflows:
+Многопользовательская система учёта тренировок с двумя взаимодополняющими сценариями:
 
-- **At the gym:** a touch-friendly mobile PWA for following a workout, logging sets with very few taps, and browsing history and charts — including offline.
-- **Outside the gym:** an AI agent for planning, interpreting results, and changing training programs via API/MCP.
+- **В зале:** удобная для сенсорного управления мобильная PWA для выполнения тренировки, записи подходов за несколько нажатий и просмотра истории и графиков — в том числе без интернета.
+- **Вне зала:** ИИ-агент для планирования, интерпретации результатов и изменения тренировочных программ через API/MCP.
 
-The **agent defines training strategy and progression rules**; the **backend calculates the actual prescribed loads**. Training logs remain separate from plans and are not rewritten when a program changes.
+**Агент определяет тренировочную стратегию и правила прогрессии**, а **сервер рассчитывает конкретные предписанные нагрузки**. Журнал тренировок хранится отдельно от планов и не переписывается при изменении программы.
 
-**Project status:** design with accepted UX and deployment decisions (ADRs). The production PWA/API, GitHub Actions workflows and Yandex Cloud resources have not been implemented.
+**Состояние проекта:** проектирование с принятыми решениями по UX и развёртыванию (ADR). Промышленные PWA/API, процессы GitHub Actions и ресурсы Yandex Cloud ещё не реализованы.
 
-## Documentation
+## Документация
 
-| Document | Purpose |
+| Документ | Назначение |
 | --- | --- |
-| [Requirements](docs/requirements.md) | Product scope and quality requirements |
-| [Architecture](docs/architecture.md) | System components and data flows |
-| [Hosting](docs/hosting.md) | Serverless hosting: Yandex Cloud, Cloud Functions, YDB |
-| [CI/CD](docs/ci-cd.md) | Accepted GitHub Actions PR tests, staging/production releases and YDB migrations |
-| [Observability](docs/observability.md) | Accepted PWA telemetry transport (ADR-0012); broader logs, metrics and alerts under review |
-| [Domain model](docs/domain-model.md) | Core concepts, invariants, workout and progression states |
-| [Mobile app](docs/mobile-app.md) | UX, offline logging and statistics |
-| [Agent integration](docs/agent-integration.md) | MCP, API and agent responsibilities |
-| [Open questions](docs/open-questions.md) | Decisions we have not yet made |
-| [ADRs](docs/adr/README.md) | Accepted architectural decisions |
+| [Требования](docs/requirements.md) | Границы продукта и требования к качеству |
+| [Архитектура](docs/architecture.md) | Компоненты системы и потоки данных |
+| [Хостинг](docs/hosting.md) | Бессерверный хостинг: Yandex Cloud, Cloud Functions, YDB |
+| [CI/CD](docs/ci-cd.md) | Принятые решения: проверки PR в GitHub Actions, выпуски в staging/production и миграции YDB |
+| [Наблюдаемость](docs/observability.md) | Принятый транспорт телеметрии PWA (ADR-0012); остальные журналы, метрики и оповещения на обсуждении |
+| [Предметная модель](docs/domain-model.md) | Основные понятия, инварианты, состояния тренировок и прогрессии |
+| [Мобильное приложение](docs/mobile-app.md) | UX, запись без интернета и статистика |
+| [Интеграция с агентом](docs/agent-integration.md) | MCP, API и обязанности агента |
+| [Открытые вопросы](docs/open-questions.md) | Решения, которые ещё не приняты |
+| [ADR](docs/adr/README.md) | Принятые архитектурные решения |
+| [План работ](docs/development-plan.md) | Порядок этапов, зависимости и критерии готовности |
+| [Процесс разработки](docs/development-workflow.md) | Команды начала/завершения, PR, merge и выпуска |
+| [Журнал разработки](docs/development-log.md) | Текущий этап, выполненная работа, проверки и точка продолжения |
 
-See [AGENTS.md](AGENTS.md) for instructions to software development agents.
+Инструкции для агентов разработки — в [AGENTS.md](AGENTS.md).
 
-## Next steps
+## Следующие шаги
 
-1. Review the initial documentation and correct assumptions.
-2. Design the mobile workout flow and offline synchronization protocol.
-3. Specify domain invariants and API contracts.
-4. Approve the technology stack before scaffolding implementation code.
+Порядок работ согласован: после P00 (план и команды разработки) идёт P01 — уточнение деплоя в Yandex Cloud. Подробная очерёдность и критерии готовности — в [плане работ](docs/development-plan.md), текущее состояние — в [журнале](docs/development-log.md).
+
+Для работы используй фразы «Продолжаем разработку», «Завершаем этап», «Мержим ПР», «Деплой на стейбл» или навыки `$gym-next-stage`, `$gym-finish-stage`, `$gym-merge-pr`, `$gym-deploy-stable`. Престейбл — staging, стейбл — production.

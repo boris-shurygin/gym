@@ -1,27 +1,27 @@
-# ADR-0009: Host Gym in Russia, prefer Yandex Cloud
+# ADR-0009: Размещать Gym в России, предпочтительно в Yandex Cloud
 
-- **Status:** Accepted (hosting geography and provider preference only)
-- **Date:** 2026-10-19
+- **Статус:** Принят (только география хостинга и предпочтение провайдера)
+- **Дата:** 2026-10-19
 
-## Context
+## Контекст
 
-The initial international hosting proposal (Railway in Amsterdam) does not satisfy the product owner's hosting requirements. The owner explicitly requires Russian hosting and prefers Yandex Cloud.
+Изначальное предложение международного хостинга (Railway в Амстердаме) не соответствует требованиям владельца продукта. Владелец явно требует российский хостинг и предпочитает Yandex Cloud.
 
-## Decision
+## Решение
 
-- Gym's application and primary operational storage of personal workout data and backups must be **hosted in Russia**.
-- **Yandex Cloud is the preferred hosting provider**, subject to confirmation of usable services, billing and operational suitability.
-- **Do not** use Railway EU West or other non-Russian deployment for Gym production.
+- Приложение Gym, основное рабочее хранилище персональных данных тренировок и резервные копии должны **размещаться в России**.
+- **Yandex Cloud — предпочтительный провайдер хостинга**, при условии подтверждения доступности нужных сервисов, оплаты и эксплуатационной пригодности.
+- **Не** использовать Railway EU West или иное размещение вне России для промышленного Gym.
 
-This ADR does **not** approve Compute Cloud vs Serverless Containers, self-hosted vs managed PostgreSQL, a particular VM size or billing account. See [hosting proposal](../hosting.md).
+Этот ADR **не** утверждает выбор между Compute Cloud и Serverless Containers, самостоятельным и управляемым PostgreSQL, конкретный размер ВМ или платёжный аккаунт. См. [предложение по хостингу](../hosting.md).
 
-## Consequences
+## Последствия
 
-- Keep public application hosting, database, operational logs and backups in the Russian region.
-- Choose infrastructure, identity integration and service accounts with this constraint in mind.
-- Evaluate privacy law and any cross-border data flows (e.g. external identity providers or AI services) separately; physical placement alone does not establish compliance.
-- The VM proposal was superseded by YDB/Cloud Functions (ADR-0010); validate serverless availability and backup/restore before real-user launch.
+- Публичный хостинг приложения, база данных, эксплуатационные журналы и резервные копии остаются в российском регионе.
+- Выбирать инфраструктуру, интеграцию учётных записей и сервисные аккаунты с учётом этого ограничения.
+- Отдельно оценить законодательство о персональных данных и трансграничные потоки (например, внешние поставщики учётных записей или ИИ-сервисы); одного физического размещения недостаточно для соблюдения требований.
+- Предложение с ВМ заменено на YDB/Cloud Functions (ADR-0010); до запуска с реальными пользователями проверить доступность бессерверных сервисов и резервное копирование/восстановление.
 
-## Open details
+## Открытые подробности
 
-Specific Yandex Cloud products and capacities; costs; domain/TLS; backup frequency; identity provider and legally appropriate data transfer processes.
+Конкретные продукты и мощности Yandex Cloud; стоимость; домен/TLS; частота резервного копирования; поставщик учётных записей и юридически корректные процессы передачи данных.
