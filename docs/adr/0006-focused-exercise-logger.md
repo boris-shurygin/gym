@@ -1,28 +1,28 @@
-# ADR-0006: Focused exercise logger
+# ADR-0006: Отдельный экран записи упражнения
 
-- **Status:** Accepted
-- **Date:** 2026-10-18
+- **Статус:** Принят
+- **Дата:** 2026-10-18
 
-## Context
+## Контекст
 
-Workouts are normally short (around 4–5 exercises), so a compact list fits comfortably on a phone. However, each exercise needs enough room to adjust weight, repetitions and the number of sets, and to correct actual results. Placing all of these controls directly into the overview would make it crowded.
+Тренировки обычно короткие (около 4–5 упражнений), поэтому компактный список удобно помещается на телефоне. Однако каждому упражнению нужно достаточно места для изменения веса, повторений, количества подходов и исправления фактических результатов. Все эти элементы управления перегрузили бы общий обзор.
 
-## Decision
+## Решение
 
-Use a **compact workout exercise list** for navigation, with a **dedicated screen for each selected exercise**. That screen is the primary place to log, edit and remove individual set results and to perform fewer or more sets than planned. Show the distinction between planned sets and actual performed sets. The user may open exercises in any order and return to the list without losing input.
+Использовать **компактный список упражнений тренировки** для навигации и **отдельный экран каждого выбранного упражнения**. Этот экран — основное место записи, исправления и удаления отдельных результатов подходов и выполнения меньшего или большего числа подходов относительно плана. Показывать различие между плановыми и фактически выполненными подходами. Пользователь может открывать упражнения в любом порядке и возвращаться к списку без потери ввода.
 
-A normal 4–5-exercise workout is an expected UX case, **not a hard exercise limit**.
+Обычная тренировка из 4–5 упражнений — ожидаемый сценарий UX, **а не жёсткое ограничение числа упражнений**.
 
-## Consequences
+## Последствия
 
-- The overview favors status/progress/navigation over dense editing controls; no quick-log action on the overview is required in MVP.
-- A one-tap set completion action is available in the detailed screen for matching suggested values.
-- Planned set count remains in the session snapshot while the actual count comes from recorded results; completing extra sets does not update the persistent template.
-- Locally committed set entries and edits follow the offline operation queue protocol.
+- Обзор ориентирован на состояние/прогресс/навигацию, без плотного размещения элементов редактирования; быстрая запись прямо из обзора в MVP не требуется.
+- На подробном экране доступно завершение подхода одним нажатием при совпадении с рекомендуемыми значениями.
+- Плановое число подходов остаётся в снимке занятия, а фактическое берётся из записанных результатов; дополнительные подходы не обновляют постоянный шаблон.
+- Локально зафиксированные записи и исправления подходов следуют протоколу очереди операций для работы без сети.
 
-## Still open
+## Остаётся открытым
 
-- Next-set value prefilling; step size rules for weight controls.
-- UX distinction between changing the intended number of sets and recording extra/missed actual sets.
-- Confirmation, undo/removal, and correcting completed-session results.
-- Optional RIR/RPE, timer and small-screen accessibility behavior.
+- Предзаполнение значений следующего подхода; правила шага изменения веса.
+- Различие в UX между изменением намеченного числа подходов и записью дополнительных/пропущенных фактических подходов.
+- Подтверждение, отмена/удаление и исправление результатов завершённого занятия.
+- Необязательные RIR/RPE, таймер и доступность на маленьком экране.

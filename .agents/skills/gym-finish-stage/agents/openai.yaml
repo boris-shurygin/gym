@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gym: завершить этап"
+  short_description: "Проверить этап и подготовить PR для слияния"
+  default_prompt: "Используй $gym-finish-stage, чтобы завершить текущий этап Gym и создать PR."

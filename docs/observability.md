@@ -1,44 +1,44 @@
-# Observability — Gym on Yandex Cloud
+# Наблюдаемость — Gym в Yandex Cloud
 
-**Status:** Client telemetry delivery is **Accepted (ADR-0012)**. The rest of the observability plan (backend/platform logs, dashboards, alerts, specific monitoring thresholds) remains **Proposed**. No monitoring infrastructure is implemented. Reviewed 2026-10-20.
+**Статус:** доставка клиентской телеметрии **принята (ADR-0012)**. Остальная часть плана наблюдаемости (серверные/платформенные журналы, панели, оповещения, конкретные пороги мониторинга) остаётся **предложением**. Инфраструктура мониторинга не реализована. Рассмотрено 2026-10-20.
 
-Scope: structured backend logs, platform and custom metrics, alarms, dashboards, release correlation, client offline diagnosis and cost control. Selected infrastructure remains **Yandex API Gateway → Cloud Functions → YDB Serverless**, plus static PWA (ADR-0010) and GitHub Actions CI/CD (ADR-0011). This document does not change accepted architecture.
+Объём: структурированные серверные журналы, платформенные и пользовательские метрики, оповещения, панели, привязка к выпускам, диагностика клиента без сети и контроль стоимости. Выбранная инфраструктура остаётся прежней: **Yandex API Gateway → Cloud Functions → YDB Serverless**, статическая PWA (ADR-0010) и CI/CD в GitHub Actions (ADR-0011). Документ не меняет принятую архитектуру.
 
-## Key provider fact: prefer Monium, not a new Cloud Logging-only integration
+## Важный факт о провайдере: предпочтителен Monium, а не новая интеграция только с Cloud Logging
 
-Yandex Cloud Logging is scheduled to be discontinued in **Q2 2027**. Start with **Yandex Monium** (Metrics, Logs and, when needed, Traces) rather than investing in a soon-to-be retired logging pipeline.
+Прекращение работы Yandex Cloud Logging запланировано на **II квартал 2027 года**. Начинать с **Yandex Monium** (Metrics, Logs и при необходимости Traces), а не вкладываться в конвейер журналирования, который скоро будет выведен из эксплуатации.
 
-Monium can display Cloud Logging records today, but writing those records to the old Cloud Logging ingest endpoint retains its old pricing; for direct Monium logging, use its supported OpenTelemetry/OTLP ingestion endpoint. **Verify the real Cloud Functions → Monium delivery path in an integration spike**: provider stdout/native logs and an OTel exporter can have different costs and delivery semantics. In an ephemeral function, background buffers may not flush after returning HTTP response, so flush with a bounded timeout or use a validated supported ingestion mechanism, without breaking user requests if logging fails. Do not add a permanently running collector/server for MVP.
+Monium уже может показывать записи Cloud Logging, но запись через старую точку приёма Cloud Logging сохраняет прежние тарифы; для прямого журналирования в Monium использовать поддерживаемую точку приёма OpenTelemetry/OTLP. **Проверить реальный путь доставки Cloud Functions → Monium в отдельном интеграционном эксперименте**: stdout/встроенные журналы провайдера и экспортёр OTel могут иметь разную стоимость и семантику доставки. В короткоживущей функции фоновые буферы могут не успеть отправиться после возврата HTTP-ответа, поэтому завершать отправку с ограниченным тайм-аутом или использовать проверенный поддерживаемый механизм приёма; сбои журналирования не должны нарушать пользовательские запросы. Не добавлять постоянно работающий сборщик/сервер для MVP.
 
-[Provider announcement](https://yandex.cloud/ru/docs/monium/logs/logging-migration); [Monium overview](https://yandex.cloud/ru/docs/monium/overview); [OTLP log ingest](https://yandex.cloud/ru/docs/monium/logs/quickstart).
+[Объявление провайдера](https://yandex.cloud/ru/docs/monium/logs/logging-migration); [обзор Monium](https://yandex.cloud/ru/docs/monium/overview); [приём журналов OTLP](https://yandex.cloud/ru/docs/monium/logs/quickstart).
 
-## What each storage/service is responsible for
+## Ответственность хранилищ и сервисов
 
-| Data | Location | Reason |
+| Данные | Место хранения | Причина |
 | --- | --- | --- |
-| Operational structured logs | Monium Logs | Error diagnosis and individual request investigation, short retention |
-| Built-in cloud technical metrics | Monium Metrics | API Gateway 5xx/latency, Function errors/initializations, YDB RU |
-| Selected app counters and distributions | Monium Metrics and/or vetted log-derived aggregates | Sync outcomes, failed publication, latency |
-| Optional request traces | Monium Traces (OTLP/OpenTelemetry) | Debug latency spanning API/domain/YDB |
-| Durable business audit | **YDB application tables** | Who changed a set or published a program; not overwritten/deleted by log TTL |
-| Client offline diagnostic state | IndexedDB local to PWA | Pending queue length, oldest unsynced operation, recent client errors |
-| Cloud control-plane/security audit | Evaluate Yandex Audit Trails later | Infrastructure IAM/admin changes, distinct from app audit events |
+| Структурированные эксплуатационные журналы | Monium Logs | Диагностика ошибок и расследование отдельных запросов, короткое хранение |
+| Встроенные технические метрики облака | Monium Metrics | 5xx/задержки API Gateway, ошибки/инициализации функций, RU YDB |
+| Выбранные счётчики и распределения приложения | Monium Metrics и/или проверенные агрегаты из журналов | Результаты синхронизации, неудачные публикации, задержки |
+| Необязательные трассировки запросов | Monium Traces (OTLP/OpenTelemetry) | Поиск задержек в API/предметной логике/YDB |
+| Долговременный бизнес-аудит | **Прикладные таблицы YDB** | Кто изменил подход или опубликовал программу; не перезаписывается/удаляется по TTL журналов |
+| Диагностическое состояние клиента без сети | Локальная IndexedDB PWA | Длина очереди, старейшая несинхронизированная операция, последние ошибки клиента |
+| Аудит управления облаком/безопасности | Позже оценить Yandex Audit Trails | Изменения IAM/администрирования инфраструктуры, отдельно от событий аудита приложения |
 
-Monium Logs currently has **31-day fixed TTL**. Audit records for training changes must not rely on that log retention.
+В Monium Logs сейчас **фиксированный TTL 31 день**. Аудит изменений тренировок не должен зависеть от этого срока хранения журналов.
 
-## Logging contract
+## Контракт журналирования
 
-- Emit one JSON request summary on success and structured error events for failures. Avoid verbose SQL query logs, every-repetition INFO events or repeated exceptions in retry loops.
-- Suggested fields: `timestamp`, `level`, `service`, `environment`, `release_sha`, `event`, `request_id`, `route_template`, `method`, `http_status`, `duration_ms`, `error_code`.
-- For sync outcomes, add `operation_count`, `applied`, `duplicates`, `conflicts`, `rejected`; optionally a random operation ID for authorized incident tracing, **never as a metric label**.
-- Generate/propagate a request/trace correlation ID from API Gateway/function. Release SHA/Cloud Function version from deploy metadata links spikes to specific releases.
-- **Do not log** token/authorization headers, passwords, email addresses, workout contents (weights, reps, session notes), arbitrary request/response bodies, identifying path parameters or user IDs by default. Route names like `/sessions/{session_id}/sets` are safe, literal IDs are not.
-- Whitelist event fields; central redaction and safe exception formatting. Scrub accidental secrets and personal data before sending telemetry.
-- Error taxonomy: stable low-cardinality `error_code` and `component`. Distinguish expected 4xx/duplicate/conflict from actual 5xx and broken sync guarantees.
-- Correlation IDs can be high-cardinality **log fields**, but never dimension labels on metrics. Metric labels should be fixed small sets: `environment`, `component`, `route_template`, `outcome`, `error_code` or `release_sha` only if cardinality remains bounded by retained releases.
-- Even when a request successfully commits to YDB, telemetry delivery may fail; logging must never cause a repeated user write or mark a successful operation as failed.
+- При успехе записывать одну JSON-сводку запроса, при сбоях — структурированные события ошибок. Избегать подробного журналирования SQL-запросов, INFO-событий на каждое повторение и повторяющихся исключений в циклах повторных попыток.
+- Предлагаемые поля: `timestamp`, `level`, `service`, `environment`, `release_sha`, `event`, `request_id`, `route_template`, `method`, `http_status`, `duration_ms`, `error_code`.
+- Для результатов синхронизации добавить `operation_count`, `applied`, `duplicates`, `conflicts`, `rejected`; необязательно — случайный идентификатор операции для расследования инцидента с проверкой прав, **никогда не как метку метрики**.
+- Генерировать/передавать идентификатор корреляции запроса/трассировки из API Gateway/функции. SHA выпуска/версия Cloud Function из метаданных развёртывания связывает всплески с конкретными выпусками.
+- По умолчанию **не записывать** токены/заголовки авторизации, пароли, адреса электронной почты, содержимое тренировок (веса, повторения, заметки), произвольные тела запросов/ответов, идентифицирующие параметры пути или идентификаторы пользователей. Имена маршрутов вроде `/sessions/{session_id}/sets` безопасны, конкретные идентификаторы — нет.
+- Разрешённый список полей событий; централизованное удаление чувствительных данных и безопасное форматирование исключений. Удалять случайные секреты и персональные данные до отправки телеметрии.
+- Классификация ошибок: стабильные `error_code` и `component` с малым числом возможных значений. Отличать ожидаемые 4xx/дубли/конфликты от настоящих 5xx и нарушения гарантий синхронизации.
+- Идентификаторы корреляции могут быть **полями журналов** с большим числом уникальных значений, но никогда не метками измерений метрик. Метки метрик должны иметь фиксированные небольшие наборы значений: `environment`, `component`, `route_template`, `outcome`, `error_code` или `release_sha`, только если число значений ограничено сохраняемыми выпусками.
+- Даже после успешной фиксации запроса в YDB доставка телеметрии может не удаться; журналирование никогда не должно вызывать повторную пользовательскую запись или помечать успешную операцию как неудачную.
 
-Example log (fictional):
+Пример журнала (вымышленный):
 
 ```json
 {
@@ -56,57 +56,57 @@ Example log (fictional):
 }
 ```
 
-## Metrics and counters
+## Метрики и счётчики
 
-### Automatically available platform metrics (priority P0)
+### Автоматически доступные платформенные метрики (приоритет P0)
 
-- **API Gateway:** request count by status, 5xx counts, latency histogram / p95. Do not treat ordinary 401/404 as application outage.
-- **Cloud Functions:** invocations, function errors, execution-time distribution, concurrent requests, initializations/cold starts and throttles where supported.
-- **YDB Serverless:** API errors, request latency and **RU per second/consumption**, separate per-method usage if needed.
-- **Object Storage / static PWA:** test reachability of index/assets and HTTP failures using a synthetic check rather than relying on platform's app health metric alone.
-- **Billing:** cost by service/category. A budget alarm **notifies but does not automatically enforce a hard spending ceiling**.
+- **API Gateway:** число запросов по статусам, количество 5xx, гистограмма задержек / p95. Не считать обычные 401/404 недоступностью приложения.
+- **Cloud Functions:** вызовы, ошибки функций, распределение времени выполнения, одновременные запросы, инициализации/холодные старты и ограничения частоты там, где поддерживаются.
+- **YDB Serverless:** ошибки API, задержки запросов и **RU в секунду/потребление**, при необходимости отдельное потребление по методам.
+- **Object Storage / статическая PWA:** проверять доступность главной страницы/ресурсов и HTTP-сбои синтетической проверкой, а не полагаться только на платформенную метрику состояния приложения.
+- **Оплата:** стоимость по сервисам/категориям. Бюджетное оповещение **уведомляет, но не устанавливает автоматически жёсткий потолок расходов**.
 
-[API Gateway metrics](https://yandex.cloud/ru/docs/api-gateway/metrics); [Functions metrics](https://yandex.cloud/ru/docs/monitoring/metrics-ref/functions-ref); [YDB metrics](https://yandex.cloud/ru/docs/ydb/metrics).
+[Метрики API Gateway](https://yandex.cloud/ru/docs/api-gateway/metrics); [метрики Functions](https://yandex.cloud/ru/docs/monitoring/metrics-ref/functions-ref); [метрики YDB](https://yandex.cloud/ru/docs/ydb/metrics).
 
-### Custom application outcomes (priority P1)
+### Пользовательские метрики результатов приложения (приоритет P1)
 
-| Name (suggested) | Type/meaning | Important interpretation |
+| Имя (предложение) | Тип/значение | Важная интерпретация |
 | --- | --- | --- |
-| `gym_sync_operations_total{outcome}` | counter of applied / duplicate / conflict / rejected / retryable_error | duplicate is **not** an application failure |
-| `gym_sync_batch_duration_ms` | per-batch latency distribution | includes YDB roundtrips |
-| `gym_program_publish_total{outcome}` | success/failure count | store authoritative audit in YDB |
-| `gym_sessions_completed_total` | completed sessions count | avoid per-user labels and medical/workout details |
-| `gym_client_reports_total{kind}` | opted-in/de-identified client failure reports | capped submission frequency; no infinite retry |
-| `gym_backup_last_success_timestamp` | last independently verified backup timestamp | check staleness with scheduled validation |
+| `gym_sync_operations_total{outcome}` | счётчик applied / duplicate / conflict / rejected / retryable_error (применено / дубль / конфликт / отклонено / повторяемая ошибка) | дубль **не** является сбоем приложения |
+| `gym_sync_batch_duration_ms` | распределение задержек по пакетам | включает обмены с YDB |
+| `gym_program_publish_total{outcome}` | число успехов/сбоев | достоверный аудит хранится в YDB |
+| `gym_sessions_completed_total` | число завершённых занятий | избегать меток по пользователям и медицинских/тренировочных подробностей |
+| `gym_client_reports_total{kind}` | обезличенные отчёты о сбоях клиента, собранные с согласия | ограниченная частота отправки; без бесконечных повторов |
+| `gym_backup_last_success_timestamp` | время последней независимо проверенной резервной копии | проверять устаревание по расписанию |
 
-Start with platform metrics plus event logs. For app counters, choose **OTLP custom metrics** or carefully vetted **Monium log-based derived metrics** after testing delivery, cost, correctness and behavior on idle serverless traffic. Monium log-derived metrics are currently **Preview**; avoid making a critical alarm depend solely on them before validation. Do not make synchronous external telemetry calls on every recorded set if they noticeably increase API latency.
+Начать с платформенных метрик и журналов событий. Для счётчиков приложения выбрать **пользовательские метрики OTLP** или тщательно проверенные **метрики Monium, производные от журналов**, после проверки доставки, стоимости, корректности и поведения при бессерверной нагрузке с простоями. Производные метрики журналов Monium сейчас в **Preview**; до проверки не делать критическое оповещение зависимым только от них. Не выполнять синхронные внешние вызовы телеметрии на каждый записанный подход, если они заметно увеличивают задержку API.
 
-## Client PWA telemetry: accepted design (ADR-0012)
+## Телеметрия клиента PWA: принятый проект (ADR-0012)
 
-### Transport and trust boundaries
+### Транспорт и границы доверия
 
 ```text
-PWA TelemetryClient (allowlisted events, counters, timings)
-  → small bounded local diagnostics buffer (NOT the workout outbox)
-    → batched, authenticated POST /api/v1/telemetry
+TelemetryClient PWA (разрешённые события, счётчики, замеры времени)
+  → небольшой ограниченный локальный диагностический буфер (НЕ очередь тренировок)
+    → пакетный аутентифицированный POST /api/v1/telemetry
       → Yandex API Gateway → Python Cloud Function
-        → allowlist validation, rate/size limiting, sanitization
-          → bounded OTLP/HTTP delivery into Yandex Monium
+        → проверка разрешённых данных, ограничения частоты/размера, очистка
+          → доставка в Yandex Monium по OTLP/HTTP с ограничением времени/ресурсов
 ```
 
-**No Yandex Cloud or Monium API tokens, IAM secrets, OTLP credentials, or metric writes in browser code.** PWA contacts Gym API, never Monium directly. The endpoint shares the normal application authentication trust boundary, with appropriate CSRF/CORS protections for the final session approach. The Cloud Function maps approved events and aggregated counters to **fixed known** structured logs or Monium metrics. The client must not choose arbitrary metric names, label keys or event fields.
+**Никаких API-токенов Yandex Cloud или Monium, секретов IAM, учётных данных OTLP или записи метрик в коде браузера.** PWA обращается к Gym API, никогда напрямую к Monium. Точка доступа использует общую границу доверия аутентификации приложения с подходящей защитой CSRF/CORS для окончательного варианта сеансов. Cloud Function преобразует одобренные события и агрегированные счётчики в **фиксированные известные** структурированные журналы или метрики Monium. Клиент не должен выбирать произвольные имена метрик, ключи меток или поля событий.
 
-### TelemetryClient behavior
+### Поведение TelemetryClient
 
-- Record only a **versioned allowlist of event types**: `js_error`, `indexeddb_write_failed`, `sync_failed`, `sync_completed`, `api_request_slow`, `app_started`, `sw_update_failed`. Never forward all `console.log` or raw exceptions.
-- Aggregate repeated noncritical events/counters and timing samples locally. Use a **separate best-effort buffer** (suggested initial bounds: 100 events, 24-hour TTL) with drop-oldest/expiry. IndexedDB is preferred when available, with a bounded in-memory fallback if IndexedDB itself is failing; prevent recursive logging of telemetry failures.
-- While active and online, attempt a **small batch about once per minute** rather than one request per user interaction. A serious local-save failure may trigger an immediate best-effort attempt without blocking the UI.
-- On background/visibility change, optionally attempt `navigator.sendBeacon()` or `fetch(..., {keepalive:true})`, after verifying auth/cookie/header constraints. These are **not delivery guarantees**: a successful `sendBeacon()` only reports that browser accepted the data for sending, not that server received it.
-- When offline, retain only bounded/expiring diagnostics and retry on reconnect/foreground. Drop events once the limit is exceeded or retries are exhausted. **Never store diagnostic sends in the reliable workout operation outbox**, and never let telemetry retries block workout operations or steal their bandwidth indefinitely.
-- Expose a local **Diagnostics** view showing app version, online state, size and age of **workout** pending queue, last sync ACK and any recent local-save errors. The server cannot infer backlog on a device that has not reconnected.
-- Collection/consent UI, precise privacy disclosures and opt-out policy remain **open**, even though this transport is accepted; no broader user analytics or profiling is approved by this decision.
+- Записывать только **версионируемый разрешённый список типов событий**: `js_error`, `indexeddb_write_failed`, `sync_failed`, `sync_completed`, `api_request_slow`, `app_started`, `sw_update_failed`. Никогда не пересылать все `console.log` или необработанные исключения.
+- Локально агрегировать повторные некритические события/счётчики и замеры времени. Использовать **отдельный буфер с доставкой по возможности** (предлагаемые начальные границы: 100 событий, TTL 24 часа), удаляя самые старые/просроченные записи. Предпочтительна IndexedDB, если доступна, с ограниченным запасным буфером в памяти при сбоях самой IndexedDB; исключить рекурсивное журналирование сбоев телеметрии.
+- При активной работе и наличии сети пытаться отправлять **небольшой пакет примерно раз в минуту**, а не запрос на каждое действие пользователя. Серьёзный сбой локального сохранения может вызвать немедленную попытку отправки по возможности без блокировки интерфейса.
+- При уходе в фон/изменении видимости необязательно вызывать `navigator.sendBeacon()` или `fetch(..., {keepalive:true})` после проверки ограничений аутентификации/cookie/заголовков. Это **не гарантии доставки**: успешный `sendBeacon()` означает лишь, что браузер принял данные к отправке, а не что сервер их получил.
+- Без сети хранить только ограниченную диагностику со сроком хранения и повторять при восстановлении сети/возврате на передний план. Отбрасывать события при превышении лимита или исчерпании повторов. **Никогда не хранить диагностические отправки в надёжной очереди операций тренировок** и не позволять повторам телеметрии блокировать операции тренировок или бесконечно занимать их канал передачи.
+- Предоставить локальный экран **Диагностика** с версией приложения, состоянием сети, размером и возрастом ожидающей очереди **тренировок**, последним подтверждением синхронизации (ACK) и недавними ошибками локального сохранения. Сервер не может определить накопленную очередь устройства, которое не подключилось повторно.
+- Интерфейс сбора/согласия, точные уведомления о конфиденциальности и политика отказа остаются **открытыми**, хотя транспорт принят; более широкая аналитика пользователей или профилирование этим решением не утверждаются.
 
-### Accepted event data contract (illustrative schema)
+### Принятый контракт данных событий (пример схемы)
 
 ```json
 {
@@ -128,104 +128,107 @@ PWA TelemetryClient (allowlisted events, counters, timings)
 }
 ```
 
-Field names, schema version and example bounds are illustrative, **not the final OpenAPI definition**. Backend validates authentication, event types, numeric ranges, payload bytes, batch size, request frequency and all labels. Allowed diagnostic data: stable error code/class, coarse platform, app/release version, route **template**, duration, operation counts, queue size/age. **Disallowed:** exercise names, weights/reps, notes, raw exception messages or stacks, full URLs/IDs, emails, passwords, access tokens, request/response bodies and user identifiers as metric dimensions. Client input is untrusted.
+Имена полей, версия схемы и примерные ограничения приведены для иллюстрации, это **не окончательное определение OpenAPI**. Сервер проверяет аутентификацию, типы событий, числовые диапазоны, размер данных в байтах, размер пакета, частоту запросов и все метки. Допустимые диагностические данные: стабильный код/класс ошибки, общая платформа, версия приложения/выпуска, **шаблон** маршрута, длительность, число операций, размер/возраст очереди. **Запрещены:** названия упражнений, веса/повторения, заметки, исходные сообщения/стеки исключений, полные URL/идентификаторы, адреса электронной почты, пароли, токены доступа, тела запросов/ответов и идентификаторы пользователей в качестве измерений метрик. Клиентский ввод недоверенный.
 
-### Counters and reliability guarantees
+### Счётчики и гарантии надёжности
 
-- PWA sends an **aggregated summary**, not direct Monium counters. Cloud Function emits whitelisted structured events and/or converts selected sums/timings to low-cardinality OTLP metrics. The exact choice between native OTLP metrics and vetted log-derived aggregates is an **implementation detail still to verify**; log-based metrics are presently Preview.
-- Best-effort retries can **lose or duplicate batches**, and arbitrary clients can misreport counts. Client telemetry is for diagnostics only, **never authoritative** for progression, number of saved sets, auditing, integrity or billing.
-- A successful workout commit is independent of telemetry delivery. Export to Monium must have a **bounded timeout** and complete/flush inside the function invocation; don't assume post-return background tasks execute. Monium outage must not make a saved set fail or prompt a duplicate workout write. The endpoint may report telemetry failure, but the client retries only within bounded resources.
-- Business history, set corrections and program publication audit remain in **YDB**; the durable IndexedDB → server sync pipeline retains its separate exactly-once-effect/idempotency requirements.
-- Never emit personal production data into GitHub runners, analytics vendors or uncontrolled debug streams.
+- PWA отправляет **агрегированную сводку**, а не прямые счётчики Monium. Cloud Function записывает разрешённые структурированные события и/или преобразует выбранные суммы/замеры времени в метрики OTLP с малым числом уникальных значений меток. Точный выбор между нативными метриками OTLP и проверенными агрегатами из журналов — **подробность реализации, требующая проверки**; метрики на основе журналов сейчас в Preview.
+- Повторы доставки по возможности могут **терять или дублировать пакеты**, а произвольные клиенты могут сообщать неверные счётчики. Клиентская телеметрия предназначена только для диагностики и **никогда не является источником истины** для прогрессии, числа сохранённых подходов, аудита, целостности или оплаты.
+- Успешная фиксация тренировки не зависит от доставки телеметрии. Экспорт в Monium должен иметь **ограниченный тайм-аут** и завершать/сбрасывать буфер в пределах вызова функции; не предполагать выполнение фоновых задач после возврата. Недоступность Monium не должна превращать сохранённый подход в ошибку или вызывать повторную запись тренировки. Точка доступа может сообщить сбой телеметрии, но клиент повторяет только в пределах ограниченных ресурсов.
+- Бизнес-история, исправления подходов и аудит публикации программы остаются в **YDB**; надёжный конвейер синхронизации IndexedDB → сервер сохраняет отдельные требования однократного эффекта/идемпотентности.
+- Никогда не передавать персональные промышленные данные на исполнители GitHub, поставщикам аналитики или в неконтролируемые отладочные потоки.
 
-### Test/acceptance cases
+### Тестовые и приёмочные сценарии
 
-1. PWA JS bundle and API responses contain no Monium credentials or IAM keys.
-2. Normal telemetry emits batches, not per-click HTTP calls, and reaches the authenticated Cloud Function/Monium with validated fields.
-3. Offline use, reload and API outages keep diagnostics bounded, without dropping/changing **workout** outbox records.
-4. IndexedDB failure has a nonrecursive bounded fallback; app still records sets whenever storage is available.
-5. Invalid, oversized, unauthenticated and excessive requests fail/rate-limit safely; arbitrary metric labels/events are rejected.
-6. Simulate Monium failure and slow OTLP delivery: Gym's recording and reliable sync still work.
-7. Background `sendBeacon()` and keepalive sending remain optional and unreliable; no false delivery confirmation.
-8. Raw PII/training details, stack messages and literal IDs are redacted or rejected.
+1. JS-сборка PWA и ответы API не содержат учётных данных Monium или ключей IAM.
+2. Обычная телеметрия отправляется пакетами, а не HTTP-запросами на каждое нажатие, и доходит до аутентифицированной Cloud Function/Monium с проверенными полями.
+3. Работа без сети, перезагрузка и недоступность API сохраняют диагностику в установленных пределах без удаления/изменения записей исходящей очереди **тренировок**.
+4. При сбое IndexedDB есть нерекурсивный ограниченный запасной вариант; приложение продолжает записывать подходы, когда хранилище доступно.
+5. Некорректные, слишком большие, неаутентифицированные и чрезмерно частые запросы безопасно отклоняются/ограничиваются; произвольные метки метрик/события отклоняются.
+6. Имитация сбоя Monium и медленной доставки OTLP: запись и надёжная синхронизация Gym продолжают работать.
+7. Фоновые `sendBeacon()` и отправка keepalive остаются необязательными и ненадёжными; нет ложного подтверждения доставки.
+8. Исходные персональные/тренировочные данные, сообщения стеков и конкретные идентификаторы удаляются или отклоняются.
 
-### Still open for implementation
+### Открытые вопросы реализации
 
-- Final OpenAPI schema, batch max bytes, rate limits, backoff and retention values.
-- Opt-in/out, consent and disclosures for each category of client-side diagnostics.
-- Auth/CSRF for beacon/keepalive; browser platform verification.
-- Bounded Cloud Functions → Monium OTLP exporter/metric conversion, server telemetry costs and Monium credentials handling.
+- Окончательная схема OpenAPI, максимальный размер пакета в байтах, ограничения частоты, интервалы повторов и сроки хранения.
+- Согласие/отказ и уведомления для каждой категории клиентской диагностики.
+- Аутентификация/CSRF для beacon/keepalive; проверка браузерных платформ.
+- Экспортёр OTLP Cloud Functions → Monium с ограничением времени/ресурсов, преобразование метрик, стоимость серверной телеметрии и работа с учётными данными Monium.
 
-## Minimal dashboards
+## Минимальные панели
 
-**(A) Production health:** request throughput and 5xx, latency (p50/p95 with low-traffic caveat), function init/error counts, deployed release version and synthetic probe status.
+**(A) Состояние production:** интенсивность запросов и 5xx, задержки (p50/p95 с оговоркой о низком трафике), число инициализаций/ошибок функций, развёрнутая версия выпуска и состояние синтетической проверки.
 
-**(B) Data integrity and sync:** operation outcomes split by applied/duplicate/conflict/reject; recent repair-required errors, server sync latency, backup last success and recovery tests. Pending queue per offline phone is local and shown in the PWA, **not an accurate server-side global gauge**.
+**(B) Целостность данных и синхронизация:** результаты операций по категориям применено/дубль/конфликт/отклонено; недавние ошибки, требующие исправления, задержки серверной синхронизации, последнее успешное резервное копирование и тесты восстановления. Ожидающая очередь каждого телефона без сети локальна и показывается в PWA; это **не точный глобальный показатель на сервере**.
 
-**(C) Costs:** YDB RU consumption, Functions invocation and active/prepared instance usage, API Gateway requests, volume of ingested logs/traces, cloud spend versus budget.
+**(C) Затраты:** потребление RU YDB, вызовы Functions и использование активных/подготовленных экземпляров, запросы API Gateway, объём принятых журналов/трассировок, расходы облака относительно бюджета.
 
-Each dashboard can filter staging vs production. Low-cardinality dimensions only. Begin with platform service dashboards, then add custom panels.
+На каждой панели можно фильтровать staging/production. Только измерения с малым числом уникальных значений. Начать с панелей платформенных сервисов, затем добавить пользовательские.
 
-## Starter alerts — suggested thresholds, tune after pilot
+## Начальные оповещения — предлагаемые пороги с настройкой после пилота
 
-| Signal | Candidate condition | Severity/delivery |
+| Сигнал | Возможное условие | Важность/доставка |
 | --- | --- | --- |
-| API unavailable | Synthetic `/health/ready` probe fails **3 consecutive times** at ~5-minute cadence, checking a cheap bounded YDB query | Critical, Telegram + email |
-| HTTP 5xx burst | **≥3 gateway 5xx over 10 minutes** (tune for very low traffic) | Warning, Telegram |
-| Persistent backend/YDB failure | Several genuine failures/timeout errors over 10–15 minutes, not ordinary validation 4xx | Critical, Telegram |
-| Sync integrity issue | Unexpected op-commit divergence, duplicate applied twice or unrecoverable conflict (if detected) | Critical, Telegram |
-| Backup stale | No successful/verified backup in ~36–48 h when target cadence is daily | Critical, Telegram |
-| Abnormal resource consumption | YDB RU or request throughput substantially exceeds normal baseline for sustained period | Warning, email/Telegram |
-| Cloud billing | Configured monetary thresholds, e.g. 50% / 80% / 100% of explicit monthly budget | Email/Telegram, spending **not auto-stopped** |
+| API недоступен | Синтетическая проверка `/health/ready` неуспешна **3 раза подряд** с интервалом около 5 минут; выполняет дешёвый ограниченный запрос YDB | Критическое, Telegram + электронная почта |
+| Всплеск HTTP 5xx | **≥3 ответа 5xx шлюза за 10 минут** (настроить для очень низкого трафика) | Предупреждение, Telegram |
+| Устойчивый сбой сервера/YDB | Несколько настоящих сбоев/тайм-аутов за 10–15 минут, а не обычные ошибки валидации 4xx | Критическое, Telegram |
+| Нарушение целостности синхронизации | Неожиданное расхождение операции и фиксации, дважды применённый дубль или невосстановимый конфликт (если обнаружен) | Критическое, Telegram |
+| Устаревшая резервная копия | Нет успешной/проверенной копии около 36–48 часов при целевой ежедневной частоте | Критическое, Telegram |
+| Аномальное потребление ресурсов | RU YDB или интенсивность запросов существенно превышают обычный уровень длительное время | Предупреждение, электронная почта/Telegram |
+| Оплата облака | Настроенные денежные пороги, например 50% / 80% / 100% явно заданного месячного бюджета | Электронная почта/Telegram, расходы **не останавливаются автоматически** |
 
-Do **not** alert merely because Gym has no incoming traffic: inactivity is expected. Nor use percentage-only error rates for sparse traffic (1 error out of 2 requests = 50% noise). Initial thresholds are **examples**, not accepted SLOs. Synthetic health checks must run independently of ordinary user traffic; a timer-triggered function may be sufficient but is still in the same cloud failure domain, so decide if independent external vantage checks are warranted later.
+**Не** отправлять оповещение лишь из-за отсутствия входящего трафика Gym: периоды без активности ожидаемы. Также не использовать только процент ошибок при редком трафике (1 ошибка из 2 запросов = 50% шума). Начальные пороги — **примеры**, а не принятые целевые уровни обслуживания (SLO). Синтетические проверки работоспособности должны выполняться независимо от обычного пользовательского трафика; функции по таймеру может быть достаточно, но она остаётся в той же области отказа облака, поэтому позже нужно решить, оправданы ли независимые внешние проверки.
 
-Monium alert notifications can go to Telegram and email. Throttle repeated notifications and provide incident links/release context. Test a deliberate synthetic failure in staging before enabling production paging.
+Уведомления Monium могут поступать в Telegram и по электронной почте. Ограничивать повторные уведомления и давать ссылки на инциденты/контекст выпуска. Проверить намеренно вызванный синтетический сбой в staging до включения срочных промышленных оповещений.
 
-## Distributed traces (priority P2)
+## Распределённые трассировки (приоритет P2)
 
-Monium Traces accepts OpenTelemetry OTLP. Begin **without full tracing for every request**. Add sampled traces (always sample selected failures, low proportion of successful requests) when latency investigation warrants it. In serverless, verify bounded exporter flush so spans are not abandoned at function return, and do not block the user's logged set because tracing backend is slow. Avoid sensitive span attributes.
+Monium Traces принимает OpenTelemetry OTLP. Начать **без полной трассировки каждого запроса**. Добавлять выборочные трассировки (всегда включать выбранные сбои и небольшую долю успешных запросов), когда этого требует исследование задержек. В бессерверной среде проверить завершение отправки экспортёром с ограничением времени, чтобы спаны не терялись при возврате функции; не блокировать запись подхода пользователя из-за медленной системы трассировки. Избегать чувствительных атрибутов спанов.
 
-## Cost, TTL and volume discipline
+## Стоимость, TTL и ограничения объёма
 
-As documented in October 2026, approximate Russian Monium prices include:
+Согласно документации за октябрь 2026 года, приблизительные российские цены Monium:
 
-- **Monium Logs ingest: 4.40 ₽ per GB**; same ingestion rate for Traces in pricing examples. Monium Logs storage itself is not billed, **TTL 31 days**.
-- **User-supplied metric values** charged by ingestion volume; **automatic Yandex resource metrics ingestion and Monium console reads are not billed**.
-- **Alert evaluation:** 1.5 ₽ per 1,000 alert-hours since June 18, 2026; persistent alert definitions incur a small recurring fee.
-- SMS/phone delivery may be extra; start with Telegram + email.
-- Cloud Functions native logging may initially use old Cloud Logging delivery and charges unless Monium direct ingestion is configured; run a proof-of-delivery check and avoid dual ingestion.
-- Avoid logging every SQL statement, excessive stack traces or high-cardinality metric dimensions. Budget alerts in Yandex Cloud notify only; prevent unbounded YDB RU consumption with appropriate app-level limits/quotas as separate controls.
-- Provider rates change: verify actual billing after deployment, not only this planning estimate.
+- **Приём Monium Logs: 4,40 ₽ за ГБ**; в примерах тарификации для Traces указана такая же ставка приёма. Само хранение Monium Logs не оплачивается, **TTL 31 день**.
+- **Пользовательские значения метрик** оплачиваются по объёму приёма; **автоматический приём метрик ресурсов Yandex и чтение в консоли Monium не тарифицируются**.
+- **Вычисление оповещений:** 1,5 ₽ за 1 000 часов работы оповещения с 18 июня 2026 года; постоянные определения оповещений влекут небольшую регулярную плату.
+- Доставка SMS/звонков может оплачиваться отдельно; начать с Telegram + электронной почты.
+- Встроенное журналирование Cloud Functions изначально может использовать старую доставку и тарифы Cloud Logging, пока не настроен прямой приём Monium; проверить фактическую доставку и исключить двойной приём.
+- Избегать журналирования каждого SQL-выражения, избыточных стеков и измерений метрик с большим числом уникальных значений. Бюджетные оповещения Yandex Cloud только уведомляют; предотвращать неограниченное потребление RU YDB отдельными ограничениями/квотами приложения.
+- Тарифы провайдера меняются: проверять фактические начисления после развёртывания, а не только этот плановый расчёт.
 
-Sources: [Monium pricing](https://yandex.cloud/ru/docs/monium/pricing), [Monium Logs retention](https://yandex.cloud/ru/docs/monium/logs/concepts/ttl), [Cloud Logging migration](https://yandex.cloud/ru/docs/monium/logs/logging-migration), [Billing budgets](https://yandex.cloud/ru/docs/billing/concepts/budget).
+Источники: [тарифы Monium](https://yandex.cloud/ru/docs/monium/pricing), [срок хранения Monium Logs](https://yandex.cloud/ru/docs/monium/logs/concepts/ttl), [миграция Cloud Logging](https://yandex.cloud/ru/docs/monium/logs/logging-migration), [бюджеты](https://yandex.cloud/ru/docs/billing/concepts/budget).
 
-## Rollout and acceptance checks
+## Внедрение и приёмочные проверки
 
-**MVP first release (P0)**
-1. Structured JSON request/error logs with redaction and release/request correlation; verify receipt via **Monium** in real Cloud Functions runtime.
-2. Built-in API Gateway / Cloud Functions / YDB metrics and a basic health/cost dashboard.
-3. Telegram/email notifications for repeated service errors, synthetic availability, stale backup and budget thresholds.
-4. Minimal IndexedDB / sync status display on each phone; never depend on telemetry to commit a set.
-5. Durable audit entries for published programs and historical corrections in YDB.
+**Первый выпуск MVP (P0)**
 
-**Next iteration (P1)**
-1. Implement the **accepted ADR-0012** PWA telemetry pathway and custom sync outcome counters/latency (if not included in the initial rollout); rate-limit and sanitize client reports.
-2. Train on baseline traffic; adjust low-volume thresholds. Verify alerts with simulated failures.
-3. More detailed RU budget and per-route performance views.
+1. Структурированные JSON-журналы запросов/ошибок с удалением чувствительных данных и корреляцией выпуска/запроса; проверить получение через **Monium** в реальной среде Cloud Functions.
+2. Встроенные метрики API Gateway / Cloud Functions / YDB и базовая панель состояния/стоимости.
+3. Уведомления Telegram/электронной почты о повторных ошибках сервиса, синтетической доступности, устаревшей копии и бюджетных порогах.
+4. Минимальное отображение состояния IndexedDB/синхронизации на каждом телефоне; фиксация подхода никогда не зависит от телеметрии.
+5. Долговременный аудит опубликованных программ и исправлений истории в YDB.
 
-**Later if needed (P2)**
-1. OTLP tracing with sampling, more sophisticated SLOs, security/cloud Audit Trails.
-2. External availability vantage check and richer analytics where concrete incidents justify them.
+**Следующая итерация (P1)**
 
-## Open choices for a follow-up decision
+1. Реализовать **принятый ADR-0012** путь телеметрии PWA и пользовательские счётчики результатов/задержек синхронизации (если они не вошли в начальное внедрение); ограничивать частоту и очищать клиентские отчёты.
+2. Изучить базовый трафик и настроить пороги для малых объёмов. Проверить оповещения имитацией сбоев.
+3. Более подробные представления бюджета RU и производительности по маршрутам.
 
-- Finalize **Monium-first backend observability** and the Cloud Functions → Monium export mechanism; PWA transport to Cloud Functions is already accepted in ADR-0012.
-- Alert destinations and who is on-call (Telegram vs email); severity thresholds after observing traffic.
-- Client crash-report opt-in/privacy policy and exact events/batch constraints (transport is accepted in ADR-0012).
-- Synthetic probe implementation and external/out-of-cloud checks if desired.
-- How backup verification and its last-success metric are scheduled.
-- Whether app counters are sent directly as OTLP metrics or derived from logs.
-- Confirm production budget amounts and thresholds once a billing account exists.
+**Позже при необходимости (P2)**
 
-Only the **PWA telemetry architecture** has been accepted in ADR-0012. All other observability details in this document remain proposals until explicitly agreed.
+1. Трассировка OTLP с выборкой, более сложные SLO, аудит безопасности/облака через Audit Trails.
+2. Внешняя проверка доступности и более богатая аналитика, если их оправдывают конкретные инциденты.
+
+## Открытые вопросы для следующего решения
+
+- Утвердить **серверную наблюдаемость с приоритетом Monium** и механизм экспорта Cloud Functions → Monium; транспорт PWA → Cloud Functions уже принят в ADR-0012.
+- Получатели оповещений и ответственные за реагирование (Telegram/электронная почта); пороги важности после наблюдения трафика.
+- Политика согласия на клиентские отчёты о сбоях/конфиденциальности и точные ограничения событий/пакетов (транспорт принят в ADR-0012).
+- Реализация синтетической проверки и внешних проверок вне облака при необходимости.
+- Расписание проверки резервных копий и метрики последнего успеха.
+- Отправлять ли счётчики приложения напрямую как метрики OTLP или получать из журналов.
+- Подтвердить суммы промышленного бюджета и пороги после появления платёжного аккаунта.
+
+В ADR-0012 принята только **архитектура телеметрии PWA**. Все остальные подробности наблюдаемости в документе остаются предложениями до явного согласования.

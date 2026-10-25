@@ -1,22 +1,22 @@
-# ADR-0004: Individual multi-user accounts
+# ADR-0004: Индивидуальные аккаунты в многопользовательской системе
 
-- **Status:** Accepted
-- **Date:** 2026-10-18
+- **Статус:** Принят
+- **Дата:** 2026-10-18
 
-## Context
+## Контекст
 
-The product will be used by the owner and friends, some on iOS and others on Android, each with their own training program and history.
+Продуктом будут пользоваться владелец и друзья: одни на iOS, другие на Android, каждый со своей тренировочной программой и историей.
 
-## Decision
+## Решение
 
-Support multiple personal accounts from the first release. User-owned programs, workout results, measurements and analytics are private by default. Identity and authorization are enforced at the backend, including for MCP access. Shared workouts and social features are not part of the first version.
+Поддерживать несколько личных аккаунтов с первого выпуска. Пользовательские программы, результаты тренировок, измерения и аналитика закрыты по умолчанию. Идентификация и авторизация обеспечиваются сервером, в том числе для доступа через MCP. Совместные тренировки и социальные возможности не входят в первую версию.
 
-## Consequences
+## Последствия
 
-- User-scoped data and server-side authorization are fundamental.
-- Offline caches must be account-isolated and safe on sign-out/switch.
-- Future sharing needs explicit permission models rather than accidental cross-account access.
+- Принадлежность данных пользователю и серверная авторизация — основополагающие требования.
+- Кэши для работы без сети должны быть изолированы по аккаунтам и безопасны при выходе/переключении.
+- Будущий общий доступ требует явных моделей разрешений, а не случайного доступа между аккаунтами.
 
-## Not decided
+## Не решено
 
-Identity provider, invitation policy, future friend sharing and social functionality.
+Поставщик учётных записей, политика приглашений, будущий обмен с друзьями и социальные возможности.

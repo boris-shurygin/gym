@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gym: смержить PR"
+  short_description: "Слить PR, обновить main и проверить престейбл"
+  default_prompt: "Используй $gym-merge-pr, чтобы смержить PR текущего этапа Gym."

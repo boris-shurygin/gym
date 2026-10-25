@@ -1,61 +1,63 @@
-# Open questions
+# Открытые вопросы
 
-This list deliberately separates **unresolved** design questions from accepted ADRs.
+Этот список намеренно отделяет **нерешённые** вопросы проектирования от принятых ADR.
 
-## Mobile / synchronization
+## Мобильное приложение / синхронизация
 
-- Which program templates and computed target snapshots should be prefetched so a chosen template can start offline? What if the cached program version is stale?
-- What is the minimal local history cache?
-- How are concurrent changes to the same set from two devices reconciled?
-- How are unsynced local changes handled on logout, account switch, browser data deletion and app upgrade?
-- Accepted navigation: compact overview (normally 4–5 exercises) → dedicated exercise logger, with plan-based defaults and **per-set volume bars (weight × reps; ADR-0008)**. Open: intended vs actual set count editing; editing/removing set results; display geometry, modality-specific metrics and target-rep selection within a range.
+- Какие шаблоны программы и снимки рассчитанных целей нужно загружать заранее, чтобы выбранный шаблон можно было запустить без сети? Что делать с устаревшей кэшированной версией программы?
+- Каков минимальный локальный кэш истории?
+- Как согласовывать одновременные изменения одного подхода с двух устройств?
+- Что делать с несинхронизированными локальными изменениями при выходе, смене аккаунта, удалении данных браузера и обновлении приложения?
+- Принятая навигация: компактный обзор (обычно 4–5 упражнений) → отдельный экран записи упражнения с плановыми значениями по умолчанию и **индикаторами объёма каждого подхода (вес × повторения; ADR-0008)**. Открыто: изменение предполагаемого и фактического количества подходов; исправление/удаление результатов подхода; геометрия отображения, показатели для разных видов нагрузки и выбор целевых повторений из диапазона.
 
-## Data / training logic
+## Данные / тренировочная логика
 
-- Create workouts on demand or pre-schedule calendar sessions?
-- How can a one-time agent override modify targets without changing the standing progression rule?
-- Exact qualifying criteria for progressions: mixed weights, incomplete workouts, deloads, unavailable plates.
-- How should historical corrections be audited and replayed?
-- How should equivalent exercises and equipment changes be identified?
-- Which workout stats are useful and valid for comparison?
+- Создавать тренировки по запросу или заранее планировать занятия в календаре?
+- Как разовое изменение агента может менять цели без изменения постоянного правила прогрессии?
+- Точные критерии зачёта для прогрессии: смешанные веса, неполные тренировки, разгрузки, отсутствие нужных блинов.
+- Как фиксировать в аудите и повторно применять исправления истории?
+- Как определять эквивалентные упражнения и смену оборудования?
+- Какая статистика тренировок полезна и корректна для сравнения?
 
-## Access / integration
+## Доступ / интеграция
 
-- Which authentication provider and sign-in methods?
-- Which ChatGPT/MCP integration mode supports delegated writes in the intended environment?
-- What scopes and explicit approval policy are required for agent changes?
-- Shared program templates or social features after MVP?
+- Какой поставщик аутентификации и какие способы входа?
+- Какой режим интеграции ChatGPT/MCP поддерживает делегированную запись в целевом окружении?
+- Какие области доступа и правила явного одобрения нужны для изменений агента?
+- Общие шаблоны программ или социальные возможности после MVP?
 
-## Logging and monitoring (proposal)
+## Журналирование и мониторинг (предложение)
 
-- **Accepted (ADR-0012):** PWA TelemetryClient → bounded separate best-effort buffer → batched authenticated `/api/v1/telemetry` → Cloud Functions validation → Monium. Never put diagnostic retries in the workout outbox.
-- Review the **remaining** [observability proposal](observability.md): platform/backend logs, custom metric strategy, sparse-traffic alerting and dashboard design. These parts are not yet accepted.
-- Validate Cloud Functions log delivery directly into Monium rather than relying on the deprecated Cloud Logging pipeline; choose an OTLP strategy safe under function termination.
-- Define production notification recipients, synthetic health checks, backup age/restore verification, actual cost budgets and **PWA telemetry consent/opt-out policy, final schema and rate limits**.
+- **Принято (ADR-0012):** TelemetryClient PWA → отдельный ограниченный буфер с доставкой по возможности → пакетный аутентифицированный `/api/v1/telemetry` → валидация в Cloud Functions → Monium. Никогда не помещать повторы диагностики в очередь операций тренировок.
+- Рассмотреть **остальную часть** [предложения по наблюдаемости](observability.md): платформенные/серверные журналы, стратегию пользовательских метрик, оповещения при редком трафике и проект панелей. Эти части ещё не приняты.
+- Проверить доставку журналов Cloud Functions напрямую в Monium без зависимости от устаревающего конвейера Cloud Logging; выбрать стратегию OTLP, безопасную при завершении функции.
+- Определить получателей промышленных оповещений, синтетические проверки работоспособности, возраст резервной копии/проверку восстановления, реальные бюджеты и **политику согласия/отказа от телеметрии PWA, окончательную схему и ограничения частоты**.
 
-## Implementation
+## Реализация
 
-- Selected infrastructure: Russian Yandex Cloud, YDB Serverless/SQLAlchemy 2.0 with Cloud Functions API (ADR-0010). See [hosting](hosting.md) and accepted [CI/CD](ci-cd.md) (ADR-0011).
-- Confirm real MCP write/modify availability for intended ChatGPT accounts; write support in ChatGPT is plan/workspace dependent.
-- Choose identity provider and OAuth strategy before publicly onboarding friends; check storage/data flows and relevant Russian personal-data rules.
-- Choose frontend HTTPS domain/API origin, backup/restore requirements, Cloud Functions release permissions and staging/production isolation.
-- Implement a one-off **Yandex Cloud-hosted** migration/backfill job triggered and tracked from GitHub Actions; decide YDB migration revision bookkeeping and partial-DDL recovery.
-- Define retention/support window for old offline PWA clients and API contracts; keep backward compatibility until explicitly changed.
-- Monitor GitHub Actions artifact/cache storage quotas; re-evaluate billing if this currently public repository becomes private or if larger runners are needed.
-- Validate migrations and recovery when YDB DDL partially succeeds; old offline PWA clients must remain compatible.
-- Formal REST/MCP contracts and client operation envelope.
-- MVP cutline and acceptance tests across iOS and Android.
+Очередь работ и критерии готовности — в [плане](development-plan.md). Первым после подготовки процесса идёт P01: уточнение [схемы деплоя](ci-cd.md), включая первоначальную настройку OIDC, сервис миграций в облаке, хранение артефактов и ручное продвижение в production. Затем P02 закрывает продуктовые и контрактные вопросы перед реализацией.
 
-## Current design work
+- Выбранная инфраструктура: российский Yandex Cloud, YDB Serverless/SQLAlchemy 2.0 с API на Cloud Functions (ADR-0010). См. [хостинг](hosting.md) и принятый [CI/CD](ci-cd.md) (ADR-0011).
+- Подтвердить фактическую возможность записи/изменения через MCP для целевых аккаунтов ChatGPT; поддержка записи зависит от тарифа/рабочего пространства ChatGPT.
+- Выбрать поставщика учётных записей и стратегию OAuth до публичного подключения друзей; проверить хранение/потоки данных и применимые российские правила о персональных данных.
+- Выбрать HTTPS-домен интерфейса/источник API, требования к резервному копированию/восстановлению, права выпуска Cloud Functions и изоляцию staging/production.
+- Реализовать разовое задание миграции/заполнения данных **в Yandex Cloud**, запускаемое и отслеживаемое из GitHub Actions; определить учёт ревизий миграций YDB и восстановление после частичного выполнения DDL.
+- Определить срок хранения/поддержки старых клиентов PWA без сети и контрактов API; сохранять обратную совместимость до явного изменения политики.
+- Следить за квотами хранения артефактов/кэша GitHub Actions; пересмотреть стоимость, если этот пока публичный репозиторий станет приватным или понадобятся увеличенные исполнители.
+- Проверить миграции и восстановление при частичном успехе DDL YDB; старые клиенты PWA без сети должны оставаться совместимыми.
+- Формальные контракты REST/MCP и конверт клиентской операции.
+- Границы MVP и приёмочные тесты на iOS и Android.
 
-The proposed mobile workout flow, screen responsibilities, independent session/sync states, failure cases and acceptance scenarios are in [mobile-app.md](mobile-app.md). It is a **draft**, not a set of approved UX decisions.
+## Текущая работа над проектом
 
-Next review these priorities:
+Предлагаемый мобильный сценарий тренировки, обязанности экранов, независимые состояния занятия/синхронизации, случаи отказов и приёмочные сценарии описаны в [mobile-app.md](mobile-app.md). Это **черновик**, а не набор утверждённых решений по UX.
 
-1. Offline prefetch/freshness policy for any selectable program template (no ad-hoc session creation in MVP).
-2. Exact interaction for logging/editing/removing sets and changing intended vs actual set count on the dedicated exercise screen.
-3. How backend plans provide exact suggested reps for ranges; set-volume bar overflow scale; whether an aggregate exercise-volume bar adds value; how to handle bodyweight/assisted/non-kg exercises (ADR-0008).
-4. Completion with skipped/incomplete exercises.
-5. Cross-device sync conflicts and account switching with pending operations.
+Далее рассмотреть приоритеты:
 
-Then detail wireframes and the offline operation envelope before coding.
+1. Политика предварительной загрузки/актуальности для любого выбираемого шаблона программы (без создания произвольных занятий в MVP).
+2. Точное взаимодействие при записи/исправлении/удалении подходов и изменении предполагаемого и фактического числа подходов на отдельном экране упражнения.
+3. Как серверные планы предоставляют точное рекомендуемое число повторений для диапазонов; масштаб превышения на индикаторе объёма подхода; полезен ли суммарный индикатор объёма упражнения; обработка упражнений с собственным весом/помощью/измерением не в кг (ADR-0008).
+4. Завершение с пропущенными/неполными упражнениями.
+5. Конфликты синхронизации между устройствами и переключение аккаунта с ожидающими операциями.
+
+Затем детализировать макеты и конверт операции для работы без сети до начала написания кода.

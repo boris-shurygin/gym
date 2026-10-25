@@ -1,54 +1,54 @@
-# System architecture — working design
+# Архитектура системы — рабочий проект
 
-## Confirmed responsibilities
+## Подтверждённые обязанности
 
-- **ChatGPT agent + runtime Skill:** discuss goals, inspect workout history, propose changes and set progression rules.
-- **REST API and MCP adapter:** two entry points to the same validated application operations.
-- **Backend:** authorization, program/version management, deterministic progression, session management and analytics.
-- **Mobile PWA:** touch input, history/charts and a locally durable workout write queue; a separate bounded, best-effort diagnostics buffer (ADR-0012).
-- **Database:** user-scoped authoritative records and revision trail.
+- **Агент ChatGPT + Skill для работы приложения:** обсуждать цели, изучать историю тренировок, предлагать изменения и задавать правила прогрессии.
+- **REST API и адаптер MCP:** две точки входа в одни и те же проверяемые прикладные операции.
+- **Сервер:** авторизация, управление программами/версиями, детерминированная прогрессия, управление занятиями и аналитика.
+- **Мобильная PWA:** сенсорный ввод, история/графики и локальная надёжная очередь операций записи тренировок; отдельный ограниченный диагностический буфер с доставкой по возможности (ADR-0012).
+- **База данных:** достоверные записи, разделённые по пользователям, и история изменений.
 
-Neither MCP nor the mobile client should bypass domain validation. The backend is authoritative for published plans and historical facts.
+Ни MCP, ни мобильный клиент не должны обходить проверки предметной области. Сервер — источник истины для опубликованных планов и исторических фактов.
 
-## Candidate modular monolith (proposal)
+## Возможный модульный монолит (предложение)
 
-Modules: identity, programs, progression engine, sessions, synchronization, analytics. **Accepted deployment direction (ADR-0010):** Python Cloud Functions with Yandex API Gateway, YDB Serverless via SQLAlchemy 2.0 and `ydb-sqlalchemy`, React/TypeScript PWA with IndexedDB and static Yandex Object Storage hosting. MCP host/transport remains open. See [hosting](hosting.md) and proposed [CI/CD](ci-cd.md).
+Модули: идентификация, программы, движок прогрессии, занятия, синхронизация, аналитика. **Принятое направление развёртывания (ADR-0010):** Python Cloud Functions с Yandex API Gateway, YDB Serverless через SQLAlchemy 2.0 и `ydb-sqlalchemy`, PWA на React/TypeScript с IndexedDB и статическим хостингом в Yandex Object Storage. Хостинг/транспорт MCP остаётся открытым вопросом. См. [хостинг](hosting.md) и предложение по [CI/CD](ci-cd.md).
 
-## Program flow
+## Работа с программой
 
-1. Agent reads current user-scoped program and history.
-2. Agent proposes a change based on an explicit base version and explains why.
-3. Backend validates; user reviews/approves.
-4. Backend atomically publishes a new immutable version.
-5. Future workout plans use the new version. In-progress sessions are not silently changed.
+1. Агент читает текущую программу и историю в рамках данных пользователя.
+2. Агент предлагает изменение на основе явно указанной базовой версии и объясняет причину.
+3. Сервер проверяет изменение; пользователь рассматривает и одобряет его.
+4. Сервер атомарно публикует новую неизменяемую версию.
+5. Планы будущих тренировок используют новую версию. Активные занятия не изменяются незаметно.
 
-## Workout flow
+## Выполнение тренировки
 
-1. Preview a workout with backend-calculated targets.
-2. At session start, capture a snapshot of plan and rule versions.
-3. Locally commit each set and a pending sync operation in one transaction.
-4. Synchronize operations, with server-side validation, deduplication and acknowledgements.
-5. On completion or later correction, refresh derived analytics and progression state.
+1. Предпросмотр тренировки с целями, рассчитанными сервером.
+2. При начале занятия сохраняется снимок плана и версий правил.
+3. Каждый подход и ожидающая синхронизации операция фиксируются локально одной транзакцией.
+4. Операции синхронизируются с серверной валидацией, устранением дублей и подтверждениями.
+5. При завершении или последующем исправлении обновляются производная аналитика и состояние прогрессии.
 
-**Open:** how a session starts with no connection; exact status transitions; future workout calendar vs on-demand creation.
+**Открыто:** начало занятия без сети; точные переходы состояний; календарь будущих тренировок или создание по запросу.
 
-## Security and sync boundaries
+## Границы безопасности и синхронизации
 
-- The server derives the user identity from authentication credentials.
-- MCP should use scoped delegated authorization, subject to supported client integration.
-- Local data is partitioned by identity; device switching and logout with pending writes require an explicit policy.
-- Each operation has an ID and is processed idempotently.
-- Concurrent modifications need conflict detection, not blind last-write-wins.
-- Browser storage is not a guaranteed backup; pending changes must remain visible.
+- Сервер определяет пользователя по учётным данным аутентификации.
+- MCP должен использовать делегированную авторизацию с ограниченными правами с учётом возможностей клиентской интеграции.
+- Локальные данные разделяются по учётным записям; переключение устройств и выход с ожидающими записями требуют явной политики.
+- Каждая операция имеет идентификатор и обрабатывается идемпотентно.
+- Конкурентные изменения требуют обнаружения конфликтов, а не слепого принятия последней записи.
+- Хранилище браузера не гарантирует резервное копирование; ожидающие изменения должны оставаться видимыми.
 
-## Client diagnostic telemetry (ADR-0012)
+## Диагностическая телеметрия клиента (ADR-0012)
 
-The PWA collects safe, whitelisted events and aggregates counters in a bounded buffer separate from durable workouts. A batched authenticated `POST /api/v1/telemetry` is validated/rate-limited by a Cloud Function and delivered to Yandex Monium over bounded OTLP/HTTP. No cloud credentials are present in the browser. Telemetry failure must not affect workout writes, retries or synchronization; client reports are diagnostic, not authoritative. Details: [observability](observability.md).
+PWA собирает безопасные события из разрешённого списка и агрегирует счётчики в ограниченном буфере отдельно от надёжно сохраняемых тренировок. Пакетный аутентифицированный `POST /api/v1/telemetry` проверяется и ограничивается по частоте в Cloud Function, затем доставляется в Yandex Monium по OTLP/HTTP с ограничением времени/ресурсов. Облачных учётных данных в браузере нет. Сбой телеметрии не должен влиять на запись тренировок, повторы операций или синхронизацию; отчёты клиента служат диагностике, а не источником истины. Подробности: [наблюдаемость](observability.md).
 
-## Background behavior
+## Фоновая работа
 
-Best-effort background delivery may be used on supported Android browsers. iOS PWA background execution is limited and cannot be guaranteed after the app is closed. Both platforms must retry on foreground/resume and stay correct without background execution.
+В поддерживаемых браузерах Android можно использовать фоновую доставку по возможности. Фоновое выполнение в PWA на iOS ограничено и не может гарантироваться после закрытия приложения. Обе платформы должны повторять операции при возвращении приложения на передний план/возобновлении работы и сохранять корректность без фонового выполнения.
 
-## Operational choices still open
+## Открытые эксплуатационные вопросы
 
-Russian hosting and Yandex Cloud are required (ADR-0009); YDB Serverless and Cloud Functions API are selected (ADR-0010). The GitHub Actions CI/CD workflow and release gates are accepted (ADR-0011). Database migration implementation, offline compatibility period, authentication and MCP transport remain open. See [hosting](hosting.md) and accepted [CI/CD](ci-cd.md).
+Требуются российский хостинг и Yandex Cloud (ADR-0009); выбраны YDB Serverless и API на Cloud Functions (ADR-0010). Процесс CI/CD в GitHub Actions и условия выпуска приняты (ADR-0011). Реализация миграций БД, срок совместимости с клиентами без сети, аутентификация и транспорт MCP остаются открытыми. См. [хостинг](hosting.md) и принятый [CI/CD](ci-cd.md).

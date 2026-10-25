@@ -1,239 +1,239 @@
-# Mobile PWA — workout UX specification (proposed v0.2)
+# Мобильная PWA — спецификация UX тренировок (предложение v0.2)
 
-**Status:** Working UX draft. Accepted: template-based workout start (ADR-0005), dedicated exercise logger (ADR-0006), planned-value prefill and set-volume plan-vs-actual bars (ADR-0008, superseding ADR-0007). Remaining interactions are proposals.
-**Updated:** 2026-10-18
+**Статус:** рабочий черновик UX. Принято: начало тренировки по шаблону (ADR-0005), отдельный экран записи упражнения (ADR-0006), предзаполнение плановыми значениями и индикаторы сравнения планового/фактического объёма подхода (ADR-0008, заменяет ADR-0007). Остальные взаимодействия — предложения.
+**Обновлено:** 2026-10-18
 
-This document expands the earlier mobile app draft. Accepted platform and offline requirements are recorded in [ADR-0002](adr/0002-local-first-pwa.md). Interaction details below are proposals until discussed and approved.
+Документ расширяет предыдущий черновик мобильного приложения. Принятые требования к платформе и работе без сети записаны в [ADR-0002](adr/0002-local-first-pwa.md). Подробности взаимодействия ниже остаются предложениями до обсуждения и одобрения.
 
-## Goals and constraints
+## Цели и ограничения
 
-- Be usable with one hand, during a workout, with little or no typing and no voice interaction.
-- Record a normal set with **one tap** if the suggested weight/reps match what was performed.
-- Permit changing exercise order, load and volume **within a session**, without automatically modifying the persistent program.
-- Work during network outages on both iOS and Android.
-- Support personal accounts and private, user-scoped local data.
-- Allow viewing exercise progress and graphs, but do not require a visual program editor.
-- The backend calculates prescribed loads. The client records actual results, not progression decisions.
-- **Accepted MVP constraint:** new workouts can only be started from a workout template belonging to the user's program. No free-form/empty workout creation. The user chooses which template to run; the order is not forced.
-- **Accepted workout navigation:** a compact list (typically 4–5 exercises, not a hard limit) leads to a dedicated screen for logging/editing weights, repetitions and sets.
-- **Accepted default and visual comparison:** every new working set is prefilled from **planned** values, not last actual values. The per-set progress bar compares **actual volume (weight × reps)** with **planned volume (weight × reps)**, including shortfall and overflow. Show the separate performed/planned working-set count.
+- Удобство использования одной рукой во время тренировки, минимум ввода текста или его отсутствие, без голосового взаимодействия.
+- Запись обычного подхода **одним нажатием**, если рекомендуемые вес/повторения совпали с выполненными.
+- Возможность менять порядок упражнений, нагрузку и объём **в рамках занятия** без автоматического изменения постоянной программы.
+- Работа при отсутствии сети на iOS и Android.
+- Поддержка личных аккаунтов и закрытых локальных данных, разделённых по пользователям.
+- Просмотр прогресса упражнений и графиков без обязательного визуального редактора программ.
+- Сервер рассчитывает предписанные нагрузки. Клиент записывает фактические результаты, а не принимает решения о прогрессии.
+- **Принятое ограничение MVP:** новые тренировки запускаются только из шаблона, принадлежащего программе пользователя. Без создания произвольных/пустых тренировок. Пользователь выбирает шаблон; порядок не навязывается.
+- **Принятая навигация тренировки:** компактный список (обычно 4–5 упражнений, без жёсткого лимита) ведёт на отдельный экран записи/исправления весов, повторений и подходов.
+- **Принятые значения по умолчанию и визуальное сравнение:** каждый новый рабочий подход предзаполняется **плановыми**, а не последними фактическими значениями. Индикатор подхода сравнивает **фактический объём (вес × повторения)** с **плановым объёмом (вес × повторения)**, показывая недобор и превышение. Отдельно отображается фактическое/плановое число рабочих подходов.
 
-## Clickable UX prototype
+## Интерактивный UX-прототип
 
-A self-contained, reviewable browser prototype is available at [`prototype/index.html`](../prototype/index.html). It provides working navigation across workout selection, preview, active session, detailed logger, completion, history, statistics, settings and simulated offline/account switching. The prototype deliberately uses fictional data and in-memory state only; it is **not** the actual PWA and does not implement IndexedDB/server synchronization. Its interactions are candidates for UX review, not approved contracts.
+Самостоятельный браузерный прототип для проверки доступен в [`prototype/index.html`](../prototype/index.html). В нём работает навигация между выбором тренировки, предпросмотром, активным занятием, подробным экраном записи, завершением, историей, статистикой, настройками и имитацией отсутствия сети/переключения аккаунтов. Прототип намеренно использует вымышленные данные и состояние только в памяти; это **не** настоящая PWA, он не реализует IndexedDB/серверную синхронизацию. Его взаимодействия — кандидаты для обсуждения UX, а не утверждённые контракты.
 
-## Navigation (proposal)
+## Навигация (предложение)
 
-Three primary tabs:
+Три основные вкладки:
 
-| Tab | Main content | Access during an active session |
+| Вкладка | Основное содержимое | Доступ во время активного занятия |
 | --- | --- | --- |
-| **Workout** | next session preview or active session overview; individual exercise logger | default landing screen; resume always visible |
-| **History** | sessions, details, corrections | yes |
-| **Statistics** | exercise charts and training summaries | yes |
+| **Тренировка** | предпросмотр следующего занятия или обзор активного; экран записи отдельного упражнения | стартовый экран по умолчанию; продолжение всегда видно |
+| **История** | занятия, подробности, исправления | да |
+| **Статистика** | графики упражнений и сводки тренировок | да |
 
-Account/settings and synchronization diagnostics can live behind a profile/settings entry, not a fourth primary tab. A visible return-to-workout affordance is needed when navigating away mid-session.
+Аккаунт/настройки и диагностику синхронизации можно разместить за пунктом профиля/настроек без четвёртой основной вкладки. При уходе из активного занятия нужен видимый способ вернуться к тренировке.
 
-## Primary screens
+## Основные экраны
 
-### A. Workout home / template selection / preview
+### A. Главный экран / выбор шаблона / предпросмотр
 
-When there is no active session:
+Когда активного занятия нет:
 
-- Display the **available workout templates in the user's current program**. Illustrative names: “Leg day”, “Back and shoulders”, “Chest and shoulders”, “Upper body”; these are **not hard-coded global categories**.
-- User can choose **any** available template for today's workout; do not enforce a rigid A→B→C rotation or silently reschedule the whole program.
-- Optionally highlight the backend's suggested next template, if a scheduling policy exists; the user can select a different one.
-- After selection, preview the selected template's exercise list, target sets/reps/loads and recent comparable results, then show **Start workout**.
-- Each template's prescribed weights/reps are calculated by backend progression logic, not by the phone.
-- When offline, show locally cached templates with their available cached prescribed target snapshots. A **usable cached plan** can start offline; if the necessary plan is not cached, explain why start is unavailable rather than inventing calculated loads.
-- Caching/freshness policy and what happens if an agent has revised a cached template on the server remain **open design details**.
-- A new empty/ad-hoc workout is **out of scope for MVP**; adding new long-term templates is done by the agent through API/MCP.
+- Показать **доступные шаблоны тренировок текущей программы пользователя**. Примеры названий: «День ног», «Спина и плечи», «Грудь и плечи», «Верх тела»; это **не жёстко заданные общие категории**.
+- Пользователь может выбрать **любой** доступный шаблон для сегодняшней тренировки; не навязывать строгое чередование A→B→C и не перепланировать всю программу незаметно.
+- При наличии политики расписания можно выделять следующий шаблон, предложенный сервером; пользователь может выбрать другой.
+- После выбора показать список упражнений шаблона, целевые подходы/повторения/нагрузки и недавние сопоставимые результаты, затем кнопку **Начать тренировку**.
+- Предписанные веса/повторения каждого шаблона рассчитывает серверная логика прогрессии, а не телефон.
+- Без сети показывать локально кэшированные шаблоны с доступными кэшированными снимками предписанных целей. **Пригодный кэшированный план** можно запустить без сети; если нужного плана нет в кэше, объяснить недоступность запуска, а не придумывать рассчитанные нагрузки.
+- Политика кэширования/актуальности и поведение при изменении агентом кэшированного шаблона на сервере остаются **открытыми подробностями проекта**.
+- Новая пустая/произвольная тренировка **не входит в MVP**; новые постоянные шаблоны добавляет агент через API/MCP.
 
-When a session is active: show **Resume workout** instead of silently creating another session.
+При активном занятии показывать **Продолжить тренировку**, а не незаметно создавать ещё одно.
 
-### B. Active session overview (list-first; accepted navigation)
+### B. Обзор активного занятия (список; принятая навигация)
 
-- The normal workout is short (about **4–5 exercises**); show the whole list in a compact overview without imposing a numerical limit on a template.
-- Header: workout name, duration/time started, compact sync indicator, **Finish** action.
-- Exercise rows: name/equipment, prescribed sets × reps and load, count of completed sets, previous session result.
-- **Tap an exercise row to enter a dedicated logger.** Do not put the primary log-set and weight/repetition editing controls into every overview row in MVP.
-- Exercise order is flexible; returning to the list and opening another exercise is always possible.
-- Candidate session-only actions: reorder exercises; skip with optional reason; replace an exercise; possibly add an exercise within an existing template session. These are not a way to create an entirely new free-form workout or to edit the persistent program.
-- Completed exercises remain accessible for inspection/correction.
-- Do not silently commit permanent program changes from this screen.
+- Обычная тренировка короткая (около **4–5 упражнений**); показывать весь список в компактном обзоре без числового ограничения шаблона.
+- Заголовок: название тренировки, длительность/время начала, компактный индикатор синхронизации, действие **Завершить**.
+- Строки упражнений: название/оборудование, предписанные подходы × повторения и нагрузка, число выполненных подходов, результат прошлого занятия.
+- **Нажатие строки упражнения открывает отдельный экран записи.** В MVP не размещать основные элементы записи подхода и редактирования веса/повторений в каждой строке обзора.
+- Порядок упражнений гибкий; всегда можно вернуться к списку и открыть другое упражнение.
+- Возможные действия только для текущего занятия: изменить порядок; пропустить с необязательной причиной; заменить упражнение; возможно, добавить упражнение в существующее занятие по шаблону. Это не способ создать полностью произвольную тренировку или изменить постоянную программу.
+- Выполненные упражнения остаются доступны для просмотра/исправления.
+- Не фиксировать постоянные изменения программы с этого экрана незаметно.
 
-### C. Exercise logger (dedicated screen; accepted scope)
+### C. Запись упражнения (отдельный экран; принятый объём)
 
-The detailed exercise screen is the **primary interaction surface for recording and correcting actual weights, repetitions and sets**, with large touch targets.
+Подробный экран упражнения — **основное место записи и исправления фактических весов, повторений и подходов**, с крупными областями нажатия.
 
-Proposed layout, from top to bottom:
+Предлагаемая структура сверху вниз:
 
-1. Exercise title and back to the compact workout list. Show prescribed targets, previous comparable result and compact sync status.
-2. Current set editor: **weight**, **repetitions**, +/- controls (optional numeric entry) and a prominent **Log set** button.
-3. Actual sets already recorded, each with number, weight, reps and working/warm-up type; tap a row to **edit/correct**, or undo/remove it. Corrections must not silently disappear from the audit/sync history.
-4. **Set count adjustment:** the user can perform fewer or more sets than prescribed. The actual number is derived from logged sets; provide an explicit way to add another set, remove an erroneous one and stop the exercise early.
-5. Back to overview; switching exercises must preserve results and pending input.
+1. Название упражнения и возврат к компактному списку тренировки. Предписанные цели, предыдущий сопоставимый результат и компактное состояние синхронизации.
+2. Редактор текущего подхода: **вес**, **повторения**, кнопки +/- (необязательный числовой ввод) и заметная кнопка **Записать подход**.
+3. Уже записанные фактические подходы: номер, вес, повторения, рабочий/разминочный тип; нажатие строки для **редактирования/исправления** или отмены/удаления. Исправления не должны незаметно исчезать из истории аудита/синхронизации.
+4. **Изменение количества подходов:** пользователь может выполнить меньше или больше подходов, чем предписано. Фактическое число определяется записанными подходами; нужен явный способ добавить подход, удалить ошибочный и закончить упражнение раньше.
+5. Возврат к обзору; переключение упражнений сохраняет результаты и незавершённый ввод.
 
-**Plan vs fact:** the planned number of sets (for example, 3) remains visible and unchanged in the plan snapshot; completed/actual sets can be 2, 3, 4 etc. A fourth performed set is an extra **session result**, not a silent persistent change of the template. The exact UI for changing an *intended* target set count before logging versus simply adding/removing *actual* sets is an open detail.
+**План и факт:** плановое количество подходов (например, 3) остаётся видимым и неизменным в снимке плана; выполненных/фактических подходов может быть 2, 3, 4 и т. д. Четвёртый выполненный подход — дополнительный **результат занятия**, а не незаметное постоянное изменение шаблона. Точный интерфейс изменения *намеченного* числа подходов до записи и простого добавления/удаления *фактических* подходов остаётся открытым.
 
-**Accepted prefill rule:** every new working set starts with its **planned weight and repetitions**, regardless of the result of the previous set. If the plan specifies different targets by set number, use the current planned set's own targets. If the user logs a working set beyond the planned count, default to the last planned working-set target and clearly label the set as extra. The input remains editable. A corrected older result does not retroactively change the default for another planned set.
+**Принятое правило предзаполнения:** каждый новый рабочий подход начинается с **плановых веса и повторений** независимо от результата предыдущего. Если план задаёт разные цели по номерам подходов, использовать собственные цели текущего планового подхода. При записи рабочего подхода сверх планового количества использовать цель последнего планового рабочего подхода и явно помечать подход как дополнительный. Ввод остаётся редактируемым. Исправление старого результата не меняет задним числом значения по умолчанию другого планового подхода.
 
-**Precise reference values:** a rep-range prescription (for example 8–12) also needs an **explicit backend-provided suggested repetition count** for input and comparison, e.g. 10, so the phone does not invent a target. The displayed range remains visible separately. The schema for per-set target values is to be designed.
+**Точные опорные значения:** предписание диапазона повторений (например, 8–12) также требует **явного рекомендуемого числа повторений от сервера** для ввода и сравнения, например 10, чтобы телефон не придумывал цель. Сам диапазон остаётся видимым отдельно. Схему целевых значений для каждого подхода предстоит спроектировать.
 
-**Accepted volume bar (final styling still open):**
+**Принятый индикатор объёма (окончательный вид остаётся открытым):**
 
-- For each logged working set, compute the **set volume / tonnage**: `actual_weight_kg × actual_reps`. Compare it with `planned_weight_kg × suggested_reps` from that set's frozen plan snapshot. The displayed ratio is `actual_volume / planned_volume` when the planned volume is positive.
-- **Below plan:** fill stops before the visible 100% marker. Example: `60 kg × 8 = 480 kg` against `60 kg × 10 = 600 kg` → **80%**.
-- **At plan:** fill reaches the 100% marker. Example: `60 kg × 10 = 600 kg` → **100%**.
-- **Above plan:** fill continues past the visible 100% marker, with capped visual overflow but **uncapped numerical percentage**. Example: `70 kg × 9 = 630 kg` → **105%**.
-- **Trade-off visible:** `65 kg × 9 = 585 kg` → **97.5%**, rather than a simple “9 out of 10 reps” (90%). Always display both actual weight and repetitions; if either differs from plan, their differences can be read without a second graph.
-- Show **actual and planned volume numerically** (e.g. `585 / 600 kg · 97.5%`) and a clearly labeled 100% marker. Use a separate **working-set count indicator** (`2 / 3`, `4 / 3 · +1 extra`) to make extra or missing sets visible. Set-count fill is not the set-volume bar.
-- **No valid positive planned volume:** do not divide by zero or show a fake 0%/100% bar. Bodyweight, assisted, distance/time-based and other non-kg-load modalities need appropriate measurement semantics; those rules are outside the current bar decision and remain open.
-- **Warm-ups and unlogged sets:** warm-ups do not count as completed planned working sets; unlogged planned sets are not fabricated as 0-volume performance.
-- **Interpretation:** volume here is a comparison of recorded kilograms × repetitions, **not mechanical work**, a universal strength measure or an automatic success criterion for progression. Backend progression still uses raw sets and explicit rules.
-- Do not encode completion with color alone; show labels, actual/planned numbers and volume differences. Exact overflow width and accessibility treatment remain UX design details.
+- Для каждого записанного рабочего подхода рассчитывать **объём/тоннаж подхода**: `actual_weight_kg × actual_reps`. Сравнивать с `planned_weight_kg × suggested_reps` из зафиксированного снимка плана этого подхода. Отображаемое соотношение — `actual_volume / planned_volume`, если плановый объём положителен.
+- **Ниже плана:** заполнение заканчивается до видимой отметки 100%. Пример: `60 кг × 8 = 480 кг` относительно `60 кг × 10 = 600 кг` → **80%**.
+- **По плану:** заполнение достигает отметки 100%. Пример: `60 кг × 10 = 600 кг` → **100%**.
+- **Выше плана:** заполнение продолжается за видимую отметку 100% с ограниченным визуальным превышением, но **неограниченным числовым процентом**. Пример: `70 кг × 9 = 630 кг` → **105%**.
+- **Видимый компромисс:** `65 кг × 9 = 585 кг` → **97,5%**, а не просто «9 из 10 повторений» (90%). Всегда показывать фактические вес и повторения; если что-либо отличается от плана, разницу можно прочитать без второго графика.
+- Показывать **фактический и плановый объёмы числами** (например, `585 / 600 кг · 97,5%`) и ясно подписанную отметку 100%. Использовать отдельный **индикатор числа рабочих подходов** (`2 / 3`, `4 / 3 · +1 дополнительный`), чтобы были видны лишние и недостающие подходы. Заполнение счётчика подходов не является индикатором объёма подхода.
+- **Нет корректного положительного планового объёма:** не делить на ноль и не показывать вымышленный индикатор 0%/100%. Собственный вес, помощь, расстояние/время и другие виды нагрузки не в кг требуют подходящей семантики измерения; эти правила не входят в текущее решение об индикаторе и остаются открытыми.
+- **Разминка и незаписанные подходы:** разминка не засчитывается в выполненные плановые рабочие подходы; незаписанные плановые подходы не превращаются в вымышленные результаты с нулевым объёмом.
+- **Интерпретация:** объём здесь — сравнение записанных килограммов × повторений, **не механическая работа**, не универсальная мера силы и не автоматический критерий успешной прогрессии. Серверная прогрессия по-прежнему использует исходные подходы и явные правила.
+- Не кодировать выполнение только цветом; показывать подписи, фактические/плановые числа и разницы объёма. Точная ширина превышения и решения по доступности остаются подробностями UX-проекта.
 
-**Not yet decided:** exact weight-step buttons per exercise/equipment; optional RIR/RPE, rest timing, and whether a whole-exercise total-volume chart is useful. None should add mandatory taps.
+**Ещё не решено:** точные кнопки шага веса для упражнения/оборудования; необязательные RIR/RPE, отсчёт отдыха и полезность графика общего объёма упражнения. Ничто из этого не должно добавлять обязательные нажатия.
 
-**Interaction invariant:** one tap logs an ordinary set when suggested values were achieved, but a local-save failure is **not** a successful log. Log set only after local persistence succeeds.
+**Инвариант взаимодействия:** одно нажатие записывает обычный подход при достижении рекомендуемых значений, но сбой локального сохранения **не** является успешной записью. Считать подход записанным только после успешного локального сохранения.
 
-**Important:** a successful button press is acknowledged only **after** the set and sync operation are durably committed to local storage. Otherwise show an error and leave the entry on screen for retry.
+**Важно:** успешное нажатие подтверждается только **после** надёжной фиксации подхода и операции синхронизации в локальном хранилище. Иначе показать ошибку и оставить ввод на экране для повтора.
 
-### D. Finish workout / review
+### D. Завершение тренировки / проверка
 
-- Summarize logged exercises/sets and show skipped or incomplete planned exercises.
-- Permit finishing despite incomplete plan and without connectivity; do not force invented results for missed sets.
-- Confirm a meaningful completion action; make cancellation/abandonment distinct from completion.
-- Save the completed state locally with a pending sync operation, and show a local completion summary immediately.
-- Allow opening the finished session to correct entries later. Corrections must remain auditable server-side.
+- Сводка записанных упражнений/подходов с показом пропущенных или неполных плановых упражнений.
+- Разрешить завершение при неполном плане и без сети; не требовать вымышленных результатов пропущенных подходов.
+- Подтверждать значимое действие завершения; отличать отмену/прекращение от завершения.
+- Сохранять завершённое состояние локально с ожидающей операцией синхронизации и сразу показывать локальную сводку завершения.
+- Разрешить открывать завершённое занятие для последующих исправлений. Исправления должны сохраняться в серверном аудите.
 
-### E. History
+### E. История
 
-- List sessions by date with status: active, completed, cancelled/abandoned (status taxonomy to finalize).
-- Open a session to compare snapshot plan vs actual sets, including replacements/skips.
-- Correct a set with a clear before/after display; never silently overwrite a remotely edited set.
-- Locally unsynced sessions are visible in history with a sync indicator.
+- Список занятий по датам со статусом: активное, завершённое, отменённое/прекращённое (набор статусов предстоит уточнить).
+- Открытие занятия для сравнения снимка плана с фактическими подходами, включая замены/пропуски.
+- Исправление подхода с явным показом до/после; никогда не перезаписывать незаметно подход, изменённый удалённо.
+- Локально несинхронизированные занятия видны в истории с индикатором синхронизации.
 
-### F. Statistics
+### F. Статистика
 
-- Exercise selector and time window; graph working weight, reps, volume and estimated 1RM (explicitly an estimate).
-- Training overview: frequency, working sets and total volume across a period.
-- Show units; avoid comparing machines/exercises with non-equivalent measurement semantics.
-- Cached graphs may be visible offline, labeled with “updated at” time; authoritative computations stay on backend.
-- A session added locally but not yet synced should not be misrepresented as already included in server-derived aggregates. Either display a separately labeled local preview or await server recomputation.
+- Выбор упражнения и периода; графики рабочего веса, повторений, объёма и расчётного 1ПМ (явно обозначать как оценку).
+- Обзор тренировок: частота, рабочие подходы и общий объём за период.
+- Показывать единицы; избегать сравнения тренажёров/упражнений с неэквивалентной семантикой измерений.
+- Кэшированные графики могут быть доступны без сети с отметкой времени обновления; достоверные расчёты остаются на сервере.
+- Занятие, добавленное локально, но ещё не синхронизированное, не должно выглядеть уже включённым в серверные агрегаты. Либо показывать отдельно помеченный локальный предпросмотр, либо ждать серверного пересчёта.
 
-## Primary interaction flow
+## Основной сценарий взаимодействия
 
 ```mermaid
 flowchart TD
-    A[Open Workout] --> B{Active session?}
-    B -->|Yes| C[Session overview]
-    B -->|No| D[Choose a program workout template]
-    D --> E{Prescribed plan available?}
-    E -->|Yes cached| F[Preview and start: save session snapshot locally]
-    E -->|No and online| G[Fetch computed targets for selected template]
+    A[Открыть вкладку «Тренировка»] --> B{Есть активное занятие?}
+    B -->|Да| C[Обзор занятия]
+    B -->|Нет| D[Выбрать шаблон тренировки программы]
+    D --> E{Предписанный план доступен?}
+    E -->|Да, в кэше| F[Предпросмотр и запуск: локально сохранить снимок занятия]
+    E -->|Нет, есть сеть| G[Получить рассчитанные цели выбранного шаблона]
     G --> F
-    E -->|No and offline| H[Explain unavailable cached plan; no free-form workout in MVP]
+    E -->|Нет, нет сети| H[Объяснить отсутствие плана в кэше; произвольных тренировок в MVP нет]
     F --> C
-    C --> I[Choose any exercise]
-    I --> J[Exercise logger]
-    J --> K[Adjust if needed; Log set]
-    K --> L[Persist result plus sync operation locally]
+    C --> I[Выбрать любое упражнение]
+    I --> J[Экран записи упражнения]
+    J --> K[При необходимости изменить значения; записать подход]
+    K --> L[Локально сохранить результат и операцию синхронизации]
     L --> J
     J --> C
-    C --> M[Finish review]
-    M --> N[Mark completed locally]
-    N --> O[Summary and history]
+    C --> M[Проверка перед завершением]
+    M --> N[Локально отметить завершение]
+    N --> O[Сводка и история]
 ```
 
-The mermaid flow is a UX flow, not the entire backend status machine.
+Схема Mermaid описывает сценарий UX, а не полный автомат состояний сервера.
 
-## State separation (important)
+## Разделение состояний (важно)
 
-Do **not** model connectivity as a workout state.
+**Не** моделировать подключение к сети как состояние тренировки.
 
-**Workout lifecycle (proposed):**
-`preview -> active -> completed`, with explicit `cancelled/abandoned` alternatives.
-A persisted preview is not necessarily a backend session. A started session always has a stable client-generated ID and a frozen plan snapshot.
+**Жизненный цикл тренировки (предложение):**
+`preview -> active -> completed` (предпросмотр → активна → завершена), с явными альтернативами `cancelled/abandoned` (отменена/прекращена).
+Сохранённый предпросмотр не обязательно является серверным занятием. Начатое занятие всегда имеет стабильный идентификатор, созданный клиентом, и зафиксированный снимок плана.
 
-**Sync lifecycle (independent):**
+**Жизненный цикл синхронизации (независимый):**
 
-| Operation state | Meaning | UI representation |
+| Состояние операции | Значение | Отображение в интерфейсе |
 | --- | --- | --- |
-| `queued` | locally saved, not acknowledged by server | “Saved on device · N pending” |
-| `sending` | currently attempting delivery | unobtrusive syncing icon |
-| `acknowledged` | server confirmed application | “Synced” |
-| `blocked` | authorization/conflict/validation requires attention | visible action, never discard data |
+| `queued` | сохранена локально, не подтверждена сервером | «Сохранено на устройстве · N в очереди» |
+| `sending` | выполняется попытка доставки | ненавязчивый значок синхронизации |
+| `acknowledged` | сервер подтвердил применение | «Синхронизировано» |
+| `blocked` | авторизация/конфликт/валидация требуют внимания | видимое действие, данные никогда не отбрасываются |
 
-Connectivity and sync may change without changing the workout lifecycle. A completed, locally saved session is still completed from the user's perspective while delivery remains pending.
+Подключение и синхронизация могут меняться без изменения жизненного цикла тренировки. Завершённое локально сохранённое занятие остаётся завершённым для пользователя, пока доставка ожидает выполнения.
 
-## Offline and synchronization behavior
+## Работа без сети и синхронизация
 
-### Local data (proposed)
+### Локальные данные (предложение)
 
-- Available templates from the user's last known published program and prefetched computed target snapshots for relevant templates (exact prefetch policy open).
-- Active workout snapshot and user-entered results.
-- Outbound operation queue (append/write corrections, completion and skips) plus acknowledgment state.
-- Small history cache and optionally cached chart results.
-- Account partition key and local device identity.
+- Доступные шаблоны последней известной опубликованной программы пользователя и заранее загруженные снимки рассчитанных целей для соответствующих шаблонов (точная политика загрузки открыта).
+- Снимок активной тренировки и результаты, введённые пользователем.
+- Очередь исходящих операций (добавление/исправление записей, завершение и пропуски) и состояние подтверждения.
+- Небольшой кэш истории и необязательные кэшированные результаты графиков.
+- Ключ разделения по аккаунтам и локальный идентификатор устройства.
 
-For each operation, use a stable operation ID, user-scoped session ID, kind, payload, creation time and version/precondition fields where needed. IDs must survive retries and app restarts. Server establishes identity from auth, **not** a user ID supplied in the operation.
+Для каждой операции использовать стабильный идентификатор операции, идентификатор занятия в рамках пользователя, тип, данные, время создания и при необходимости поля версии/предусловий. Идентификаторы должны сохраняться при повторах и перезапусках приложения. Сервер определяет пользователя по аутентификации, **а не** по идентификатору пользователя в операции.
 
-### Saving and sending
+### Сохранение и отправка
 
-1. One IndexedDB transaction stores both the result and its outbound operation.
-2. UI immediately updates after commit and indicates “saved locally” (not “synced”).
-3. While online and foregrounded, try immediate delivery. Retry on startup/resume and connectivity changes.
-4. Optionally register browser Background Sync where supported, without relying on it.
-5. Server deduplicates repeated operations and acknowledges the exact operation ID.
-6. Keep pending operations until acknowledged; do not silently drop conflicts.
+1. Одна транзакция IndexedDB сохраняет результат и его исходящую операцию.
+2. Интерфейс сразу обновляется после фиксации и показывает «сохранено локально» (не «синхронизировано»).
+3. При наличии сети и работе на переднем плане пытаться доставить немедленно. Повторять при запуске/возобновлении и изменениях подключения.
+4. Необязательно регистрировать браузерный Background Sync там, где он поддерживается, без зависимости от него.
+5. Сервер устраняет дубли повторных операций и подтверждает точный идентификатор операции.
+6. Хранить ожидающие операции до подтверждения; не отбрасывать конфликты незаметно.
 
-Expired authorization should **not** block local logging under an already established local identity; syncing resumes after a safe reauthentication flow. Account switching/logging out with pending data must explicitly protect unsynced records.
+Истёкшая авторизация **не** должна блокировать локальную запись в рамках уже установленной локальной учётной записи; синхронизация продолжается после безопасной повторной аутентификации. Переключение аккаунта/выход с ожидающими данными должны явно защищать несинхронизированные записи.
 
-### Program changes while offline
+### Изменение программы во время отсутствия сети
 
-- Starting a workout freezes a snapshot of the available plan and recommendation metadata.
-- An agent's later program revision does not rewrite active session targets or actual logged sets.
-- On reconnection the client can fetch the new program for the **next** workout.
-- Incompatible or stale program state needs an explicit user-visible resolution; do not guess a new progression on the phone.
+- Начало тренировки фиксирует снимок доступного плана и метаданных рекомендации.
+- Последующая версия программы от агента не переписывает цели активного занятия и фактически записанные подходы.
+- При восстановлении сети клиент может получить новую программу для **следующей** тренировки.
+- Несовместимое или устаревшее состояние программы требует явного, видимого пользователю разрешения; не угадывать новую прогрессию на телефоне.
 
-### Multiple devices
+### Несколько устройств
 
-A user may have several devices but the same session/set must not be silently overwritten by last-write-wins. Concurrent edits should generate a detectable conflict with a safe recovery UI; detailed merge rules remain open.
+У пользователя может быть несколько устройств, но одно занятие/подход не должно незаметно перезаписываться по принципу последней записи. Конкурентные изменения должны давать обнаруживаемый конфликт с безопасным интерфейсом восстановления; подробные правила слияния остаются открытыми.
 
-### Failure scenarios
+### Сценарии сбоев
 
-- **Local storage transaction fails:** do not claim the set was saved; retain input and offer retry.
-- **App is killed while offline:** re-open from durable local active session and queue.
-- **Server received an operation but response was lost:** retry with identical operation ID; server returns prior acknowledgment.
-- **Finish while offline:** mark complete locally and queue completion; history clearly shows pending sync.
-- **Logout with queued operations:** require a policy preventing silent loss or accidental cross-account upload.
-- **Browser data cleared:** unsynced work may be unrecoverable; display this limitation where relevant.
+- **Сбой транзакции локального хранилища:** не утверждать, что подход сохранён; оставить ввод и предложить повтор.
+- **Приложение принудительно закрыто без сети:** восстановить сохранённое локальное активное занятие и очередь при открытии.
+- **Сервер получил операцию, но ответ потерян:** повторить с тем же идентификатором операции; сервер возвращает прежнее подтверждение.
+- **Завершение без сети:** отметить завершение локально и поставить его в очередь; история явно показывает ожидание синхронизации.
+- **Выход с операциями в очереди:** нужна политика, исключающая незаметную потерю или случайную отправку в чужой аккаунт.
+- **Данные браузера очищены:** несинхронизированная работа может оказаться невосстановимой; показывать это ограничение там, где уместно.
 
-## UX quality checklist (candidate acceptance tests)
+## Проверка качества UX (кандидаты в приёмочные тесты)
 
-1. With an already cached session plan and no network, start a workout, log three sets and finish; the locally saved result survives a PWA restart.
-2. A normal matching set takes one tap; a different weight/reps can be entered with large controls. After logging `60 kg × 8` against planned `60 kg × 10`, the next set still defaults to its planned values, not `60 × 8`.
-3. A progress bar compares recorded **weight × reps** with planned weight × reps: `60×8 / 60×10 = 80%`, `60×10 / 60×10 = 100%`, `65×9 / 60×10 = 97.5%`, and `70×9 / 60×10 = 105%` (visible overflow). Display weight and repetition values as well.
-4. The set-count indicator distinguishes `2/3` from `4/3` without rewriting the plan. Switching exercises mid-workout preserves any logged results.
-5. A locally completed, unsynced workout is visible in history with an accurate status.
-6. After reconnecting, sync retries do not duplicate any set even if a prior acknowledgment was lost.
-7. Changing a program from the agent does not alter an in-progress workout snapshot.
-8. iOS works correctly when background sync never fires; resuming the app retries pending operations.
-9. Expired auth and conflicting remote edits do not cause silent loss of pending records.
-10. No user can see another user's local or server data through a normal account switch.
-11. Statistics identify stale cache and do not silently combine unsynced and server data.
+1. При заранее кэшированном плане занятия и без сети начать тренировку, записать три подхода и завершить; локальный результат сохраняется после перезапуска PWA.
+2. Обычный подход с совпадающими значениями записывается одним нажатием; другой вес/повторения вводятся крупными элементами управления. После записи `60 кг × 8` при плане `60 кг × 10` следующий подход всё равно получает плановые значения, а не `60 × 8`.
+3. Индикатор сравнивает записанные **вес × повторения** с плановыми: `60×8 / 60×10 = 80%`, `60×10 / 60×10 = 100%`, `65×9 / 60×10 = 97,5%` и `70×9 / 60×10 = 105%` (видимое превышение). Вес и повторения также отображаются.
+4. Счётчик подходов различает `2/3` и `4/3` без изменения плана. Переключение упражнений во время тренировки сохраняет все записанные результаты.
+5. Локально завершённая несинхронизированная тренировка видна в истории с точным состоянием.
+6. После восстановления сети повторы синхронизации не дублируют подходы, даже если прежнее подтверждение потерялось.
+7. Изменение программы агентом не меняет снимок активной тренировки.
+8. iOS работает корректно, даже если фоновая синхронизация ни разу не срабатывает; возобновление приложения повторяет ожидающие операции.
+9. Истёкшая авторизация и конфликтующие удалённые правки не вызывают незаметной потери ожидающих записей.
+10. Ни один пользователь не видит чужие локальные или серверные данные при обычном переключении аккаунта.
+11. Статистика обозначает устаревший кэш и не объединяет незаметно несинхронизированные и серверные данные.
 
-## Open design questions for review
+## Открытые вопросы проекта для обсуждения
 
-1. **Offline template selection:** which templates and backend-computed target snapshots do we prefetch, and how do we resolve stale cached plans after an agent revision? Empty/ad-hoc workout creation is out of scope for MVP.
-2. **Exercise details:** dedicated screen is accepted; decide how to adjust the intended set count vs recording extra/missed actual sets, and how to edit/remove a logged set.
-3. **Volume-bar presentation:** final overflow scale, optional whole-exercise aggregate volume, measurement types where kg × repetitions is inapplicable, and backend-provided suggested reps within a range. Plan prefill and per-set volume bars are accepted (ADR-0008).
-4. **Finish behavior:** confirmation requirements for missed planned sets and optional subjective summary.
-5. **Offline sync and conflicts:** exact operation ordering, conflict resolution UI and account-switch handling.
-6. **Scope:** whether replacement, extra exercises, RIR and rest timer belong in initial MVP.
-7. **Statistics:** minimal graphs and whether locally queued sets influence preview charts.
+1. **Выбор шаблона без сети:** какие шаблоны и снимки рассчитанных сервером целей загружать заранее и как разрешать устаревание кэша после изменения агентом? Создание пустой/произвольной тренировки не входит в MVP.
+2. **Подробности упражнения:** отдельный экран принят; решить, как менять намеченное количество подходов и записывать дополнительные/пропущенные фактические подходы, как исправлять/удалять записанный подход.
+3. **Вид индикатора объёма:** окончательный масштаб превышения, необязательный суммарный объём упражнения, типы измерений, где кг × повторения неприменимы, и рекомендуемые сервером повторения внутри диапазона. Плановое предзаполнение и индикаторы объёма каждого подхода приняты (ADR-0008).
+4. **Завершение:** требования к подтверждению пропущенных плановых подходов и необязательная субъективная сводка.
+5. **Синхронизация без сети и конфликты:** точный порядок операций, интерфейс разрешения конфликтов и обработка переключения аккаунтов.
+6. **Объём:** входят ли замены, дополнительные упражнения, RIR и таймер отдыха в начальный MVP.
+7. **Статистика:** минимальные графики и влияние локальных подходов в очереди на предварительные графики.
 
-**Accepted:** template-based start (ADR-0005); short overview list and focused logger (ADR-0006); each set defaults to planned values and its progress bar measures **kg × repetitions** relative to planned set volume, showing under- and over-fulfilment (ADR-0008 supersedes ADR-0007). Muscle-group names and 4–5 exercises are illustrative, not enforced limits.
+**Принято:** запуск по шаблону (ADR-0005); короткий обзорный список и отдельный экран записи (ADR-0006); каждый подход получает плановые значения по умолчанию, а его индикатор измеряет **кг × повторения** относительно планового объёма, показывая недобор и превышение (ADR-0008 заменяет ADR-0007). Названия мышечных групп и 4–5 упражнений — примеры, а не обязательные ограничения.
 
-The remaining choices should be resolved before detailed wireframes, state charts and client/API contracts are considered approved.
+Остальные вопросы нужно решить до того, как подробные макеты, диаграммы состояний и контракты клиента/API будут считаться утверждёнными.

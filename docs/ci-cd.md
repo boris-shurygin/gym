@@ -1,111 +1,169 @@
-# CI/CD and YDB schema migrations
+# CI/CD и миграции схемы YDB
 
-**Status: Accepted CI/CD architecture (ADR-0011), not yet implemented.** Updated 2026-10-20. Exact migration-runner implementation, compatibility window, authentication and observability stack remain open.
+**Статус: архитектура CI/CD принята (ADR-0011), ещё не реализована.** Обновлено 2026-10-20. Конкретная реализация запуска миграций, окно совместимости, аутентификация и стек наблюдаемости остаются открытыми.
 
-## Target workflow
+Детализация ниже добавлена 2026-10-25 для этапа P01 [плана работ](development-plan.md). **Престейбл = staging, стейбл = production.** Принятый процесс сохраняется; новые параметры реализации пока предлагаются для согласования. Workflow и облачные ресурсы этим документом не создаются.
+
+## Деплой из GitHub Actions в Yandex Cloud
+
+Автоматический деплой поддерживается: у Yandex есть [руководство по GitHub Actions и Cloud Functions](https://yandex.cloud/ru/docs/tutorials/serverless/ci-cd-github-functions). Для доступа без постоянного авторизованного ключа подходит [Workload Identity Federation](https://yandex.cloud/ru/docs/iam/operations/wlif/setup-wlif): OIDC-токен задания обменивается на IAM-токен сервисного аккаунта.
+
+Для Gym используем уже принятые в ADR-0011 автоматический престейбл после merge и ручной стейбл. Автоматический production после merge потребовал бы отдельного пересмотра ADR; сейчас он не предлагается.
+
+### Предлагаемые точки запуска
+
+| Процесс | Событие | Что делает | Облачный доступ |
+| --- | --- | --- | --- |
+| `ci.yml` | `pull_request` в main | Проверки изменённых компонентов и одноразовой YDB | Без production; синтетические данные |
+| `deploy-staging.yml` | `push` в main после merge; ручной повтор при необходимости | Проверки конкретного main SHA, однократная сборка пакетов, миграция, API/PWA, smoke-тесты | Только staging и хранилище артефактов |
+| `deploy-production.yml` | `workflow_dispatch` с `release_id` | Проверка успешного staging этого выпуска, продвижение тех же пакетов, миграция и smoke-тесты | Production только в защищённом задании |
+
+Автоматический престейбл можно запустить от push в main, выполняя проверки перед шагами деплоя внутри этого процесса либо через переиспользуемый workflow. Не предполагать, что зелёный CI прежнего PR автоматически проверил новый merge SHA. Выбор структуры зависимостей workflow уточняется в P01/P03.
+
+`workflow_dispatch` даёт кнопку **Run workflow** в GitHub Actions, а также запуск через CLI/API; файл процесса должен находиться в основной ветке. Команда агента «Деплой на стейбл» запускает тот же процесс с конкретным выпуском. См. [ручной запуск workflow](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow).
+
+Ручной запуск с выбором выпуска — явное действие выпуска. При настройке обязательного reviewer для Environment production job дополнительно ждёт его одобрения; агент не обходит эту защиту. Для одного владельца отдельно проверить настройки self-review, чтобы не создать непреодолимый запрет на собственный выпуск. Поддержка защит зависит от видимости репозитория и тарифа; перед настройкой проверить актуальные возможности. См. [управление деплоями](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/control-deployments).
+
+### Окружения и первоначальная настройка
+
+Предлагаются отдельные каталоги staging/production в российском Yandex Cloud и отдельные YDB, функции, шлюзы, бакеты PWA и рабочие сервисные аккаунты. Точные ресурсы и домены выбираются в P01. Данные престейбла синтетические; его аккаунты не получают доступ к production. Окружения — цели развёртывания одного main, а не отдельные долгоживущие ветки исходного кода.
+
+До первой выкатки нужны действующий облачный/платёжный аккаунт, разрешённые затраты, каталоги, федерация и роли, GitHub Environments и их переменные, домены/HTTPS и место хранения артефактов. Первоначальное создание доверия OIDC невозможно получить из ещё не настроенной федерации: это отдельный шаг пользователя/администратора или уже авторизованной среды. После него повседневный деплой идёт из CI.
+
+Пример модели доверия: отдельные привязки `sub` для `repo:boris-shurygin/gym:environment:staging` и `repo:boris-shurygin/gym:environment:production`, с проверкой issuer/audience и правил окружений. При использовании Environment стандартный `sub` GitHub описывает окружение; доступ только из main нужно дополнительно ограничить политикой Environment, а не считать, что имя ветки также присутствует в `sub`. Если включены неизменяемые идентификаторы в subject или его собственный шаблон, значения будут другими: перед привязкой проверить фактические claims. См. [справочник OIDC GitHub](https://docs.github.com/en/actions/reference/security/oidc). Конкретные параметры проверить при реализации федерации.
+
+Разрешение GitHub `id-token: write` требуется только заданиям доверенного деплоя, а не PR. Производственные учётные записи не должны читать пользовательские таблицы: CI загружает пакеты и запускает облачное задание миграции. Права миграций и обычного API разделены. Используемые Actions/инструменты фиксируются проверенными версиями; не выполнять код недоверенного PR в привилегированном workflow.
+
+### Что именно продвигаем
+
+Выпуск идентифицируется `release_id`, main SHA и run сборки. Предлагаемый манифест содержит:
+
+- идентификатор/хеш Python-пакета функции;
+- перечень/хеши PWA-ресурсов и миграционного пакета;
+- целевую ревизию схемы и заявленные версии совместимости API/PWA;
+- ссылки на результаты доверенной сборки, staging-деплоя и его проверок;
+- предыдущий установленный выпуск для восстановления.
+
+Формат, место хранения и сроки удержания манифеста/артефактов уточняются в P01. Перед production проверяется фактический успешный staging run для этого release ID/SHA, а не только поле «успешен» в присланном манифесте. Артефакты должны оставаться доступными и неизменяемыми; при их потере сначала нужен новый проверенный staging-выпуск, а не незаметная пересборка для production.
+
+Пакеты одинаковы в обоих окружениях. Различающиеся настройки (адрес API, идентификаторы ресурсов, секреты) задаются отдельно: для PWA потребуется публичная конфигурация во время загрузки либо иной согласованный способ без пересборки JS; для функции — конфигурация целевого окружения. Секретов в публичной конфигурации нет. Идентификаторы экземпляров/версий Cloud Function в разных окружениях могут отличаться при одинаковом хеше пакета.
+
+### Порядок и контроль результата
+
+После допуска выпуска выполняется существующая последовательность: миграция схемы → новая версия/управляемый тег API → PWA → smoke-тесты. Длительные заполнения данных выполняются отдельно в совместимой последовательности expand → deploy → backfill → contract. Нельзя удалять старую схему/ресурсы, пока их ещё требуют поддерживаемые клиенты.
+
+Для каждого окружения — один активный деплой/миграция, без принудительной отмены уже идущей миграции новым выпуском. GitHub concurrency дополняется учётом состояния облачного задания, чтобы повторный запуск не создавал вторую миграцию после потери ответа. В GitHub возвращаются идентификатор задания, статус и очищенные диагностические сведения, без пользовательских данных.
+
+Успех — это завершённые шаги и smoke-тесты конкретной установленной версии. Ошибка миграции останавливает переключение API/PWA; при ошибке после частичного переключения сначала определяется фактическое состояние. Откат совместимого кода/PWA не означает downgrade БД. Точные команды восстановления и правила повторного запуска проверяются на синтетическом окружении в P04/P05.
+
+### Что закрываем в P01
+
+Сервис разовых миграций и пределы его выполнения; способ описания инфраструктуры; артефактное хранилище/удержание; сборка и конфигурация пакетов; GitHub Environments/approval; OIDC и точные роли; домены/HTTPS; окно поддержки старых PWA; бюджет и доступ к первоначальной настройке. Это недостающие детали, а не уже работающая автоматизация.
+
+## Целевой процесс
 
 ```text
-feature branch → PR checks (no prod access) → merge main
-                                            ↓
-                         immutable build and test artifacts
-                                            ↓
-                   staging: DB migrate → API version → PWA
-                                            ↓
-                             smoke/integration tests
-                                            ↓
-                          manual production approval
-                                            ↓
-              prod: DB migrate → API version/tag → PWA
-                                            ↓
-                             release smoke tests
+ветка разработки → проверки PR (без доступа к production) → слияние в main
+                                                                ↓
+                                  неизменяемые артефакты сборки и тестов
+                                                                ↓
+                           staging: миграция БД → версия API → PWA
+                                                                ↓
+                                дымовые/интеграционные тесты
+                                                                ↓
+                                    ручное одобрение production
+                                                                ↓
+                       production: миграция БД → версия/тег API → PWA
+                                                                ↓
+                                     дымовые тесты выпуска
 ```
 
-Use **GitHub Actions**, without owning a permanent CI worker, and `web/`, `api/`, `db/migrations/`, `infra/`, `tests/`, `.github/workflows/` in one repository. Optional path filters avoid work for unrelated changes; shared contracts or lockfiles trigger broader validation.
+Использовать **GitHub Actions** без постоянного собственного исполнителя CI и каталоги `web/`, `api/`, `db/migrations/`, `infra/`, `tests/`, `.github/workflows/` в одном репозитории. Необязательные фильтры путей исключают работу при несвязанных изменениях; общие контракты или файлы фиксации зависимостей запускают более широкую проверку.
 
-## Pull request validation
+## Проверки запросов на слияние
 
-| Changed scope | Checks |
+| Область изменений | Проверки |
 | --- | --- |
-| `web/` | ESLint, TypeScript, unit/component tests, production build, browser smoke tests, client/API contract tests |
-| `api/` | Ruff, Python typing/pytest, build function package, isolated YDB integration tests for reads/writes, cross-user auth, idempotency |
-| `db/` | YDB-specific migration review; apply empty→head and last-released→head against disposable YDB; post-upgrade compatibility tests |
-| `infra/` | OpenAPI/YAML validation; Terraform validation when used; permission and gateway integration checks |
-| shared API schemas | Run both web and API checks; check old-client compatibility |
+| `web/` | ESLint, TypeScript, модульные/компонентные тесты, промышленная сборка, дымовые тесты браузера, контрактные тесты клиента/API |
+| `api/` | Ruff, типизация Python/pytest, сборка пакета функции, изолированные интеграционные тесты YDB для чтения/записи, доступа между пользователями, идемпотентности |
+| `db/` | Проверка миграций с учётом YDB; применение от пустой и последней выпущенной схемы до актуальной на одноразовой YDB; тесты совместимости после обновления |
+| `infra/` | Валидация OpenAPI/YAML; валидация Terraform при его использовании; проверки прав и интеграции шлюза |
+| общие схемы API | Проверки интерфейса и API; проверка совместимости старых клиентов |
 
-PRs must not have production credentials or write to the shared staging DB. Use only synthetic data and local/disposable YDB instances for PR database tests. Untrusted PRs (including forks) must not be able to mint production deployment credentials.
+У PR не должно быть промышленных учётных данных или права записи в общую БД staging. Для тестов БД в PR использовать только синтетические данные и локальные/одноразовые экземпляры YDB. Недоверенные PR (включая форки) не должны иметь возможности получать учётные данные для промышленного развёртывания.
 
-## Merge main → staging
+## Слияние в main → staging
 
-1. Package versioned Python function artifact, compiled PWA hashed assets and migration set; record Git SHA.
-2. Only one deployment/migration runs in the same environment at a time.
-3. Apply pending additive YDB migrations, with a reviewed plan and tracked revision.
-4. Publish a new Cloud Function version, smoke-test it through a staging route/tag; point staging gateway to it.
-5. Upload new hashed JS/CSS/static assets; publish `index.html`, manifest and service worker last; retain older assets for clients still loading cached HTML.
-6. Run end-to-end staging tests: program preview, set insert, replay same operation ID, completion, correction, history, cross-user access denial, offline queue survival and API compatibility.
-7. Store an immutable release manifest (SHA + artifact hashes + DB migration revision + deployed function version).
+1. Подготовить версионированный артефакт Python-функции, собранные ресурсы PWA с хешами и набор миграций; записать Git SHA.
+2. В одном окружении одновременно выполняется только одно развёртывание/одна миграция.
+3. Применить ожидающие аддитивные миграции YDB с проверенным планом и учётом ревизии.
+4. Опубликовать новую версию Cloud Function, выполнить дымовой тест через маршрут/тег staging; направить на неё шлюз staging.
+5. Загрузить новые JS/CSS/статические ресурсы с хешами; последними опубликовать `index.html`, манифест и service worker; сохранить прежние ресурсы для клиентов, загружающих кэшированный HTML.
+6. Выполнить сквозные тесты staging: предпросмотр программы, добавление подхода, повтор того же идентификатора операции, завершение, исправление, история, отказ в доступе к чужим данным, сохранность очереди без сети и совместимость API.
+7. Сохранить неизменяемый манифест выпуска (SHA + хеши артефактов + ревизия миграции БД + развёрнутая версия функции).
 
 ## Staging → production
 
-Explicit **manual approval** required. Deploy **the same built artifacts**, not rebuild from the branch. Gate production migrations behind the approval and serialize production releases. Promote in sequence: schema expansion → new API version → UI assets/entrypoint. Run smoke tests after each exposed change. If a migration fails, stop the deployment; do not change the API tag/frontend. If production API fails, repoint function's gateway tag to previously working version, while maintaining schema compatibility.
+Требуется явное **ручное одобрение**. Развёртывать **те же собранные артефакты**, без повторной сборки из ветки. Промышленные миграции запускать только после одобрения, выпуски production выполнять последовательно. Порядок продвижения: расширение схемы → новая версия API → ресурсы/точка входа интерфейса. Выполнять дымовые тесты после каждого изменения, доступного пользователям. При сбое миграции остановить развёртывание; не менять тег API/интерфейс. При сбое промышленного API перенаправить используемый шлюзом тег функции на предыдущую рабочую версию, сохраняя совместимость схемы.
 
-API Gateway integration can target a Cloud Function **tag**; it defaults to `$latest`. Production should use a controlled tag such as `stable`; creating a new version never by itself redirects production. Retain old versions and move the tag for rollback.
+Интеграция API Gateway может указывать на **тег** Cloud Function; по умолчанию используется `$latest`. В production нужен управляемый тег, например `stable`; само создание новой версии никогда не переключает production. Для отката сохранять старые версии и перемещать тег.
 
-## YDB migration discipline
+## Правила миграций YDB
 
-- Use SQLAlchemy 2.0 `ydb-sqlalchemy` and Alembic with YDB-specific implementation in `env.py`; inspect every generated migration/YQL change.
-- **Never run migrations on Cloud Function startup/invocation.** Production schema migrations and backfills must **execute inside Yandex Cloud** on a privileged, one-off job triggered/orchestrated by GitHub Actions, with an explicit release order and job result. The exact Yandex execution service is not selected yet; the GitHub-hosted runner must not read/download production data or run production DDL itself.
-- YDB DDL executes outside ordinary DML transactions. Multiple DDL operations do not provide all-or-nothing rollback. Design each step for observability and safe recovery from partial completion. Don't silently mark revisions successful until schema verification passes.
-- Apply **expand → deploy → backfill → contract**. Add nullable columns and maintain backwards-compatible reads/writes; deploy API supporting old and new; run restartable backfills as a separate job; make destructive operations only in later releases.
-- Validate upgrade both from empty and from previous released schema. Isolate migrations on PR; serialize shared staging/production migrations with a GitHub Actions concurrency lock.
-- On schema failure inspect actual DB state, repair it using an approved script; don't assume a normal Alembic downgrade or a code rollback restores old schema.
-- Backups and restore testing protect against data loss; they are not a substitute for compatible schema evolution.
+- Использовать SQLAlchemy 2.0 `ydb-sqlalchemy` и Alembic со специальной реализацией для YDB в `env.py`; проверять каждую сгенерированную миграцию/изменение YQL.
+- **Никогда не запускать миграции при старте/вызове Cloud Function.** Промышленные миграции схемы и заполнение данных должны **выполняться внутри Yandex Cloud** привилегированным разовым заданием, запускаемым/оркестрируемым GitHub Actions, с явным порядком выпуска и результатом задания. Конкретный сервис выполнения Yandex ещё не выбран; исполнитель GitHub не должен читать/скачивать промышленные данные или самостоятельно выполнять промышленный DDL.
+- DDL YDB выполняется вне обычных DML-транзакций. Несколько DDL-операций не дают отката по принципу «всё или ничего». Каждый шаг должен быть наблюдаемым и поддерживать безопасное восстановление после частичного выполнения. Не помечать ревизии успешными до проверки схемы.
+- Применять **расширение → развёртывание → заполнение данных → удаление устаревшего** (expand → deploy → backfill → contract). Добавлять допускающие NULL столбцы и сохранять обратно совместимые чтение/запись; развёртывать API с поддержкой старого и нового вариантов; запускать возобновляемое заполнение данных отдельным заданием; разрушительные операции выполнять только в более поздних выпусках.
+- Проверять обновление как с пустой, так и с предыдущей выпущенной схемы. Изолировать миграции PR; последовательно выполнять миграции общей staging/production с блокировкой параллельного выполнения GitHub Actions.
+- При сбое схемы изучить фактическое состояние БД и исправить его одобренным скриптом; не предполагать, что обычный Alembic downgrade или откат кода восстановит прежнюю схему.
+- Резервные копии и тестирование восстановления защищают от потери данных, но не заменяют совместимое развитие схемы.
 
-### Example: warm-up flag
+### Пример: признак разминки
 
-1. `sets.set_kind` is added as optional.
-2. Backend reads missing values as `working` and accepts old requests without the field.
-3. Backfill existing rows in bounded, idempotent batches.
-4. Only after the old PWA/API compatibility window may obsolete behavior be removed.
+1. `sets.set_kind` добавляется как необязательное поле.
+2. Сервер читает отсутствующее значение как `working` и принимает старые запросы без поля.
+3. Существующие строки заполняются ограниченными идемпотентными пакетами.
+4. Устаревшее поведение можно удалить только после окончания окна совместимости старых PWA/API.
 
-## Frontend and offline PWA release
+## Выпуск интерфейса и PWA с работой без сети
 
-- Fingerprinted assets (`app.<hash>.js`) uploaded first, with long caching; HTML, manifest and service worker uploaded last with short/no caching. Yandex Object Storage supports `Cache-Control` object metadata.
-- Retain old hashed assets for a declared client compatibility window.
-- Never force service-worker replacement that loses a user's IndexedDB outbox. Test upgrades from older offline clients and delayed retries.
-- Maintain a versioned `/api/v1` request/response contract. Old clients can remain active after production deployment; API changes must be compatible with their operations.
-- Rollback frontend via older entrypoint/manifest; existing open browser tabs may continue running newer JS until reloaded.
+- Ресурсы с хешами (`app.<hash>.js`) загружаются первыми с длительным кэшированием; HTML, манифест и service worker — последними с коротким сроком или без кэширования. Yandex Object Storage поддерживает метаданные объекта `Cache-Control`.
+- Сохранять прежние ресурсы с хешами на заявленное окно совместимости клиентов.
+- Никогда не форсировать замену service worker, приводящую к потере исходящей очереди пользователя в IndexedDB. Проверять обновления старых клиентов без сети и отложенные повторы.
+- Поддерживать версионируемый контракт запросов/ответов `/api/v1`. Старые клиенты могут оставаться активными после промышленного развёртывания; изменения API должны быть совместимы с их операциями.
+- Откатывать интерфейс через прежнюю точку входа/манифест; открытые вкладки браузера могут продолжать выполнять новый JS до перезагрузки.
 
-## Deployment identities and protection
+## Учётные записи развёртывания и защита
 
-Use Yandex IAM Workload Identity Federation with GitHub Actions OIDC (temporary tokens, not static service account keys), restricting identity by repository/branch/environment. Staging and production service accounts have separate least-privilege roles. The migration deploy identity needs schema rights but ordinary runtime functions should not. Keep application user permissions enforced within API.
+Использовать Yandex IAM Workload Identity Federation с GitHub Actions OIDC (временные токены, а не статические ключи сервисного аккаунта), ограничивая доступ репозиторием/веткой/окружением. Сервисные аккаунты staging и production имеют отдельные роли с минимальными правами. Учётной записи запуска миграций нужны права на схему, обычным рабочим функциям — нет. Права пользователей приложения по-прежнему проверяются внутри API.
 
-## GitHub Actions runner choice and billing
+## Выбор исполнителей GitHub Actions и оплата
 
-- The current repository `boris-shurygin/gym` is **public** (verified 2026-10-20). Standard GitHub-hosted **Ubuntu runners** have free runner minutes for public repositories. We do **not** rent a GitHub runner or run a permanent self-hosted CI VM.
-- **Larger runners cost money** even for public repositories. Keep workflows on standard runners unless separately approved.
-- Free runner minutes are not the same as unlimited storage. As of 2026-10-20 GitHub Free includes **500 MB artifact storage** (shared with GitHub Packages) and **10 GB Actions cache per repository**. Limit artifact retention and clean obsolete caches; do not store production backups, user data or long-lived secrets in CI.
-- If the repository becomes **private**, GitHub Free currently includes **2,000 hosted-runner minutes/month** before applicable extra charges. Reevaluate GitHub billing before changing visibility or selecting paid runner types. For the current public repository and included storage, expected GitHub runner spend is **0 ₽**; Yandex Cloud usage is billed independently.
-- Official [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions) and [runner reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+- Текущий репозиторий `boris-shurygin/gym` **публичный** (проверено 2026-10-20). Стандартные **исполнители Ubuntu от GitHub** имеют бесплатные минуты для публичных репозиториев. Мы **не** арендуем исполнитель GitHub и не запускаем постоянную собственную ВМ CI.
+- **Увеличенные исполнители платные** даже для публичных репозиториев. Сохранять стандартные исполнители, пока иное не одобрено отдельно.
+- Бесплатные минуты не означают неограниченное хранение. На 2026-10-20 GitHub Free включает **500 МБ хранилища артефактов** (общего с GitHub Packages) и **10 ГБ кэша Actions на репозиторий**. Ограничивать срок хранения артефактов и очищать устаревшие кэши; не хранить промышленные резервные копии, пользовательские данные или долгоживущие секреты в CI.
+- Если репозиторий станет **приватным**, GitHub Free сейчас включает **2 000 минут предоставляемых исполнителей в месяц** до начисления применимой дополнительной платы. Пересмотреть оплату GitHub до изменения видимости или выбора платных типов исполнителей. Для текущего публичного репозитория и включённых лимитов хранения ожидаемые затраты на исполнители GitHub — **0 ₽**; Yandex Cloud оплачивается независимо.
+- Официальные [правила оплаты GitHub Actions](https://docs.github.com/en/billing/concepts/product-billing/github-actions) и [справочник исполнителей](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 
-## Workflows to implement
+## Процессы автоматизации, которые предстоит реализовать
 
-- `.github/workflows/ci.yml`: PR checks, artifacts, disposable YDB tests.
-- `.github/workflows/deploy-staging.yml`: merge main, additive migrations, function, PWA, smoke tests.
-- `.github/workflows/deploy-production.yml`: approved manual promote the exact build revision, serialized migration/release, smoke tests.
+- `.github/workflows/ci.yml`: проверки PR, артефакты, тесты на одноразовой YDB.
+- `.github/workflows/deploy-staging.yml`: слияние в main, аддитивные миграции, функция, PWA, дымовые тесты.
+- `.github/workflows/deploy-production.yml`: одобренное ручное продвижение той же ревизии сборки, последовательная миграция/выпуск, дымовые тесты.
 
-## Locked workflow decisions vs open implementation details
+## Принятые решения процесса и открытые подробности реализации
 
-**Accepted:** GitHub Actions CI/CD on standard GitHub-hosted runners; PR checks with disposable synthetic-data YDB; automatic staging deployment on merge to `main`; manual, serialized production promotion of the *same tested artifacts*; OIDC federation with separate least-privilege identities; production migrations executing **within Yandex Cloud**; additive expand → deploy → backfill → contract migrations; API/function version-tag and PWA asset rollback; old offline clients remain supported across changes.
+**Принято:** CI/CD в GitHub Actions на стандартных исполнителях GitHub; проверки PR на одноразовой YDB с синтетическими данными; автоматическое развёртывание staging при слиянии в `main`; ручное последовательное продвижение в production *тех же проверенных артефактов*; федерация OIDC с отдельными учётными записями и минимальными правами; выполнение промышленных миграций **внутри Yandex Cloud**; аддитивные миграции по схеме расширение → развёртывание → заполнение данных → удаление устаревшего; откат через тег версии API/функции и ресурсы PWA; поддержка старых клиентов без сети при изменениях.
 
-**Not implemented:** the three workflow files, cloud infrastructure and migration job. These documents are not evidence of a live deployment.
+**Не реализовано:** три файла процессов, облачная инфраструктура и задание миграций. Эти документы не подтверждают наличие работающего развёртывания.
 
-## Open decisions
+## Открытые решения
 
-Actual function build package method, Alembic revision bookkeeping and partial-migration recovery scripts, runtime identity provider, approval mechanism, PWA/API compatibility window, domain/CORS/cookies, and available recovery RPO.
+Способ сборки пакета функции, учёт ревизий Alembic и скрипты восстановления после частичной миграции, поставщик учётных записей приложения, механизм одобрения, окно совместимости PWA/API, домен/CORS/cookie и достижимая допустимая потеря данных при восстановлении (RPO).
 
-**Logging, metrics, counters, alerting and dashboards are outside the accepted CI/CD decisions.** A separate [observability proposal](observability.md) is available for review. CI requires pass/fail checks and minimal release/smoke-test signals.
+**Журналирование, метрики, счётчики, оповещения и панели не входят в принятые решения CI/CD.** Отдельное [предложение по наблюдаемости](observability.md) доступно для рассмотрения. CI нужны результаты проверок и минимальные сигналы выпуска/дымовых тестов.
 
-## Provider docs
+## Документация провайдеров
 
 - https://ydb.tech/docs/ru/integrations/orm/sqlalchemy
 - https://ydb.tech/docs/ru/concepts/transactions
