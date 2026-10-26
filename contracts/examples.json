@@ -1,0 +1,2193 @@
+{
+  "examples": [
+    {
+      "operation": "auth_login",
+      "input": {},
+      "output": null
+    },
+    {
+      "operation": "auth_callback",
+      "input": {
+        "state": "ssssssssssssssssssssssssssssssss",
+        "code": "synthetic-code"
+      },
+      "output": null
+    },
+    {
+      "operation": "auth_session",
+      "input": {},
+      "output": {
+        "user_id": "user-a",
+        "expires_at": "2026-11-02T12:00:00Z",
+        "csrf_token": "sssssssssssssssssssssssssssssssssssssssssss",
+        "analytics_timezone": "UTC"
+      }
+    },
+    {
+      "operation": "auth_logout",
+      "input": {},
+      "output": null
+    },
+    {
+      "operation": "get_profile",
+      "input": {},
+      "output": {
+        "user_id": "user-a",
+        "analytics_timezone": "UTC"
+      }
+    },
+    {
+      "operation": "set_profile",
+      "input": {
+        "request_id": "10000000-0000-4000-8000-000000000020",
+        "expected_owner_id": "user-a",
+        "analytics_timezone": "UTC"
+      },
+      "output": {
+        "user_id": "user-a",
+        "analytics_timezone": "UTC"
+      }
+    },
+    {
+      "operation": "get_program",
+      "input": {},
+      "output": {
+        "owner_id": "user-a",
+        "version": {
+          "program_id": "program-a",
+          "program_version_id": "program-v1",
+          "owner_id": "user-a",
+          "version": 1,
+          "content": {
+            "name": "Программа-пример",
+            "templates": [
+              {
+                "template_id": "template-a",
+                "name": "Тренировка A",
+                "description": "Синтетический пример",
+                "exercises": [
+                  {
+                    "template_exercise_id": "exercise-position-a",
+                    "exercise_id": "bench",
+                    "equipment_id": "barbell-a",
+                    "name": "Жим лёжа",
+                    "weight_convention": "total_external_kg",
+                    "weight_step_g": 2500,
+                    "rule": "fixed",
+                    "targets": [
+                      {
+                        "target_id": "target-a",
+                        "weight_g": 60000,
+                        "suggested_reps": 10,
+                        "rep_min": null,
+                        "rep_max": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "published_at": "2026-10-26T12:00:00Z",
+          "change_id": "10000000-0000-4000-8000-000000000050"
+        }
+      }
+    },
+    {
+      "operation": "list_exercises",
+      "input": {},
+      "output": {
+        "items": [
+          {
+            "exercise_id": "bench",
+            "equipment_id": "barbell-a",
+            "name": "Жим лёжа",
+            "weight_convention": "total_external_kg",
+            "weight_step_g": 2500
+          }
+        ],
+        "next_cursor": null
+      }
+    },
+    {
+      "operation": "list_plans",
+      "input": {},
+      "output": {
+        "items": [
+          {
+            "plan_snapshot_id": "plan-v1",
+            "snapshot_schema_version": 1,
+            "owner_id": "user-a",
+            "program_version_id": "program-v1",
+            "template": {
+              "template_id": "template-a",
+              "name": "Тренировка A",
+              "description": "Синтетический пример",
+              "exercises": [
+                {
+                  "template_exercise_id": "exercise-position-a",
+                  "exercise_id": "bench",
+                  "equipment_id": "barbell-a",
+                  "name": "Жим лёжа",
+                  "weight_convention": "total_external_kg",
+                  "weight_step_g": 2500,
+                  "rule": "fixed",
+                  "targets": [
+                    {
+                      "target_id": "target-a",
+                      "weight_g": 60000,
+                      "suggested_reps": 10,
+                      "rep_min": null,
+                      "rep_max": null
+                    }
+                  ]
+                }
+              ]
+            },
+            "calculated_at": "2026-10-26T12:00:00Z",
+            "history_revision": 0,
+            "calculator_version": "fixed-v1"
+          }
+        ],
+        "history_revision": 0,
+        "freshness": "fresh"
+      }
+    },
+    {
+      "operation": "get_plan",
+      "input": {
+        "plan_snapshot_id": "plan-v1"
+      },
+      "output": {
+        "plan_snapshot_id": "plan-v1",
+        "snapshot_schema_version": 1,
+        "owner_id": "user-a",
+        "program_version_id": "program-v1",
+        "template": {
+          "template_id": "template-a",
+          "name": "Тренировка A",
+          "description": "Синтетический пример",
+          "exercises": [
+            {
+              "template_exercise_id": "exercise-position-a",
+              "exercise_id": "bench",
+              "equipment_id": "barbell-a",
+              "name": "Жим лёжа",
+              "weight_convention": "total_external_kg",
+              "weight_step_g": 2500,
+              "rule": "fixed",
+              "targets": [
+                {
+                  "target_id": "target-a",
+                  "weight_g": 60000,
+                  "suggested_reps": 10,
+                  "rep_min": null,
+                  "rep_max": null
+                }
+              ]
+            }
+          ]
+        },
+        "calculated_at": "2026-10-26T12:00:00Z",
+        "history_revision": 0,
+        "calculator_version": "fixed-v1"
+      }
+    },
+    {
+      "operation": "list_workouts",
+      "input": {},
+      "output": {
+        "items": [
+          {
+            "workout_id": "10000000-0000-4000-8000-000000000003",
+            "owner_id": "user-a",
+            "server_revision": 3,
+            "status": "completed",
+            "plan": {
+              "plan_snapshot_id": "plan-v1",
+              "snapshot_schema_version": 1,
+              "owner_id": "user-a",
+              "program_version_id": "program-v1",
+              "template": {
+                "template_id": "template-a",
+                "name": "Тренировка A",
+                "description": "Синтетический пример",
+                "exercises": [
+                  {
+                    "template_exercise_id": "exercise-position-a",
+                    "exercise_id": "bench",
+                    "equipment_id": "barbell-a",
+                    "name": "Жим лёжа",
+                    "weight_convention": "total_external_kg",
+                    "weight_step_g": 2500,
+                    "rule": "fixed",
+                    "targets": [
+                      {
+                        "target_id": "target-a",
+                        "weight_g": 60000,
+                        "suggested_reps": 10,
+                        "rep_min": null,
+                        "rep_max": null
+                      }
+                    ]
+                  }
+                ]
+              },
+              "calculated_at": "2026-10-26T12:00:00Z",
+              "history_revision": 0,
+              "calculator_version": "fixed-v1"
+            },
+            "started_at": "2026-10-26T12:00:00Z",
+            "completed_at": "2026-10-26T12:00:00Z",
+            "updated_at": "2026-10-26T12:00:00Z",
+            "sets": [
+              {
+                "set_id": "10000000-0000-4000-8000-000000000004",
+                "session_exercise_id": "exercise-position-a",
+                "kind": "working",
+                "weight_g": 60000,
+                "reps": 10,
+                "planned_target_id": "target-a",
+                "comparison_target_id": "target-a",
+                "deleted_at": null
+              }
+            ]
+          }
+        ],
+        "next_cursor": null
+      }
+    },
+    {
+      "operation": "get_workout",
+      "input": {
+        "workout_id": "10000000-0000-4000-8000-000000000003"
+      },
+      "output": {
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "owner_id": "user-a",
+        "server_revision": 3,
+        "status": "completed",
+        "plan": {
+          "plan_snapshot_id": "plan-v1",
+          "snapshot_schema_version": 1,
+          "owner_id": "user-a",
+          "program_version_id": "program-v1",
+          "template": {
+            "template_id": "template-a",
+            "name": "Тренировка A",
+            "description": "Синтетический пример",
+            "exercises": [
+              {
+                "template_exercise_id": "exercise-position-a",
+                "exercise_id": "bench",
+                "equipment_id": "barbell-a",
+                "name": "Жим лёжа",
+                "weight_convention": "total_external_kg",
+                "weight_step_g": 2500,
+                "rule": "fixed",
+                "targets": [
+                  {
+                    "target_id": "target-a",
+                    "weight_g": 60000,
+                    "suggested_reps": 10,
+                    "rep_min": null,
+                    "rep_max": null
+                  }
+                ]
+              }
+            ]
+          },
+          "calculated_at": "2026-10-26T12:00:00Z",
+          "history_revision": 0,
+          "calculator_version": "fixed-v1"
+        },
+        "started_at": "2026-10-26T12:00:00Z",
+        "completed_at": "2026-10-26T12:00:00Z",
+        "updated_at": "2026-10-26T12:00:00Z",
+        "sets": [
+          {
+            "set_id": "10000000-0000-4000-8000-000000000004",
+            "session_exercise_id": "exercise-position-a",
+            "kind": "working",
+            "weight_g": 60000,
+            "reps": 10,
+            "planned_target_id": "target-a",
+            "comparison_target_id": "target-a",
+            "deleted_at": null
+          }
+        ]
+      }
+    },
+    {
+      "operation": "get_summary",
+      "input": {
+        "period_days": 7,
+        "timezone": "UTC"
+      },
+      "output": {
+        "history_revision": 3,
+        "analytics_version": "stats-v1",
+        "freshness": "fresh",
+        "generated_at": "2026-10-26T12:00:00Z",
+        "period_days": 7,
+        "timezone": "UTC",
+        "start_date": "2026-10-20",
+        "end_date_exclusive": "2026-10-27",
+        "complete": true,
+        "workout_count": 1,
+        "working_set_count": 1,
+        "rep_count": 10,
+        "activity": [
+          {
+            "date": "2026-10-26",
+            "workout_count": 1
+          }
+        ]
+      }
+    },
+    {
+      "operation": "get_series",
+      "input": {
+        "exercise_id": "bench",
+        "equipment_id": "barbell-a",
+        "weight_convention": "total_external_kg",
+        "period_days": 7,
+        "timezone": "UTC"
+      },
+      "output": {
+        "history_revision": 3,
+        "analytics_version": "stats-v1",
+        "freshness": "fresh",
+        "generated_at": "2026-10-26T12:00:00Z",
+        "period_days": 7,
+        "timezone": "UTC",
+        "start_date": "2026-10-20",
+        "end_date_exclusive": "2026-10-27",
+        "complete": true,
+        "exercise_id": "bench",
+        "equipment_id": "barbell-a",
+        "weight_convention": "total_external_kg",
+        "points": [
+          {
+            "workout_id": "10000000-0000-4000-8000-000000000003",
+            "started_at": "2026-10-26T12:00:00Z",
+            "max_weight_g": 60000,
+            "max_weight_reps": 10,
+            "volume_g_reps": 600000,
+            "working_set_count": 1,
+            "rep_count": 10
+          }
+        ],
+        "next_cursor": null
+      }
+    },
+    {
+      "operation": "submit_operation",
+      "input": {
+        "schema_version": 1,
+        "operation_id": "10000000-0000-4000-8000-000000000005",
+        "expected_owner_id": "user-a",
+        "device_id": "10000000-0000-4000-8000-000000000002",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "precondition": {
+          "after_operation_id": "10000000-0000-4000-8000-000000000001"
+        },
+        "client_occurred_at": "2026-10-26T12:00:00Z",
+        "command": {
+          "type": "add_set",
+          "set_id": "10000000-0000-4000-8000-000000000004",
+          "session_exercise_id": "exercise-position-a",
+          "kind": "working",
+          "weight_g": 60000,
+          "reps": 10,
+          "planned_target_id": "target-a",
+          "comparison_target_id": "target-a"
+        }
+      },
+      "output": {
+        "operation_id": "10000000-0000-4000-8000-000000000005",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "outcome": "applied",
+        "server_revision": 2,
+        "change_seq": 2,
+        "accepted_at": "2026-10-26T12:00:00Z"
+      }
+    },
+    {
+      "operation": "get_receipt",
+      "input": {
+        "operation_id": "10000000-0000-4000-8000-000000000005"
+      },
+      "output": {
+        "operation_id": "10000000-0000-4000-8000-000000000005",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "outcome": "applied",
+        "server_revision": 2,
+        "change_seq": 2,
+        "accepted_at": "2026-10-26T12:00:00Z"
+      }
+    },
+    {
+      "operation": "get_changes",
+      "input": {
+        "cursor": "synthetic.checkpoint"
+      },
+      "output": {
+        "high_watermark": 3,
+        "items": [
+          {
+            "seq": 3,
+            "kind": "workout_changed",
+            "workout": {
+              "workout_id": "10000000-0000-4000-8000-000000000003",
+              "owner_id": "user-a",
+              "server_revision": 3,
+              "status": "completed",
+              "plan": {
+                "plan_snapshot_id": "plan-v1",
+                "snapshot_schema_version": 1,
+                "owner_id": "user-a",
+                "program_version_id": "program-v1",
+                "template": {
+                  "template_id": "template-a",
+                  "name": "Тренировка A",
+                  "description": "Синтетический пример",
+                  "exercises": [
+                    {
+                      "template_exercise_id": "exercise-position-a",
+                      "exercise_id": "bench",
+                      "equipment_id": "barbell-a",
+                      "name": "Жим лёжа",
+                      "weight_convention": "total_external_kg",
+                      "weight_step_g": 2500,
+                      "rule": "fixed",
+                      "targets": [
+                        {
+                          "target_id": "target-a",
+                          "weight_g": 60000,
+                          "suggested_reps": 10,
+                          "rep_min": null,
+                          "rep_max": null
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "calculated_at": "2026-10-26T12:00:00Z",
+                "history_revision": 0,
+                "calculator_version": "fixed-v1"
+              },
+              "started_at": "2026-10-26T12:00:00Z",
+              "completed_at": "2026-10-26T12:00:00Z",
+              "updated_at": "2026-10-26T12:00:00Z",
+              "sets": [
+                {
+                  "set_id": "10000000-0000-4000-8000-000000000004",
+                  "session_exercise_id": "exercise-position-a",
+                  "kind": "working",
+                  "weight_g": 60000,
+                  "reps": 10,
+                  "planned_target_id": "target-a",
+                  "comparison_target_id": "target-a",
+                  "deleted_at": null
+                }
+              ]
+            }
+          }
+        ],
+        "next_cursor": "synthetic.next",
+        "has_more": false
+      }
+    },
+    {
+      "operation": "bootstrap",
+      "input": {},
+      "output": {
+        "bootstrap_id": "bootstrap-a",
+        "expires_at": "2026-10-26T12:15:00Z",
+        "high_watermark": 3,
+        "checkpoint_cursor": "synthetic.checkpoint",
+        "items": [
+          {
+            "kind": "program",
+            "data": {
+              "owner_id": "user-a",
+              "version": {
+                "program_id": "program-a",
+                "program_version_id": "program-v1",
+                "owner_id": "user-a",
+                "version": 1,
+                "content": {
+                  "name": "Программа-пример",
+                  "templates": [
+                    {
+                      "template_id": "template-a",
+                      "name": "Тренировка A",
+                      "description": "Синтетический пример",
+                      "exercises": [
+                        {
+                          "template_exercise_id": "exercise-position-a",
+                          "exercise_id": "bench",
+                          "equipment_id": "barbell-a",
+                          "name": "Жим лёжа",
+                          "weight_convention": "total_external_kg",
+                          "weight_step_g": 2500,
+                          "rule": "fixed",
+                          "targets": [
+                            {
+                              "target_id": "target-a",
+                              "weight_g": 60000,
+                              "suggested_reps": 10,
+                              "rep_min": null,
+                              "rep_max": null
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "published_at": "2026-10-26T12:00:00Z",
+                "change_id": "10000000-0000-4000-8000-000000000050"
+              }
+            }
+          },
+          {
+            "kind": "plan",
+            "data": {
+              "plan_snapshot_id": "plan-v1",
+              "snapshot_schema_version": 1,
+              "owner_id": "user-a",
+              "program_version_id": "program-v1",
+              "template": {
+                "template_id": "template-a",
+                "name": "Тренировка A",
+                "description": "Синтетический пример",
+                "exercises": [
+                  {
+                    "template_exercise_id": "exercise-position-a",
+                    "exercise_id": "bench",
+                    "equipment_id": "barbell-a",
+                    "name": "Жим лёжа",
+                    "weight_convention": "total_external_kg",
+                    "weight_step_g": 2500,
+                    "rule": "fixed",
+                    "targets": [
+                      {
+                        "target_id": "target-a",
+                        "weight_g": 60000,
+                        "suggested_reps": 10,
+                        "rep_min": null,
+                        "rep_max": null
+                      }
+                    ]
+                  }
+                ]
+              },
+              "calculated_at": "2026-10-26T12:00:00Z",
+              "history_revision": 0,
+              "calculator_version": "fixed-v1"
+            }
+          },
+          {
+            "kind": "workout",
+            "data": {
+              "workout_id": "10000000-0000-4000-8000-000000000003",
+              "owner_id": "user-a",
+              "server_revision": 3,
+              "status": "completed",
+              "plan": {
+                "plan_snapshot_id": "plan-v1",
+                "snapshot_schema_version": 1,
+                "owner_id": "user-a",
+                "program_version_id": "program-v1",
+                "template": {
+                  "template_id": "template-a",
+                  "name": "Тренировка A",
+                  "description": "Синтетический пример",
+                  "exercises": [
+                    {
+                      "template_exercise_id": "exercise-position-a",
+                      "exercise_id": "bench",
+                      "equipment_id": "barbell-a",
+                      "name": "Жим лёжа",
+                      "weight_convention": "total_external_kg",
+                      "weight_step_g": 2500,
+                      "rule": "fixed",
+                      "targets": [
+                        {
+                          "target_id": "target-a",
+                          "weight_g": 60000,
+                          "suggested_reps": 10,
+                          "rep_min": null,
+                          "rep_max": null
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "calculated_at": "2026-10-26T12:00:00Z",
+                "history_revision": 0,
+                "calculator_version": "fixed-v1"
+              },
+              "started_at": "2026-10-26T12:00:00Z",
+              "completed_at": "2026-10-26T12:00:00Z",
+              "updated_at": "2026-10-26T12:00:00Z",
+              "sets": [
+                {
+                  "set_id": "10000000-0000-4000-8000-000000000004",
+                  "session_exercise_id": "exercise-position-a",
+                  "kind": "working",
+                  "weight_g": 60000,
+                  "reps": 10,
+                  "planned_target_id": "target-a",
+                  "comparison_target_id": "target-a",
+                  "deleted_at": null
+                }
+              ]
+            }
+          }
+        ],
+        "next_page_cursor": null
+      }
+    },
+    {
+      "operation": "propose_change",
+      "input": {
+        "request_id": "10000000-0000-4000-8000-000000000010",
+        "expected_owner_id": "user-a",
+        "proposal": {
+          "base_program_version_id": "program-v1",
+          "content": {
+            "name": "Программа-пример",
+            "templates": [
+              {
+                "template_id": "template-a",
+                "name": "Тренировка A",
+                "description": "Синтетический пример",
+                "exercises": [
+                  {
+                    "template_exercise_id": "exercise-position-a",
+                    "exercise_id": "bench",
+                    "equipment_id": "barbell-a",
+                    "name": "Жим лёжа",
+                    "weight_convention": "total_external_kg",
+                    "weight_step_g": 2500,
+                    "rule": "fixed",
+                    "targets": [
+                      {
+                        "target_id": "target-a",
+                        "weight_g": 62500,
+                        "suggested_reps": 10,
+                        "rep_min": null,
+                        "rep_max": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "rationale": "Согласованное увеличение явной цели"
+        }
+      },
+      "output": {
+        "change_id": "10000000-0000-4000-8000-000000000011",
+        "owner_id": "user-a",
+        "change_revision": 1,
+        "proposal": {
+          "base_program_version_id": "program-v1",
+          "content": {
+            "name": "Программа-пример",
+            "templates": [
+              {
+                "template_id": "template-a",
+                "name": "Тренировка A",
+                "description": "Синтетический пример",
+                "exercises": [
+                  {
+                    "template_exercise_id": "exercise-position-a",
+                    "exercise_id": "bench",
+                    "equipment_id": "barbell-a",
+                    "name": "Жим лёжа",
+                    "weight_convention": "total_external_kg",
+                    "weight_step_g": 2500,
+                    "rule": "fixed",
+                    "targets": [
+                      {
+                        "target_id": "target-a",
+                        "weight_g": 62500,
+                        "suggested_reps": 10,
+                        "rep_min": null,
+                        "rep_max": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "rationale": "Согласованное увеличение явной цели"
+        },
+        "content_digest": "402ff58ed8b33b2384cec62026799dca0ce63ce1a8867c0999c7b1cb9338ed7f",
+        "status": "draft",
+        "created_at": "2026-10-26T12:00:00Z",
+        "creator_grant_id": "grant-a"
+      }
+    },
+    {
+      "operation": "get_change",
+      "input": {
+        "change_id": "10000000-0000-4000-8000-000000000011"
+      },
+      "output": {
+        "change_id": "10000000-0000-4000-8000-000000000011",
+        "owner_id": "user-a",
+        "change_revision": 2,
+        "proposal": {
+          "base_program_version_id": "program-v1",
+          "content": {
+            "name": "Программа-пример",
+            "templates": [
+              {
+                "template_id": "template-a",
+                "name": "Тренировка A",
+                "description": "Синтетический пример",
+                "exercises": [
+                  {
+                    "template_exercise_id": "exercise-position-a",
+                    "exercise_id": "bench",
+                    "equipment_id": "barbell-a",
+                    "name": "Жим лёжа",
+                    "weight_convention": "total_external_kg",
+                    "weight_step_g": 2500,
+                    "rule": "fixed",
+                    "targets": [
+                      {
+                        "target_id": "target-a",
+                        "weight_g": 62500,
+                        "suggested_reps": 10,
+                        "rep_min": null,
+                        "rep_max": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "rationale": "Уточнённое обоснование той же цели"
+        },
+        "content_digest": "b15f2cd48bbfcf9e6ee83c880a7fe76af8941465391c633ca50fc560d185374d",
+        "status": "draft",
+        "created_at": "2026-10-26T12:00:00Z",
+        "creator_grant_id": "grant-a"
+      }
+    },
+    {
+      "operation": "replace_change",
+      "input": {
+        "request_id": "10000000-0000-4000-8000-000000000012",
+        "expected_owner_id": "user-a",
+        "change_id": "10000000-0000-4000-8000-000000000011",
+        "expected_revision": 1,
+        "proposal": {
+          "base_program_version_id": "program-v1",
+          "content": {
+            "name": "Программа-пример",
+            "templates": [
+              {
+                "template_id": "template-a",
+                "name": "Тренировка A",
+                "description": "Синтетический пример",
+                "exercises": [
+                  {
+                    "template_exercise_id": "exercise-position-a",
+                    "exercise_id": "bench",
+                    "equipment_id": "barbell-a",
+                    "name": "Жим лёжа",
+                    "weight_convention": "total_external_kg",
+                    "weight_step_g": 2500,
+                    "rule": "fixed",
+                    "targets": [
+                      {
+                        "target_id": "target-a",
+                        "weight_g": 62500,
+                        "suggested_reps": 10,
+                        "rep_min": null,
+                        "rep_max": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "rationale": "Уточнённое обоснование той же цели"
+        }
+      },
+      "output": {
+        "change_id": "10000000-0000-4000-8000-000000000011",
+        "owner_id": "user-a",
+        "change_revision": 2,
+        "proposal": {
+          "base_program_version_id": "program-v1",
+          "content": {
+            "name": "Программа-пример",
+            "templates": [
+              {
+                "template_id": "template-a",
+                "name": "Тренировка A",
+                "description": "Синтетический пример",
+                "exercises": [
+                  {
+                    "template_exercise_id": "exercise-position-a",
+                    "exercise_id": "bench",
+                    "equipment_id": "barbell-a",
+                    "name": "Жим лёжа",
+                    "weight_convention": "total_external_kg",
+                    "weight_step_g": 2500,
+                    "rule": "fixed",
+                    "targets": [
+                      {
+                        "target_id": "target-a",
+                        "weight_g": 62500,
+                        "suggested_reps": 10,
+                        "rep_min": null,
+                        "rep_max": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "rationale": "Уточнённое обоснование той же цели"
+        },
+        "content_digest": "b15f2cd48bbfcf9e6ee83c880a7fe76af8941465391c633ca50fc560d185374d",
+        "status": "draft",
+        "created_at": "2026-10-26T12:00:00Z",
+        "creator_grant_id": "grant-a"
+      }
+    },
+    {
+      "operation": "validate_change",
+      "input": {
+        "change_id": "10000000-0000-4000-8000-000000000011",
+        "expected_revision": 2
+      },
+      "output": {
+        "change_id": "10000000-0000-4000-8000-000000000011",
+        "change_revision": 2,
+        "content_digest": "b15f2cd48bbfcf9e6ee83c880a7fe76af8941465391c633ca50fc560d185374d",
+        "valid": true,
+        "issues": [],
+        "validated_at": "2026-10-26T12:00:00Z"
+      }
+    },
+    {
+      "operation": "approve_and_publish",
+      "input": {
+        "request_id": "10000000-0000-4000-8000-000000000013",
+        "expected_owner_id": "user-a",
+        "change_id": "10000000-0000-4000-8000-000000000011",
+        "expected_revision": 2,
+        "base_program_version_id": "program-v1",
+        "content_digest": "b15f2cd48bbfcf9e6ee83c880a7fe76af8941465391c633ca50fc560d185374d"
+      },
+      "output": {
+        "change_id": "10000000-0000-4000-8000-000000000011",
+        "change_revision": 2,
+        "approval_id": "approval-a",
+        "content_digest": "b15f2cd48bbfcf9e6ee83c880a7fe76af8941465391c633ca50fc560d185374d",
+        "program_version": {
+          "program_id": "program-a",
+          "program_version_id": "program-v2",
+          "owner_id": "user-a",
+          "version": 2,
+          "content": {
+            "name": "Программа-пример",
+            "templates": [
+              {
+                "template_id": "template-a",
+                "name": "Тренировка A",
+                "description": "Синтетический пример",
+                "exercises": [
+                  {
+                    "template_exercise_id": "exercise-position-a",
+                    "exercise_id": "bench",
+                    "equipment_id": "barbell-a",
+                    "name": "Жим лёжа",
+                    "weight_convention": "total_external_kg",
+                    "weight_step_g": 2500,
+                    "rule": "fixed",
+                    "targets": [
+                      {
+                        "target_id": "target-a",
+                        "weight_g": 62500,
+                        "suggested_reps": 10,
+                        "rep_min": null,
+                        "rep_max": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "published_at": "2026-10-26T12:00:00Z",
+          "change_id": "10000000-0000-4000-8000-000000000011"
+        },
+        "published_at": "2026-10-26T12:00:00Z"
+      }
+    },
+    {
+      "operation": "publish_approved",
+      "input": {
+        "request_id": "10000000-0000-4000-8000-000000000014",
+        "expected_owner_id": "user-a",
+        "change_id": "10000000-0000-4000-8000-000000000011",
+        "expected_revision": 2,
+        "base_program_version_id": "program-v1",
+        "content_digest": "b15f2cd48bbfcf9e6ee83c880a7fe76af8941465391c633ca50fc560d185374d",
+        "approval_id": "approval-a"
+      },
+      "output": {
+        "change_id": "10000000-0000-4000-8000-000000000011",
+        "change_revision": 2,
+        "approval_id": "approval-a",
+        "content_digest": "b15f2cd48bbfcf9e6ee83c880a7fe76af8941465391c633ca50fc560d185374d",
+        "program_version": {
+          "program_id": "program-a",
+          "program_version_id": "program-v2",
+          "owner_id": "user-a",
+          "version": 2,
+          "content": {
+            "name": "Программа-пример",
+            "templates": [
+              {
+                "template_id": "template-a",
+                "name": "Тренировка A",
+                "description": "Синтетический пример",
+                "exercises": [
+                  {
+                    "template_exercise_id": "exercise-position-a",
+                    "exercise_id": "bench",
+                    "equipment_id": "barbell-a",
+                    "name": "Жим лёжа",
+                    "weight_convention": "total_external_kg",
+                    "weight_step_g": 2500,
+                    "rule": "fixed",
+                    "targets": [
+                      {
+                        "target_id": "target-a",
+                        "weight_g": 62500,
+                        "suggested_reps": 10,
+                        "rep_min": null,
+                        "rep_max": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "published_at": "2026-10-26T12:00:00Z",
+          "change_id": "10000000-0000-4000-8000-000000000011"
+        },
+        "published_at": "2026-10-26T12:00:00Z"
+      }
+    },
+    {
+      "operation": "telemetry",
+      "input": {
+        "expected_owner_id": "user-a",
+        "events": [
+          {
+            "event_id": "10000000-0000-4000-8000-000000000021",
+            "at": "2026-10-26T12:00:00Z",
+            "name": "sync_failed",
+            "code": "unavailable",
+            "duration_ms": null,
+            "count": 1
+          }
+        ]
+      },
+      "output": {
+        "accepted": 1,
+        "dropped": 0
+      }
+    },
+    {
+      "operation": "list_grants",
+      "input": {},
+      "output": {
+        "items": [
+          {
+            "grant_id": "grant-a",
+            "client_id": "client-a",
+            "client_name": "Тестовый клиент",
+            "scopes": [
+              "program:read",
+              "program:draft",
+              "program:publish"
+            ],
+            "created_at": "2026-10-26T12:00:00Z",
+            "expires_at": "2027-01-24T12:00:00Z",
+            "revoked_at": null
+          }
+        ]
+      }
+    },
+    {
+      "operation": "revoke_grant",
+      "input": {
+        "request_id": "10000000-0000-4000-8000-000000000099",
+        "expected_owner_id": "user-a",
+        "grant_id": "grant-a"
+      },
+      "output": {
+        "grant_id": "grant-a",
+        "client_id": "client-a",
+        "client_name": "Тестовый клиент",
+        "scopes": [
+          "program:read",
+          "program:draft",
+          "program:publish"
+        ],
+        "created_at": "2026-10-26T12:00:00Z",
+        "expires_at": "2027-01-24T12:00:00Z",
+        "revoked_at": "2026-10-26T12:05:00Z"
+      }
+    }
+  ],
+  "extra": [
+    {
+      "schema": "SyncOperation",
+      "value": {
+        "schema_version": 1,
+        "operation_id": "10000000-0000-4000-8000-000000000001",
+        "expected_owner_id": "user-a",
+        "device_id": "10000000-0000-4000-8000-000000000002",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "precondition": {
+          "server_revision": 0
+        },
+        "client_occurred_at": "2026-10-26T12:00:00Z",
+        "command": {
+          "type": "start_workout",
+          "plan_snapshot_id": "plan-v1"
+        }
+      }
+    },
+    {
+      "schema": "SyncOperation",
+      "value": {
+        "schema_version": 1,
+        "operation_id": "10000000-0000-4000-8000-000000000006",
+        "expected_owner_id": "user-a",
+        "device_id": "10000000-0000-4000-8000-000000000002",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "precondition": {
+          "after_operation_id": "10000000-0000-4000-8000-000000000005"
+        },
+        "client_occurred_at": "2026-10-26T12:00:00Z",
+        "command": {
+          "type": "complete_workout"
+        }
+      }
+    },
+    {
+      "schema": "SyncOperation",
+      "value": {
+        "schema_version": 1,
+        "operation_id": "10000000-0000-4000-8000-000000000032",
+        "expected_owner_id": "user-a",
+        "device_id": "10000000-0000-4000-8000-000000000002",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "precondition": {
+          "after_operation_id": "10000000-0000-4000-8000-000000000005"
+        },
+        "client_occurred_at": "2026-10-26T12:00:00Z",
+        "command": {
+          "type": "edit_set",
+          "set_id": "10000000-0000-4000-8000-000000000004",
+          "kind": "working",
+          "weight_g": 60000,
+          "reps": 10,
+          "planned_target_id": "target-a",
+          "comparison_target_id": "target-a"
+        }
+      }
+    },
+    {
+      "schema": "SyncOperation",
+      "value": {
+        "schema_version": 1,
+        "operation_id": "10000000-0000-4000-8000-000000000033",
+        "expected_owner_id": "user-a",
+        "device_id": "10000000-0000-4000-8000-000000000002",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "precondition": {
+          "after_operation_id": "10000000-0000-4000-8000-000000000005"
+        },
+        "client_occurred_at": "2026-10-26T12:00:00Z",
+        "command": {
+          "type": "delete_set",
+          "set_id": "10000000-0000-4000-8000-000000000004"
+        }
+      }
+    },
+    {
+      "schema": "SyncOperation",
+      "value": {
+        "schema_version": 1,
+        "operation_id": "10000000-0000-4000-8000-000000000034",
+        "expected_owner_id": "user-a",
+        "device_id": "10000000-0000-4000-8000-000000000002",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "precondition": {
+          "after_operation_id": "10000000-0000-4000-8000-000000000005"
+        },
+        "client_occurred_at": "2026-10-26T12:00:00Z",
+        "command": {
+          "type": "cancel_empty_workout"
+        }
+      }
+    },
+    {
+      "schema": "ErrorResponse",
+      "value": {
+        "error": {
+          "code": "revision_conflict",
+          "message": "Тренировка изменилась",
+          "trace_id": "trace-a",
+          "retryable": false,
+          "action": "review",
+          "retry_after_seconds": null,
+          "field_errors": [],
+          "receipt": {
+            "operation_id": "10000000-0000-4000-8000-000000000005",
+            "workout_id": "10000000-0000-4000-8000-000000000003",
+            "outcome": "rejected",
+            "code": "revision_conflict",
+            "observed_server_revision": 4,
+            "rejected_at": "2026-10-26T12:00:00Z"
+          }
+        }
+      }
+    }
+  ],
+  "negative": [
+    {
+      "name": "wrong_owner_field",
+      "schema": "SyncOperation",
+      "value": {
+        "schema_version": 1,
+        "operation_id": "10000000-0000-4000-8000-000000000001",
+        "expected_owner_id": "user-a",
+        "device_id": "10000000-0000-4000-8000-000000000002",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "precondition": {
+          "server_revision": 0
+        },
+        "client_occurred_at": "2026-10-26T12:00:00Z",
+        "command": {
+          "type": "start_workout",
+          "plan_snapshot_id": "plan-v1"
+        },
+        "user_id": "user-b"
+      }
+    },
+    {
+      "name": "invalid_uuid",
+      "schema": "SyncOperation",
+      "value": {
+        "schema_version": 1,
+        "operation_id": "not-a-uuid",
+        "expected_owner_id": "user-a",
+        "device_id": "10000000-0000-4000-8000-000000000002",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "precondition": {
+          "server_revision": 0
+        },
+        "client_occurred_at": "2026-10-26T12:00:00Z",
+        "command": {
+          "type": "start_workout",
+          "plan_snapshot_id": "plan-v1"
+        }
+      }
+    },
+    {
+      "name": "unknown_schema",
+      "schema": "SyncOperation",
+      "value": {
+        "schema_version": 2,
+        "operation_id": "10000000-0000-4000-8000-000000000001",
+        "expected_owner_id": "user-a",
+        "device_id": "10000000-0000-4000-8000-000000000002",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "precondition": {
+          "server_revision": 0
+        },
+        "client_occurred_at": "2026-10-26T12:00:00Z",
+        "command": {
+          "type": "start_workout",
+          "plan_snapshot_id": "plan-v1"
+        }
+      }
+    },
+    {
+      "name": "client_snapshot",
+      "schema": "SyncOperation",
+      "value": {
+        "schema_version": 1,
+        "operation_id": "10000000-0000-4000-8000-000000000001",
+        "expected_owner_id": "user-a",
+        "device_id": "10000000-0000-4000-8000-000000000002",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "precondition": {
+          "server_revision": 0
+        },
+        "client_occurred_at": "2026-10-26T12:00:00Z",
+        "command": {
+          "type": "start_workout",
+          "plan_snapshot_id": "plan-v1",
+          "snapshot": {}
+        }
+      }
+    },
+    {
+      "name": "negative_weight",
+      "schema": "SyncOperation",
+      "value": {
+        "schema_version": 1,
+        "operation_id": "10000000-0000-4000-8000-000000000005",
+        "expected_owner_id": "user-a",
+        "device_id": "10000000-0000-4000-8000-000000000002",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "precondition": {
+          "after_operation_id": "10000000-0000-4000-8000-000000000001"
+        },
+        "client_occurred_at": "2026-10-26T12:00:00Z",
+        "command": {
+          "type": "add_set",
+          "set_id": "10000000-0000-4000-8000-000000000004",
+          "session_exercise_id": "exercise-position-a",
+          "kind": "working",
+          "weight_g": -1,
+          "reps": 10,
+          "planned_target_id": "target-a",
+          "comparison_target_id": "target-a"
+        }
+      }
+    },
+    {
+      "name": "zero_reps",
+      "schema": "SyncOperation",
+      "value": {
+        "schema_version": 1,
+        "operation_id": "10000000-0000-4000-8000-000000000005",
+        "expected_owner_id": "user-a",
+        "device_id": "10000000-0000-4000-8000-000000000002",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "precondition": {
+          "after_operation_id": "10000000-0000-4000-8000-000000000001"
+        },
+        "client_occurred_at": "2026-10-26T12:00:00Z",
+        "command": {
+          "type": "add_set",
+          "set_id": "10000000-0000-4000-8000-000000000004",
+          "session_exercise_id": "exercise-position-a",
+          "kind": "working",
+          "weight_g": 60000,
+          "reps": 0,
+          "planned_target_id": "target-a",
+          "comparison_target_id": "target-a"
+        }
+      }
+    },
+    {
+      "name": "warmup_claims_target",
+      "schema": "SyncOperation",
+      "value": {
+        "schema_version": 1,
+        "operation_id": "10000000-0000-4000-8000-000000000005",
+        "expected_owner_id": "user-a",
+        "device_id": "10000000-0000-4000-8000-000000000002",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "precondition": {
+          "after_operation_id": "10000000-0000-4000-8000-000000000001"
+        },
+        "client_occurred_at": "2026-10-26T12:00:00Z",
+        "command": {
+          "type": "add_set",
+          "set_id": "10000000-0000-4000-8000-000000000004",
+          "session_exercise_id": "exercise-position-a",
+          "kind": "warmup",
+          "weight_g": 60000,
+          "reps": 10,
+          "planned_target_id": "target-a",
+          "comparison_target_id": "target-a"
+        }
+      }
+    },
+    {
+      "name": "self_dependency",
+      "schema": "SyncOperation",
+      "value": {
+        "schema_version": 1,
+        "operation_id": "10000000-0000-4000-8000-000000000005",
+        "expected_owner_id": "user-a",
+        "device_id": "10000000-0000-4000-8000-000000000002",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "precondition": {
+          "after_operation_id": "10000000-0000-4000-8000-000000000005"
+        },
+        "client_occurred_at": "2026-10-26T12:00:00Z",
+        "command": {
+          "type": "add_set",
+          "set_id": "10000000-0000-4000-8000-000000000004",
+          "session_exercise_id": "exercise-position-a",
+          "kind": "working",
+          "weight_g": 60000,
+          "reps": 10,
+          "planned_target_id": "target-a",
+          "comparison_target_id": "target-a"
+        }
+      }
+    },
+    {
+      "name": "two_preconditions",
+      "schema": "SyncOperation",
+      "value": {
+        "schema_version": 1,
+        "operation_id": "10000000-0000-4000-8000-000000000005",
+        "expected_owner_id": "user-a",
+        "device_id": "10000000-0000-4000-8000-000000000002",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "precondition": {
+          "after_operation_id": "10000000-0000-4000-8000-000000000001",
+          "server_revision": 1
+        },
+        "client_occurred_at": "2026-10-26T12:00:00Z",
+        "command": {
+          "type": "add_set",
+          "set_id": "10000000-0000-4000-8000-000000000004",
+          "session_exercise_id": "exercise-position-a",
+          "kind": "working",
+          "weight_g": 60000,
+          "reps": 10,
+          "planned_target_id": "target-a",
+          "comparison_target_id": "target-a"
+        }
+      }
+    },
+    {
+      "name": "invalid_calendar",
+      "schema": "SyncOperation",
+      "value": {
+        "schema_version": 1,
+        "operation_id": "10000000-0000-4000-8000-000000000001",
+        "expected_owner_id": "user-a",
+        "device_id": "10000000-0000-4000-8000-000000000002",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "precondition": {
+          "server_revision": 0
+        },
+        "client_occurred_at": "2026-02-30T12:00:00Z",
+        "command": {
+          "type": "start_workout",
+          "plan_snapshot_id": "plan-v1"
+        }
+      }
+    },
+    {
+      "name": "unsupported_rule",
+      "schema": "ProposeInput",
+      "value": {
+        "request_id": "10000000-0000-4000-8000-000000000010",
+        "expected_owner_id": "user-a",
+        "proposal": {
+          "base_program_version_id": "program-v1",
+          "content": {
+            "name": "Программа-пример",
+            "templates": [
+              {
+                "template_id": "template-a",
+                "name": "Тренировка A",
+                "description": "Синтетический пример",
+                "exercises": [
+                  {
+                    "template_exercise_id": "exercise-position-a",
+                    "exercise_id": "bench",
+                    "equipment_id": "barbell-a",
+                    "name": "Жим лёжа",
+                    "weight_convention": "total_external_kg",
+                    "weight_step_g": 2500,
+                    "rule": "double_progression",
+                    "targets": [
+                      {
+                        "target_id": "target-a",
+                        "weight_g": 62500,
+                        "suggested_reps": 10,
+                        "rep_min": null,
+                        "rep_max": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "rationale": "Согласованное увеличение явной цели"
+        }
+      }
+    },
+    {
+      "name": "forged_approval",
+      "schema": "PublishInput",
+      "value": {
+        "request_id": "10000000-0000-4000-8000-000000000014",
+        "expected_owner_id": "user-a",
+        "change_id": "10000000-0000-4000-8000-000000000011",
+        "expected_revision": 2,
+        "base_program_version_id": "program-v1",
+        "content_digest": "b15f2cd48bbfcf9e6ee83c880a7fe76af8941465391c633ca50fc560d185374d",
+        "approval_id": "approval-a",
+        "approved": true
+      }
+    },
+    {
+      "name": "invalid_digest",
+      "schema": "ApproveInput",
+      "value": {
+        "request_id": "10000000-0000-4000-8000-000000000013",
+        "expected_owner_id": "user-a",
+        "change_id": "10000000-0000-4000-8000-000000000011",
+        "expected_revision": 2,
+        "base_program_version_id": "program-v1",
+        "content_digest": "yes"
+      }
+    },
+    {
+      "name": "string_boolean",
+      "schema": "Publication",
+      "value": {
+        "change_id": "10000000-0000-4000-8000-000000000011",
+        "change_revision": 2,
+        "approval_id": "approval-a",
+        "content_digest": "b15f2cd48bbfcf9e6ee83c880a7fe76af8941465391c633ca50fc560d185374d",
+        "program_version": {
+          "program_id": "program-a",
+          "program_version_id": "program-v2",
+          "owner_id": "user-a",
+          "version": "2",
+          "content": {
+            "name": "Программа-пример",
+            "templates": [
+              {
+                "template_id": "template-a",
+                "name": "Тренировка A",
+                "description": "Синтетический пример",
+                "exercises": [
+                  {
+                    "template_exercise_id": "exercise-position-a",
+                    "exercise_id": "bench",
+                    "equipment_id": "barbell-a",
+                    "name": "Жим лёжа",
+                    "weight_convention": "total_external_kg",
+                    "weight_step_g": 2500,
+                    "rule": "fixed",
+                    "targets": [
+                      {
+                        "target_id": "target-a",
+                        "weight_g": 62500,
+                        "suggested_reps": 10,
+                        "rep_min": null,
+                        "rep_max": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "published_at": "2026-10-26T12:00:00Z",
+          "change_id": "10000000-0000-4000-8000-000000000011"
+        },
+        "published_at": "2026-10-26T12:00:00Z"
+      }
+    },
+    {
+      "name": "partial_range",
+      "schema": "Target",
+      "value": {
+        "target_id": "target-a",
+        "weight_g": 60000,
+        "suggested_reps": 10,
+        "rep_min": 8,
+        "rep_max": null
+      }
+    },
+    {
+      "name": "mismatched_comparison",
+      "schema": "SyncOperation",
+      "value": {
+        "schema_version": 1,
+        "operation_id": "10000000-0000-4000-8000-000000000005",
+        "expected_owner_id": "user-a",
+        "device_id": "10000000-0000-4000-8000-000000000002",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "precondition": {
+          "after_operation_id": "10000000-0000-4000-8000-000000000001"
+        },
+        "client_occurred_at": "2026-10-26T12:00:00Z",
+        "command": {
+          "type": "add_set",
+          "set_id": "10000000-0000-4000-8000-000000000004",
+          "session_exercise_id": "exercise-position-a",
+          "kind": "working",
+          "weight_g": 60000,
+          "reps": 10,
+          "planned_target_id": "target-a",
+          "comparison_target_id": "another-target"
+        }
+      }
+    },
+    {
+      "name": "duplicate_template",
+      "schema": "ProgramContent",
+      "value": {
+        "name": "Программа-пример",
+        "templates": [
+          {
+            "template_id": "template-a",
+            "name": "Тренировка A",
+            "description": "Синтетический пример",
+            "exercises": [
+              {
+                "template_exercise_id": "exercise-position-a",
+                "exercise_id": "bench",
+                "equipment_id": "barbell-a",
+                "name": "Жим лёжа",
+                "weight_convention": "total_external_kg",
+                "weight_step_g": 2500,
+                "rule": "fixed",
+                "targets": [
+                  {
+                    "target_id": "target-a",
+                    "weight_g": 60000,
+                    "suggested_reps": 10,
+                    "rep_min": null,
+                    "rep_max": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "template_id": "template-a",
+            "name": "Тренировка A",
+            "description": "Синтетический пример",
+            "exercises": [
+              {
+                "template_exercise_id": "exercise-position-a",
+                "exercise_id": "bench",
+                "equipment_id": "barbell-a",
+                "name": "Жим лёжа",
+                "weight_convention": "total_external_kg",
+                "weight_step_g": 2500,
+                "rule": "fixed",
+                "targets": [
+                  {
+                    "target_id": "target-a",
+                    "weight_g": 60000,
+                    "suggested_reps": 10,
+                    "rep_min": null,
+                    "rep_max": null
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "completed_without_time",
+      "schema": "Workout",
+      "value": {
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "owner_id": "user-a",
+        "server_revision": 3,
+        "status": "completed",
+        "plan": {
+          "plan_snapshot_id": "plan-v1",
+          "snapshot_schema_version": 1,
+          "owner_id": "user-a",
+          "program_version_id": "program-v1",
+          "template": {
+            "template_id": "template-a",
+            "name": "Тренировка A",
+            "description": "Синтетический пример",
+            "exercises": [
+              {
+                "template_exercise_id": "exercise-position-a",
+                "exercise_id": "bench",
+                "equipment_id": "barbell-a",
+                "name": "Жим лёжа",
+                "weight_convention": "total_external_kg",
+                "weight_step_g": 2500,
+                "rule": "fixed",
+                "targets": [
+                  {
+                    "target_id": "target-a",
+                    "weight_g": 60000,
+                    "suggested_reps": 10,
+                    "rep_min": null,
+                    "rep_max": null
+                  }
+                ]
+              }
+            ]
+          },
+          "calculated_at": "2026-10-26T12:00:00Z",
+          "history_revision": 0,
+          "calculator_version": "fixed-v1"
+        },
+        "started_at": "2026-10-26T12:00:00Z",
+        "completed_at": null,
+        "updated_at": "2026-10-26T12:00:00Z",
+        "sets": [
+          {
+            "set_id": "10000000-0000-4000-8000-000000000004",
+            "session_exercise_id": "exercise-position-a",
+            "kind": "working",
+            "weight_g": 60000,
+            "reps": 10,
+            "planned_target_id": "target-a",
+            "comparison_target_id": "target-a",
+            "deleted_at": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "auth_error_leaks_receipt",
+      "schema": "ErrorResponse",
+      "value": {
+        "error": {
+          "code": "account_mismatch",
+          "message": "Тренировка изменилась",
+          "trace_id": "trace-a",
+          "retryable": false,
+          "action": "review",
+          "retry_after_seconds": null,
+          "field_errors": [],
+          "receipt": {
+            "operation_id": "10000000-0000-4000-8000-000000000005",
+            "workout_id": "10000000-0000-4000-8000-000000000003",
+            "outcome": "rejected",
+            "code": "revision_conflict",
+            "observed_server_revision": 4,
+            "rejected_at": "2026-10-26T12:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "conflict_auto_retry",
+      "schema": "ErrorResponse",
+      "value": {
+        "error": {
+          "code": "revision_conflict",
+          "message": "Тренировка изменилась",
+          "trace_id": "trace-a",
+          "retryable": true,
+          "action": "review",
+          "retry_after_seconds": null,
+          "field_errors": [],
+          "receipt": {
+            "operation_id": "10000000-0000-4000-8000-000000000005",
+            "workout_id": "10000000-0000-4000-8000-000000000003",
+            "outcome": "rejected",
+            "code": "revision_conflict",
+            "observed_server_revision": 4,
+            "rejected_at": "2026-10-26T12:00:00Z"
+          }
+        }
+      }
+    }
+  ],
+  "flows": [
+    {
+      "name": "offline_start_add_complete_retry",
+      "steps": [
+        {
+          "operation": "submit_operation",
+          "input": {
+            "schema_version": 1,
+            "operation_id": "10000000-0000-4000-8000-000000000001",
+            "expected_owner_id": "user-a",
+            "device_id": "10000000-0000-4000-8000-000000000002",
+            "workout_id": "10000000-0000-4000-8000-000000000003",
+            "precondition": {
+              "server_revision": 0
+            },
+            "client_occurred_at": "2026-10-26T12:00:00Z",
+            "command": {
+              "type": "start_workout",
+              "plan_snapshot_id": "plan-v1"
+            }
+          },
+          "output": {
+            "operation_id": "10000000-0000-4000-8000-000000000001",
+            "workout_id": "10000000-0000-4000-8000-000000000003",
+            "outcome": "applied",
+            "server_revision": 1,
+            "change_seq": 1,
+            "accepted_at": "2026-10-26T12:00:00Z"
+          }
+        },
+        {
+          "operation": "submit_operation",
+          "input": {
+            "schema_version": 1,
+            "operation_id": "10000000-0000-4000-8000-000000000005",
+            "expected_owner_id": "user-a",
+            "device_id": "10000000-0000-4000-8000-000000000002",
+            "workout_id": "10000000-0000-4000-8000-000000000003",
+            "precondition": {
+              "after_operation_id": "10000000-0000-4000-8000-000000000001"
+            },
+            "client_occurred_at": "2026-10-26T12:00:00Z",
+            "command": {
+              "type": "add_set",
+              "set_id": "10000000-0000-4000-8000-000000000004",
+              "session_exercise_id": "exercise-position-a",
+              "kind": "working",
+              "weight_g": 60000,
+              "reps": 10,
+              "planned_target_id": "target-a",
+              "comparison_target_id": "target-a"
+            }
+          },
+          "output": {
+            "operation_id": "10000000-0000-4000-8000-000000000005",
+            "workout_id": "10000000-0000-4000-8000-000000000003",
+            "outcome": "applied",
+            "server_revision": 2,
+            "change_seq": 2,
+            "accepted_at": "2026-10-26T12:00:00Z"
+          }
+        },
+        {
+          "operation": "submit_operation",
+          "input": {
+            "schema_version": 1,
+            "operation_id": "10000000-0000-4000-8000-000000000006",
+            "expected_owner_id": "user-a",
+            "device_id": "10000000-0000-4000-8000-000000000002",
+            "workout_id": "10000000-0000-4000-8000-000000000003",
+            "precondition": {
+              "after_operation_id": "10000000-0000-4000-8000-000000000005"
+            },
+            "client_occurred_at": "2026-10-26T12:00:00Z",
+            "command": {
+              "type": "complete_workout"
+            }
+          },
+          "output": {
+            "operation_id": "10000000-0000-4000-8000-000000000006",
+            "workout_id": "10000000-0000-4000-8000-000000000003",
+            "outcome": "applied",
+            "server_revision": 3,
+            "change_seq": 3,
+            "accepted_at": "2026-10-26T12:00:00Z"
+          }
+        },
+        {
+          "operation": "submit_operation",
+          "input": {
+            "schema_version": 1,
+            "operation_id": "10000000-0000-4000-8000-000000000005",
+            "expected_owner_id": "user-a",
+            "device_id": "10000000-0000-4000-8000-000000000002",
+            "workout_id": "10000000-0000-4000-8000-000000000003",
+            "precondition": {
+              "after_operation_id": "10000000-0000-4000-8000-000000000001"
+            },
+            "client_occurred_at": "2026-10-26T12:00:00Z",
+            "command": {
+              "type": "add_set",
+              "set_id": "10000000-0000-4000-8000-000000000004",
+              "session_exercise_id": "exercise-position-a",
+              "kind": "working",
+              "weight_g": 60000,
+              "reps": 10,
+              "planned_target_id": "target-a",
+              "comparison_target_id": "target-a"
+            }
+          },
+          "output": {
+            "operation_id": "10000000-0000-4000-8000-000000000005",
+            "workout_id": "10000000-0000-4000-8000-000000000003",
+            "outcome": "applied",
+            "server_revision": 2,
+            "change_seq": 2,
+            "accepted_at": "2026-10-26T12:00:00Z"
+          }
+        }
+      ]
+    },
+    {
+      "name": "draft_replace_validate_owner_approval_agent_observes",
+      "steps": [
+        {
+          "operation": "get_program",
+          "input": {},
+          "output": {
+            "owner_id": "user-a",
+            "version": {
+              "program_id": "program-a",
+              "program_version_id": "program-v1",
+              "owner_id": "user-a",
+              "version": 1,
+              "content": {
+                "name": "Программа-пример",
+                "templates": [
+                  {
+                    "template_id": "template-a",
+                    "name": "Тренировка A",
+                    "description": "Синтетический пример",
+                    "exercises": [
+                      {
+                        "template_exercise_id": "exercise-position-a",
+                        "exercise_id": "bench",
+                        "equipment_id": "barbell-a",
+                        "name": "Жим лёжа",
+                        "weight_convention": "total_external_kg",
+                        "weight_step_g": 2500,
+                        "rule": "fixed",
+                        "targets": [
+                          {
+                            "target_id": "target-a",
+                            "weight_g": 60000,
+                            "suggested_reps": 10,
+                            "rep_min": null,
+                            "rep_max": null
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "published_at": "2026-10-26T12:00:00Z",
+              "change_id": "10000000-0000-4000-8000-000000000050"
+            }
+          }
+        },
+        {
+          "operation": "propose_change",
+          "input": {
+            "request_id": "10000000-0000-4000-8000-000000000010",
+            "expected_owner_id": "user-a",
+            "proposal": {
+              "base_program_version_id": "program-v1",
+              "content": {
+                "name": "Программа-пример",
+                "templates": [
+                  {
+                    "template_id": "template-a",
+                    "name": "Тренировка A",
+                    "description": "Синтетический пример",
+                    "exercises": [
+                      {
+                        "template_exercise_id": "exercise-position-a",
+                        "exercise_id": "bench",
+                        "equipment_id": "barbell-a",
+                        "name": "Жим лёжа",
+                        "weight_convention": "total_external_kg",
+                        "weight_step_g": 2500,
+                        "rule": "fixed",
+                        "targets": [
+                          {
+                            "target_id": "target-a",
+                            "weight_g": 62500,
+                            "suggested_reps": 10,
+                            "rep_min": null,
+                            "rep_max": null
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "rationale": "Согласованное увеличение явной цели"
+            }
+          },
+          "output": {
+            "change_id": "10000000-0000-4000-8000-000000000011",
+            "owner_id": "user-a",
+            "change_revision": 1,
+            "proposal": {
+              "base_program_version_id": "program-v1",
+              "content": {
+                "name": "Программа-пример",
+                "templates": [
+                  {
+                    "template_id": "template-a",
+                    "name": "Тренировка A",
+                    "description": "Синтетический пример",
+                    "exercises": [
+                      {
+                        "template_exercise_id": "exercise-position-a",
+                        "exercise_id": "bench",
+                        "equipment_id": "barbell-a",
+                        "name": "Жим лёжа",
+                        "weight_convention": "total_external_kg",
+                        "weight_step_g": 2500,
+                        "rule": "fixed",
+                        "targets": [
+                          {
+                            "target_id": "target-a",
+                            "weight_g": 62500,
+                            "suggested_reps": 10,
+                            "rep_min": null,
+                            "rep_max": null
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "rationale": "Согласованное увеличение явной цели"
+            },
+            "content_digest": "402ff58ed8b33b2384cec62026799dca0ce63ce1a8867c0999c7b1cb9338ed7f",
+            "status": "draft",
+            "created_at": "2026-10-26T12:00:00Z",
+            "creator_grant_id": "grant-a"
+          }
+        },
+        {
+          "operation": "replace_change",
+          "input": {
+            "request_id": "10000000-0000-4000-8000-000000000012",
+            "expected_owner_id": "user-a",
+            "change_id": "10000000-0000-4000-8000-000000000011",
+            "expected_revision": 1,
+            "proposal": {
+              "base_program_version_id": "program-v1",
+              "content": {
+                "name": "Программа-пример",
+                "templates": [
+                  {
+                    "template_id": "template-a",
+                    "name": "Тренировка A",
+                    "description": "Синтетический пример",
+                    "exercises": [
+                      {
+                        "template_exercise_id": "exercise-position-a",
+                        "exercise_id": "bench",
+                        "equipment_id": "barbell-a",
+                        "name": "Жим лёжа",
+                        "weight_convention": "total_external_kg",
+                        "weight_step_g": 2500,
+                        "rule": "fixed",
+                        "targets": [
+                          {
+                            "target_id": "target-a",
+                            "weight_g": 62500,
+                            "suggested_reps": 10,
+                            "rep_min": null,
+                            "rep_max": null
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "rationale": "Уточнённое обоснование той же цели"
+            }
+          },
+          "output": {
+            "change_id": "10000000-0000-4000-8000-000000000011",
+            "owner_id": "user-a",
+            "change_revision": 2,
+            "proposal": {
+              "base_program_version_id": "program-v1",
+              "content": {
+                "name": "Программа-пример",
+                "templates": [
+                  {
+                    "template_id": "template-a",
+                    "name": "Тренировка A",
+                    "description": "Синтетический пример",
+                    "exercises": [
+                      {
+                        "template_exercise_id": "exercise-position-a",
+                        "exercise_id": "bench",
+                        "equipment_id": "barbell-a",
+                        "name": "Жим лёжа",
+                        "weight_convention": "total_external_kg",
+                        "weight_step_g": 2500,
+                        "rule": "fixed",
+                        "targets": [
+                          {
+                            "target_id": "target-a",
+                            "weight_g": 62500,
+                            "suggested_reps": 10,
+                            "rep_min": null,
+                            "rep_max": null
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "rationale": "Уточнённое обоснование той же цели"
+            },
+            "content_digest": "b15f2cd48bbfcf9e6ee83c880a7fe76af8941465391c633ca50fc560d185374d",
+            "status": "draft",
+            "created_at": "2026-10-26T12:00:00Z",
+            "creator_grant_id": "grant-a"
+          }
+        },
+        {
+          "operation": "validate_change",
+          "input": {
+            "change_id": "10000000-0000-4000-8000-000000000011",
+            "expected_revision": 2
+          },
+          "output": {
+            "change_id": "10000000-0000-4000-8000-000000000011",
+            "change_revision": 2,
+            "content_digest": "b15f2cd48bbfcf9e6ee83c880a7fe76af8941465391c633ca50fc560d185374d",
+            "valid": true,
+            "issues": [],
+            "validated_at": "2026-10-26T12:00:00Z"
+          }
+        },
+        {
+          "operation": "approve_and_publish",
+          "input": {
+            "request_id": "10000000-0000-4000-8000-000000000013",
+            "expected_owner_id": "user-a",
+            "change_id": "10000000-0000-4000-8000-000000000011",
+            "expected_revision": 2,
+            "base_program_version_id": "program-v1",
+            "content_digest": "b15f2cd48bbfcf9e6ee83c880a7fe76af8941465391c633ca50fc560d185374d"
+          },
+          "output": {
+            "change_id": "10000000-0000-4000-8000-000000000011",
+            "change_revision": 2,
+            "approval_id": "approval-a",
+            "content_digest": "b15f2cd48bbfcf9e6ee83c880a7fe76af8941465391c633ca50fc560d185374d",
+            "program_version": {
+              "program_id": "program-a",
+              "program_version_id": "program-v2",
+              "owner_id": "user-a",
+              "version": 2,
+              "content": {
+                "name": "Программа-пример",
+                "templates": [
+                  {
+                    "template_id": "template-a",
+                    "name": "Тренировка A",
+                    "description": "Синтетический пример",
+                    "exercises": [
+                      {
+                        "template_exercise_id": "exercise-position-a",
+                        "exercise_id": "bench",
+                        "equipment_id": "barbell-a",
+                        "name": "Жим лёжа",
+                        "weight_convention": "total_external_kg",
+                        "weight_step_g": 2500,
+                        "rule": "fixed",
+                        "targets": [
+                          {
+                            "target_id": "target-a",
+                            "weight_g": 62500,
+                            "suggested_reps": 10,
+                            "rep_min": null,
+                            "rep_max": null
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "published_at": "2026-10-26T12:00:00Z",
+              "change_id": "10000000-0000-4000-8000-000000000011"
+            },
+            "published_at": "2026-10-26T12:00:00Z"
+          }
+        },
+        {
+          "operation": "publish_approved",
+          "input": {
+            "request_id": "10000000-0000-4000-8000-000000000014",
+            "expected_owner_id": "user-a",
+            "change_id": "10000000-0000-4000-8000-000000000011",
+            "expected_revision": 2,
+            "base_program_version_id": "program-v1",
+            "content_digest": "b15f2cd48bbfcf9e6ee83c880a7fe76af8941465391c633ca50fc560d185374d",
+            "approval_id": "approval-a"
+          },
+          "output": {
+            "change_id": "10000000-0000-4000-8000-000000000011",
+            "change_revision": 2,
+            "approval_id": "approval-a",
+            "content_digest": "b15f2cd48bbfcf9e6ee83c880a7fe76af8941465391c633ca50fc560d185374d",
+            "program_version": {
+              "program_id": "program-a",
+              "program_version_id": "program-v2",
+              "owner_id": "user-a",
+              "version": 2,
+              "content": {
+                "name": "Программа-пример",
+                "templates": [
+                  {
+                    "template_id": "template-a",
+                    "name": "Тренировка A",
+                    "description": "Синтетический пример",
+                    "exercises": [
+                      {
+                        "template_exercise_id": "exercise-position-a",
+                        "exercise_id": "bench",
+                        "equipment_id": "barbell-a",
+                        "name": "Жим лёжа",
+                        "weight_convention": "total_external_kg",
+                        "weight_step_g": 2500,
+                        "rule": "fixed",
+                        "targets": [
+                          {
+                            "target_id": "target-a",
+                            "weight_g": 62500,
+                            "suggested_reps": 10,
+                            "rep_min": null,
+                            "rep_max": null
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "published_at": "2026-10-26T12:00:00Z",
+              "change_id": "10000000-0000-4000-8000-000000000011"
+            },
+            "published_at": "2026-10-26T12:00:00Z"
+          }
+        }
+      ]
+    }
+  ]
+}
