@@ -1,0 +1,63 @@
+{
+  "vectors": [
+    {
+      "kind": "operation",
+      "value": {
+        "schema_version": 1,
+        "operation_id": "10000000-0000-4000-8000-000000000001",
+        "expected_owner_id": "user-a",
+        "device_id": "10000000-0000-4000-8000-000000000002",
+        "workout_id": "10000000-0000-4000-8000-000000000003",
+        "precondition": {
+          "server_revision": 0
+        },
+        "client_occurred_at": "2026-10-26T12:00:00Z",
+        "command": {
+          "type": "start_workout",
+          "plan_snapshot_id": "plan-v1"
+        }
+      },
+      "canonical_text": "{\"client_occurred_at\":\"2026-10-26T12:00:00Z\",\"command\":{\"plan_snapshot_id\":\"plan-v1\",\"type\":\"start_workout\"},\"device_id\":\"10000000-0000-4000-8000-000000000002\",\"expected_owner_id\":\"user-a\",\"operation_id\":\"10000000-0000-4000-8000-000000000001\",\"precondition\":{\"server_revision\":0},\"schema_version\":1,\"workout_id\":\"10000000-0000-4000-8000-000000000003\"}",
+      "sha256": "2bac45982895c827ea14b0009e5e577dcb387fd94fe0b8e5d9970607bd0198a6"
+    },
+    {
+      "kind": "proposal",
+      "value": {
+        "base_program_version_id": "program-v1",
+        "content": {
+          "name": "Программа-пример",
+          "templates": [
+            {
+              "template_id": "template-a",
+              "name": "Тренировка A",
+              "description": "Синтетический пример",
+              "exercises": [
+                {
+                  "template_exercise_id": "exercise-position-a",
+                  "exercise_id": "bench",
+                  "equipment_id": "barbell-a",
+                  "name": "Жим лёжа",
+                  "weight_convention": "total_external_kg",
+                  "weight_step_g": 2500,
+                  "rule": "fixed",
+                  "targets": [
+                    {
+                      "target_id": "target-a",
+                      "weight_g": 62500,
+                      "suggested_reps": 10,
+                      "rep_min": null,
+                      "rep_max": null
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rationale": "Уточнённое обоснование той же цели"
+      },
+      "canonical_text": "{\"base_program_version_id\":\"program-v1\",\"content\":{\"name\":\"Программа-пример\",\"templates\":[{\"description\":\"Синтетический пример\",\"exercises\":[{\"equipment_id\":\"barbell-a\",\"exercise_id\":\"bench\",\"name\":\"Жим лёжа\",\"rule\":\"fixed\",\"targets\":[{\"rep_max\":null,\"rep_min\":null,\"suggested_reps\":10,\"target_id\":\"target-a\",\"weight_g\":62500}],\"template_exercise_id\":\"exercise-position-a\",\"weight_convention\":\"total_external_kg\",\"weight_step_g\":2500}],\"name\":\"Тренировка A\",\"template_id\":\"template-a\"}]},\"rationale\":\"Уточнённое обоснование той же цели\"}",
+      "sha256": "b15f2cd48bbfcf9e6ee83c880a7fe76af8941465391c633ca50fc560d185374d"
+    }
+  ]
+}

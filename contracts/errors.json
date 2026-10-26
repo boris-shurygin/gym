@@ -1,0 +1,127 @@
+{
+  "invalid_request": {
+    "http_status": 400,
+    "retryable": false,
+    "action": "review"
+  },
+  "session_required": {
+    "http_status": 401,
+    "retryable": false,
+    "action": "reauthenticate"
+  },
+  "invalid_token": {
+    "http_status": 401,
+    "retryable": false,
+    "action": "reconnect"
+  },
+  "account_mismatch": {
+    "http_status": 403,
+    "retryable": false,
+    "action": "reauthenticate"
+  },
+  "account_disabled": {
+    "http_status": 403,
+    "retryable": false,
+    "action": "review"
+  },
+  "csrf_failed": {
+    "http_status": 403,
+    "retryable": false,
+    "action": "refresh_session"
+  },
+  "insufficient_scope": {
+    "http_status": 403,
+    "retryable": false,
+    "action": "reconnect"
+  },
+  "approval_required": {
+    "http_status": 403,
+    "retryable": false,
+    "action": "review"
+  },
+  "not_found": {
+    "http_status": 404,
+    "retryable": false,
+    "action": "none"
+  },
+  "revision_conflict": {
+    "http_status": 409,
+    "retryable": false,
+    "action": "review"
+  },
+  "operation_id_reused": {
+    "http_status": 409,
+    "retryable": false,
+    "action": "review"
+  },
+  "request_id_reused": {
+    "http_status": 409,
+    "retryable": false,
+    "action": "review"
+  },
+  "program_conflict": {
+    "http_status": 409,
+    "retryable": false,
+    "action": "review"
+  },
+  "approval_invalid": {
+    "http_status": 409,
+    "retryable": false,
+    "action": "review"
+  },
+  "dependency_pending": {
+    "http_status": 409,
+    "retryable": true,
+    "action": "retry"
+  },
+  "dependency_failed": {
+    "http_status": 409,
+    "retryable": false,
+    "action": "review"
+  },
+  "snapshot_unavailable": {
+    "http_status": 409,
+    "retryable": false,
+    "action": "review"
+  },
+  "upgrade_required": {
+    "http_status": 409,
+    "retryable": false,
+    "action": "upgrade"
+  },
+  "cursor_expired": {
+    "http_status": 410,
+    "retryable": false,
+    "action": "bootstrap"
+  },
+  "payload_too_large": {
+    "http_status": 413,
+    "retryable": false,
+    "action": "review"
+  },
+  "validation_failed": {
+    "http_status": 422,
+    "retryable": false,
+    "action": "review"
+  },
+  "invalid_dependency": {
+    "http_status": 422,
+    "retryable": false,
+    "action": "review"
+  },
+  "rate_limited": {
+    "http_status": 429,
+    "retryable": true,
+    "action": "retry"
+  },
+  "unavailable": {
+    "http_status": 503,
+    "retryable": true,
+    "action": "retry"
+  },
+  "not_invited": {
+    "http_status": 403,
+    "retryable": false,
+    "action": "review"
+  }
+}

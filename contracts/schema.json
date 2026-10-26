@@ -1,0 +1,3053 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gym.invalid/contracts/v1/schema.json",
+  "title": "Контракты Gym v1",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "Uuid": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "Timestamp": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 32,
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?(?:Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "Date": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 10,
+      "format": "date"
+    },
+    "Cursor": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "^[A-Za-z0-9._~-]+$"
+    },
+    "Digest": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Timezone": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "pattern": "^[A-Za-z_+-]+(?:/[A-Za-z0-9_+.-]+)*$"
+    },
+    "WeightConvention": {
+      "enum": [
+        "total_external_kg",
+        "per_implement_kg",
+        "machine_marking_kg"
+      ]
+    },
+    "Empty": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "Target": {
+      "type": "object",
+      "properties": {
+        "target_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "weight_g": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000000
+        },
+        "suggested_reps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "rep_min": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rep_max": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "target_id",
+        "weight_g",
+        "suggested_reps",
+        "rep_min",
+        "rep_max"
+      ],
+      "additionalProperties": false
+    },
+    "Exercise": {
+      "type": "object",
+      "properties": {
+        "template_exercise_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "exercise_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "equipment_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "weight_convention": {
+          "$ref": "#/$defs/WeightConvention"
+        },
+        "weight_step_g": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2000000
+        },
+        "rule": {
+          "const": "fixed"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Target"
+          },
+          "minItems": 1,
+          "maxItems": 30
+        }
+      },
+      "required": [
+        "template_exercise_id",
+        "exercise_id",
+        "equipment_id",
+        "name",
+        "weight_convention",
+        "weight_step_g",
+        "rule",
+        "targets"
+      ],
+      "additionalProperties": false
+    },
+    "Template": {
+      "type": "object",
+      "properties": {
+        "template_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 2000
+        },
+        "exercises": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Exercise"
+          },
+          "minItems": 1,
+          "maxItems": 20
+        }
+      },
+      "required": [
+        "template_id",
+        "name",
+        "description",
+        "exercises"
+      ],
+      "additionalProperties": false
+    },
+    "ProgramContent": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "templates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Template"
+          },
+          "minItems": 1,
+          "maxItems": 20
+        }
+      },
+      "required": [
+        "name",
+        "templates"
+      ],
+      "additionalProperties": false
+    },
+    "ProgramVersion": {
+      "type": "object",
+      "properties": {
+        "program_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "program_version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "content": {
+          "$ref": "#/$defs/ProgramContent"
+        },
+        "published_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "change_id": {
+          "$ref": "#/$defs/Uuid"
+        }
+      },
+      "required": [
+        "program_id",
+        "program_version_id",
+        "owner_id",
+        "version",
+        "content",
+        "published_at",
+        "change_id"
+      ],
+      "additionalProperties": false
+    },
+    "ProgramView": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProgramVersion"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "owner_id": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "required": [
+        "version",
+        "owner_id"
+      ],
+      "additionalProperties": false
+    },
+    "PlanSnapshot": {
+      "type": "object",
+      "properties": {
+        "plan_snapshot_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "snapshot_schema_version": {
+          "const": 1
+        },
+        "owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "program_version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "template": {
+          "$ref": "#/$defs/Template"
+        },
+        "calculated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "history_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "calculator_version": {
+          "const": "fixed-v1"
+        }
+      },
+      "required": [
+        "plan_snapshot_id",
+        "snapshot_schema_version",
+        "owner_id",
+        "program_version_id",
+        "template",
+        "calculated_at",
+        "history_revision",
+        "calculator_version"
+      ],
+      "additionalProperties": false
+    },
+    "PlanList": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PlanSnapshot"
+          },
+          "minItems": 0,
+          "maxItems": 20
+        },
+        "history_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "freshness": {
+          "enum": [
+            "fresh",
+            "stale",
+            "recalculating"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "history_revision",
+        "freshness"
+      ],
+      "additionalProperties": false
+    },
+    "SetResult": {
+      "type": "object",
+      "properties": {
+        "set_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "session_exercise_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "deleted_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "enum": [
+            "working",
+            "warmup"
+          ]
+        },
+        "weight_g": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000000
+        },
+        "reps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "planned_target_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "comparison_target_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "set_id",
+        "session_exercise_id",
+        "deleted_at",
+        "kind",
+        "weight_g",
+        "reps",
+        "planned_target_id",
+        "comparison_target_id"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "warmup"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "planned_target_id": {
+                "type": "null"
+              },
+              "comparison_target_id": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "comparison_target_id": {
+                "$ref": "#/$defs/Id"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Workout": {
+      "type": "object",
+      "properties": {
+        "workout_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "server_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "status": {
+          "enum": [
+            "active",
+            "completed",
+            "cancelled"
+          ]
+        },
+        "plan": {
+          "$ref": "#/$defs/PlanSnapshot"
+        },
+        "started_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "sets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SetResult"
+          },
+          "minItems": 0,
+          "maxItems": 2000
+        }
+      },
+      "required": [
+        "workout_id",
+        "owner_id",
+        "server_revision",
+        "status",
+        "plan",
+        "started_at",
+        "completed_at",
+        "updated_at",
+        "sets"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "completed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "completed_at": {
+                "$ref": "#/$defs/Timestamp"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "completed_at": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "PageInput": {
+      "type": "object",
+      "properties": {
+        "cursor": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "WorkoutListInput": {
+      "type": "object",
+      "properties": {
+        "cursor": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "status": {
+          "enum": [
+            "active",
+            "completed",
+            "cancelled"
+          ]
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "WorkoutInput": {
+      "type": "object",
+      "properties": {
+        "workout_id": {
+          "$ref": "#/$defs/Uuid"
+        }
+      },
+      "required": [
+        "workout_id"
+      ],
+      "additionalProperties": false
+    },
+    "WorkoutPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Workout"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    },
+    "CatalogEntry": {
+      "type": "object",
+      "properties": {
+        "exercise_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "equipment_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "weight_convention": {
+          "$ref": "#/$defs/WeightConvention"
+        },
+        "weight_step_g": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2000000
+        }
+      },
+      "required": [
+        "exercise_id",
+        "equipment_id",
+        "name",
+        "weight_convention",
+        "weight_step_g"
+      ],
+      "additionalProperties": false
+    },
+    "CatalogPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CatalogEntry"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    },
+    "Precondition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "server_revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "server_revision"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "after_operation_id": {
+              "$ref": "#/$defs/Uuid"
+            }
+          },
+          "required": [
+            "after_operation_id"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "StartWorkout": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "start_workout"
+        },
+        "plan_snapshot_id": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "required": [
+        "type",
+        "plan_snapshot_id"
+      ],
+      "additionalProperties": false
+    },
+    "AddSet": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "add_set"
+        },
+        "session_exercise_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "set_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "kind": {
+          "enum": [
+            "working",
+            "warmup"
+          ]
+        },
+        "weight_g": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000000
+        },
+        "reps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "planned_target_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "comparison_target_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "session_exercise_id",
+        "set_id",
+        "kind",
+        "weight_g",
+        "reps",
+        "planned_target_id",
+        "comparison_target_id"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "warmup"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "planned_target_id": {
+                "type": "null"
+              },
+              "comparison_target_id": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "comparison_target_id": {
+                "$ref": "#/$defs/Id"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "EditSet": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "edit_set"
+        },
+        "set_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "kind": {
+          "enum": [
+            "working",
+            "warmup"
+          ]
+        },
+        "weight_g": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000000
+        },
+        "reps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "planned_target_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "comparison_target_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "set_id",
+        "kind",
+        "weight_g",
+        "reps",
+        "planned_target_id",
+        "comparison_target_id"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "warmup"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "planned_target_id": {
+                "type": "null"
+              },
+              "comparison_target_id": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "comparison_target_id": {
+                "$ref": "#/$defs/Id"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "DeleteSet": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "delete_set"
+        },
+        "set_id": {
+          "$ref": "#/$defs/Uuid"
+        }
+      },
+      "required": [
+        "type",
+        "set_id"
+      ],
+      "additionalProperties": false
+    },
+    "CompleteWorkout": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "complete_workout"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "CancelWorkout": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "cancel_empty_workout"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "SyncOperation": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "expected_owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "device_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "workout_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "precondition": {
+          "$ref": "#/$defs/Precondition"
+        },
+        "client_occurred_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "command": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/StartWorkout"
+            },
+            {
+              "$ref": "#/$defs/AddSet"
+            },
+            {
+              "$ref": "#/$defs/EditSet"
+            },
+            {
+              "$ref": "#/$defs/DeleteSet"
+            },
+            {
+              "$ref": "#/$defs/CompleteWorkout"
+            },
+            {
+              "$ref": "#/$defs/CancelWorkout"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "operation_id",
+        "expected_owner_id",
+        "device_id",
+        "workout_id",
+        "precondition",
+        "client_occurred_at",
+        "command"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "command": {
+                "properties": {
+                  "type": {
+                    "const": "start_workout"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "precondition": {
+                "type": "object",
+                "properties": {
+                  "server_revision": {
+                    "const": 0
+                  }
+                },
+                "required": [
+                  "server_revision"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "precondition": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "server_revision": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "server_revision"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "after_operation_id": {
+                        "$ref": "#/$defs/Uuid"
+                      }
+                    },
+                    "required": [
+                      "after_operation_id"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "AppliedReceipt": {
+      "type": "object",
+      "properties": {
+        "operation_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "workout_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "outcome": {
+          "const": "applied"
+        },
+        "server_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "change_seq": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "accepted_at": {
+          "$ref": "#/$defs/Timestamp"
+        }
+      },
+      "required": [
+        "operation_id",
+        "workout_id",
+        "outcome",
+        "server_revision",
+        "change_seq",
+        "accepted_at"
+      ],
+      "additionalProperties": false
+    },
+    "RejectedReceipt": {
+      "type": "object",
+      "properties": {
+        "operation_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "workout_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "outcome": {
+          "const": "rejected"
+        },
+        "code": {
+          "enum": [
+            "revision_conflict",
+            "validation_failed",
+            "invalid_dependency",
+            "dependency_failed",
+            "snapshot_unavailable"
+          ]
+        },
+        "observed_server_revision": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rejected_at": {
+          "$ref": "#/$defs/Timestamp"
+        }
+      },
+      "required": [
+        "operation_id",
+        "workout_id",
+        "outcome",
+        "code",
+        "observed_server_revision",
+        "rejected_at"
+      ],
+      "additionalProperties": false
+    },
+    "Receipt": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/AppliedReceipt"
+        },
+        {
+          "$ref": "#/$defs/RejectedReceipt"
+        }
+      ]
+    },
+    "ReceiptInput": {
+      "type": "object",
+      "properties": {
+        "operation_id": {
+          "$ref": "#/$defs/Uuid"
+        }
+      },
+      "required": [
+        "operation_id"
+      ],
+      "additionalProperties": false
+    },
+    "FieldError": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 256
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      },
+      "required": [
+        "path",
+        "message"
+      ],
+      "additionalProperties": false
+    },
+    "Error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "enum": [
+            "invalid_request",
+            "session_required",
+            "invalid_token",
+            "account_mismatch",
+            "account_disabled",
+            "csrf_failed",
+            "insufficient_scope",
+            "approval_required",
+            "not_found",
+            "revision_conflict",
+            "operation_id_reused",
+            "request_id_reused",
+            "program_conflict",
+            "approval_invalid",
+            "dependency_pending",
+            "dependency_failed",
+            "snapshot_unavailable",
+            "upgrade_required",
+            "cursor_expired",
+            "payload_too_large",
+            "validation_failed",
+            "invalid_dependency",
+            "rate_limited",
+            "unavailable",
+            "not_invited"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "trace_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "action": {
+          "enum": [
+            "bootstrap",
+            "none",
+            "reauthenticate",
+            "reconnect",
+            "refresh_session",
+            "retry",
+            "review",
+            "upgrade"
+          ]
+        },
+        "retry_after_seconds": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3600
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "field_errors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FieldError"
+          },
+          "minItems": 0,
+          "maxItems": 20
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RejectedReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "trace_id",
+        "retryable",
+        "action",
+        "retry_after_seconds",
+        "field_errors",
+        "receipt"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "invalid_request"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "review"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "session_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "reauthenticate"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "invalid_token"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "reconnect"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "account_mismatch"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "reauthenticate"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "account_disabled"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "review"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "csrf_failed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "refresh_session"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "insufficient_scope"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "reconnect"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "approval_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "review"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "not_found"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "none"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "revision_conflict"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "review"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "operation_id_reused"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "review"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "request_id_reused"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "review"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "program_conflict"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "review"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "approval_invalid"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "review"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "dependency_pending"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": true
+              },
+              "action": {
+                "const": "retry"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "dependency_failed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "review"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "snapshot_unavailable"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "review"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "upgrade_required"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "upgrade"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "cursor_expired"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "bootstrap"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "payload_too_large"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "review"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "validation_failed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "review"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "invalid_dependency"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "review"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "rate_limited"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": true
+              },
+              "action": {
+                "const": "retry"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "unavailable"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": true
+              },
+              "action": {
+                "const": "retry"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "not_invited"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "action": {
+                "const": "review"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "const": "rate_limited"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "retry_after_seconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 3600
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "$ref": "#/$defs/Error"
+        }
+      },
+      "required": [
+        "error"
+      ],
+      "additionalProperties": false
+    },
+    "WorkoutChanged": {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "kind": {
+          "const": "workout_changed"
+        },
+        "workout": {
+          "$ref": "#/$defs/Workout"
+        }
+      },
+      "required": [
+        "seq",
+        "kind",
+        "workout"
+      ],
+      "additionalProperties": false
+    },
+    "ProgramPublished": {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "kind": {
+          "const": "program_published"
+        },
+        "program_version": {
+          "$ref": "#/$defs/ProgramVersion"
+        }
+      },
+      "required": [
+        "seq",
+        "kind",
+        "program_version"
+      ],
+      "additionalProperties": false
+    },
+    "PlansChanged": {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "kind": {
+          "const": "plans_changed"
+        },
+        "plans": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PlanSnapshot"
+          },
+          "minItems": 0,
+          "maxItems": 20
+        }
+      },
+      "required": [
+        "seq",
+        "kind",
+        "plans"
+      ],
+      "additionalProperties": false
+    },
+    "StatsInvalidated": {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "kind": {
+          "const": "stats_invalidated"
+        },
+        "history_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "seq",
+        "kind",
+        "history_revision"
+      ],
+      "additionalProperties": false
+    },
+    "ChangeEvent": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/WorkoutChanged"
+        },
+        {
+          "$ref": "#/$defs/ProgramPublished"
+        },
+        {
+          "$ref": "#/$defs/PlansChanged"
+        },
+        {
+          "$ref": "#/$defs/StatsInvalidated"
+        }
+      ]
+    },
+    "ChangesInput": {
+      "type": "object",
+      "properties": {
+        "cursor": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      "required": [
+        "cursor"
+      ],
+      "additionalProperties": false
+    },
+    "ChangePage": {
+      "type": "object",
+      "properties": {
+        "high_watermark": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChangeEvent"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        },
+        "next_cursor": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "has_more": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "high_watermark",
+        "items",
+        "next_cursor",
+        "has_more"
+      ],
+      "additionalProperties": false
+    },
+    "BootstrapProgram": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "program"
+        },
+        "data": {
+          "$ref": "#/$defs/ProgramView"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "BootstrapPlan": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "plan"
+        },
+        "data": {
+          "$ref": "#/$defs/PlanSnapshot"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "BootstrapWorkout": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "workout"
+        },
+        "data": {
+          "$ref": "#/$defs/Workout"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "BootstrapInput": {
+      "type": "object",
+      "properties": {
+        "page_cursor": {
+          "$ref": "#/$defs/Cursor"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "BootstrapPage": {
+      "type": "object",
+      "properties": {
+        "bootstrap_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "high_watermark": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "checkpoint_cursor": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/BootstrapProgram"
+              },
+              {
+                "$ref": "#/$defs/BootstrapPlan"
+              },
+              {
+                "$ref": "#/$defs/BootstrapWorkout"
+              }
+            ]
+          },
+          "minItems": 0,
+          "maxItems": 100
+        },
+        "next_page_cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "bootstrap_id",
+        "expires_at",
+        "high_watermark",
+        "checkpoint_cursor",
+        "items",
+        "next_page_cursor"
+      ],
+      "additionalProperties": false
+    },
+    "StatsInput": {
+      "type": "object",
+      "properties": {
+        "period_days": {
+          "enum": [
+            7,
+            30,
+            90
+          ]
+        },
+        "timezone": {
+          "$ref": "#/$defs/Timezone"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "SeriesInput": {
+      "type": "object",
+      "properties": {
+        "exercise_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "equipment_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "weight_convention": {
+          "$ref": "#/$defs/WeightConvention"
+        },
+        "period_days": {
+          "enum": [
+            7,
+            30,
+            90
+          ]
+        },
+        "timezone": {
+          "$ref": "#/$defs/Timezone"
+        },
+        "cursor": {
+          "$ref": "#/$defs/Cursor"
+        }
+      },
+      "required": [
+        "exercise_id",
+        "equipment_id",
+        "weight_convention"
+      ],
+      "additionalProperties": false
+    },
+    "Summary": {
+      "type": "object",
+      "properties": {
+        "history_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "analytics_version": {
+          "const": "stats-v1"
+        },
+        "freshness": {
+          "enum": [
+            "fresh",
+            "stale",
+            "recalculating"
+          ]
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "period_days": {
+          "enum": [
+            7,
+            30,
+            90
+          ]
+        },
+        "timezone": {
+          "$ref": "#/$defs/Timezone"
+        },
+        "start_date": {
+          "$ref": "#/$defs/Date"
+        },
+        "end_date_exclusive": {
+          "$ref": "#/$defs/Date"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "workout_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "working_set_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "rep_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "activity": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "$ref": "#/$defs/Date"
+              },
+              "workout_count": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "date",
+              "workout_count"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0,
+          "maxItems": 90
+        }
+      },
+      "required": [
+        "history_revision",
+        "analytics_version",
+        "freshness",
+        "generated_at",
+        "period_days",
+        "timezone",
+        "start_date",
+        "end_date_exclusive",
+        "complete",
+        "workout_count",
+        "working_set_count",
+        "rep_count",
+        "activity"
+      ],
+      "additionalProperties": false
+    },
+    "SeriesPoint": {
+      "type": "object",
+      "properties": {
+        "workout_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "started_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "max_weight_g": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000000
+        },
+        "max_weight_reps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "volume_g_reps": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "working_set_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "rep_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "workout_id",
+        "started_at",
+        "max_weight_g",
+        "max_weight_reps",
+        "volume_g_reps",
+        "working_set_count",
+        "rep_count"
+      ],
+      "additionalProperties": false
+    },
+    "Series": {
+      "type": "object",
+      "properties": {
+        "history_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "analytics_version": {
+          "const": "stats-v1"
+        },
+        "freshness": {
+          "enum": [
+            "fresh",
+            "stale",
+            "recalculating"
+          ]
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "period_days": {
+          "enum": [
+            7,
+            30,
+            90
+          ]
+        },
+        "timezone": {
+          "$ref": "#/$defs/Timezone"
+        },
+        "start_date": {
+          "$ref": "#/$defs/Date"
+        },
+        "end_date_exclusive": {
+          "$ref": "#/$defs/Date"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "exercise_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "equipment_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "weight_convention": {
+          "$ref": "#/$defs/WeightConvention"
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SeriesPoint"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "history_revision",
+        "analytics_version",
+        "freshness",
+        "generated_at",
+        "period_days",
+        "timezone",
+        "start_date",
+        "end_date_exclusive",
+        "complete",
+        "exercise_id",
+        "equipment_id",
+        "weight_convention",
+        "points",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    },
+    "Proposal": {
+      "type": "object",
+      "properties": {
+        "base_program_version_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "content": {
+          "$ref": "#/$defs/ProgramContent"
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        }
+      },
+      "required": [
+        "base_program_version_id",
+        "content",
+        "rationale"
+      ],
+      "additionalProperties": false
+    },
+    "ProposeInput": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "expected_owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "proposal": {
+          "$ref": "#/$defs/Proposal"
+        }
+      },
+      "required": [
+        "request_id",
+        "expected_owner_id",
+        "proposal"
+      ],
+      "additionalProperties": false
+    },
+    "ReplaceInput": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "expected_owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "change_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "proposal": {
+          "$ref": "#/$defs/Proposal"
+        }
+      },
+      "required": [
+        "request_id",
+        "expected_owner_id",
+        "change_id",
+        "expected_revision",
+        "proposal"
+      ],
+      "additionalProperties": false
+    },
+    "ChangeInput": {
+      "type": "object",
+      "properties": {
+        "change_id": {
+          "$ref": "#/$defs/Uuid"
+        }
+      },
+      "required": [
+        "change_id"
+      ],
+      "additionalProperties": false
+    },
+    "ValidateInput": {
+      "type": "object",
+      "properties": {
+        "change_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "change_id",
+        "expected_revision"
+      ],
+      "additionalProperties": false
+    },
+    "ValidationReport": {
+      "type": "object",
+      "properties": {
+        "change_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "change_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "content_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "valid": {
+          "type": "boolean"
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FieldError"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        },
+        "validated_at": {
+          "$ref": "#/$defs/Timestamp"
+        }
+      },
+      "required": [
+        "change_id",
+        "change_revision",
+        "content_digest",
+        "valid",
+        "issues",
+        "validated_at"
+      ],
+      "additionalProperties": false
+    },
+    "ProgramChange": {
+      "type": "object",
+      "properties": {
+        "change_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "change_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "proposal": {
+          "$ref": "#/$defs/Proposal"
+        },
+        "content_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "validated",
+            "published"
+          ]
+        },
+        "created_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "creator_grant_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "change_id",
+        "owner_id",
+        "change_revision",
+        "proposal",
+        "content_digest",
+        "status",
+        "created_at",
+        "creator_grant_id"
+      ],
+      "additionalProperties": false
+    },
+    "ApproveInput": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "expected_owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "change_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "base_program_version_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "content_digest": {
+          "$ref": "#/$defs/Digest"
+        }
+      },
+      "required": [
+        "request_id",
+        "expected_owner_id",
+        "change_id",
+        "expected_revision",
+        "base_program_version_id",
+        "content_digest"
+      ],
+      "additionalProperties": false
+    },
+    "PublishInput": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "expected_owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "change_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "base_program_version_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "content_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "approval_id": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "required": [
+        "request_id",
+        "expected_owner_id",
+        "change_id",
+        "expected_revision",
+        "base_program_version_id",
+        "content_digest",
+        "approval_id"
+      ],
+      "additionalProperties": false
+    },
+    "Publication": {
+      "type": "object",
+      "properties": {
+        "change_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "change_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "approval_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "program_version": {
+          "$ref": "#/$defs/ProgramVersion"
+        },
+        "published_at": {
+          "$ref": "#/$defs/Timestamp"
+        }
+      },
+      "required": [
+        "change_id",
+        "change_revision",
+        "approval_id",
+        "content_digest",
+        "program_version",
+        "published_at"
+      ],
+      "additionalProperties": false
+    },
+    "Profile": {
+      "type": "object",
+      "properties": {
+        "user_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "analytics_timezone": {
+          "$ref": "#/$defs/Timezone"
+        }
+      },
+      "required": [
+        "user_id",
+        "analytics_timezone"
+      ],
+      "additionalProperties": false
+    },
+    "ProfileInput": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "expected_owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "analytics_timezone": {
+          "$ref": "#/$defs/Timezone"
+        }
+      },
+      "required": [
+        "request_id",
+        "expected_owner_id",
+        "analytics_timezone"
+      ],
+      "additionalProperties": false
+    },
+    "SessionInfo": {
+      "type": "object",
+      "properties": {
+        "user_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "csrf_token": {
+          "type": "string",
+          "minLength": 32,
+          "maxLength": 256
+        },
+        "analytics_timezone": {
+          "$ref": "#/$defs/Timezone"
+        }
+      },
+      "required": [
+        "user_id",
+        "expires_at",
+        "csrf_token",
+        "analytics_timezone"
+      ],
+      "additionalProperties": false
+    },
+    "LoginInput": {
+      "type": "object",
+      "properties": {
+        "purpose": {
+          "enum": [
+            "login",
+            "reauth",
+            "switch"
+          ]
+        },
+        "return_to": {
+          "enum": [
+            "/app",
+            "/history",
+            "/program",
+            "/settings"
+          ]
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "CallbackInput": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "minLength": 32,
+              "maxLength": 256
+            },
+            "code": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          "required": [
+            "state",
+            "code"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "minLength": 32,
+              "maxLength": 256
+            },
+            "error": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "state",
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "PlanInput": {
+      "type": "object",
+      "properties": {
+        "plan_snapshot_id": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "required": [
+        "plan_snapshot_id"
+      ],
+      "additionalProperties": false
+    },
+    "TelemetryInput": {
+      "type": "object",
+      "properties": {
+        "expected_owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "event_id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "at": {
+                "$ref": "#/$defs/Timestamp"
+              },
+              "name": {
+                "enum": [
+                  "app_open",
+                  "local_save_failed",
+                  "sync_failed",
+                  "page_error"
+                ]
+              },
+              "code": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Id"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "duration_ms": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 60000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "count": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "event_id",
+              "at",
+              "name",
+              "code",
+              "duration_ms",
+              "count"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 20
+        }
+      },
+      "required": [
+        "expected_owner_id",
+        "events"
+      ],
+      "additionalProperties": false
+    },
+    "TelemetryResult": {
+      "type": "object",
+      "properties": {
+        "accepted": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
+        },
+        "dropped": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
+        }
+      },
+      "required": [
+        "accepted",
+        "dropped"
+      ],
+      "additionalProperties": false
+    },
+    "Grant": {
+      "type": "object",
+      "properties": {
+        "grant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "client_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "client_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "program:read",
+              "history:read",
+              "stats:read",
+              "program:draft",
+              "program:publish"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 5,
+          "uniqueItems": true
+        },
+        "created_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "revoked_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "grant_id",
+        "client_id",
+        "client_name",
+        "scopes",
+        "created_at",
+        "expires_at",
+        "revoked_at"
+      ],
+      "additionalProperties": false
+    },
+    "GrantList": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Grant"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "RevokeGrantInput": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "expected_owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "grant_id": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "required": [
+        "request_id",
+        "expected_owner_id",
+        "grant_id"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
