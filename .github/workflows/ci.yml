@@ -27,6 +27,8 @@ jobs:
       - run: python -m unittest discover -s tests/contracts -p 'test_*.py' -v
   web:
     runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
     timeout-minutes: 10
     defaults:
       run:
@@ -45,5 +47,4 @@ jobs:
       - run: npm run build
       - run: npm test
       - run: node ../tests/contracts/canonical-vectors.mjs
-      - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e

@@ -8,6 +8,8 @@
 
 В P02.4.2 в существующий Web checks добавлен job `contracts`: фиксированные Python-зависимости, проверка производных OpenAPI/MCP и тесты DTO/примеров; в web-job — независимая проверка канонических эталонов в Node. Обе проверки только читают код/синтетические данные, без облачных секретов или прав. Это проверки [принятых контрактов](../contracts/README.md), а не тесты реального сервера/деплоя. После публикации ветки результат нового CI нужно проверить отдельно.
 
+После повторных отмен из-за медленной установки пакетов Ubuntu web-job переведён на официальный `mcr.microsoft.com/playwright:v1.64.1-noble`, закреплённый также по digest. Браузеры/системные зависимости уже находятся в образе, `npx playwright install --with-deps` из job убран. Версия образа должна совпадать с `@playwright/test`; остальные проверки и права не меняются.
+
 ## Деплой из GitHub Actions в Yandex Cloud
 
 Автоматический деплой поддерживается: у Yandex есть [руководство по GitHub Actions и Cloud Functions](https://yandex.cloud/ru/docs/tutorials/serverless/ci-cd-github-functions). Для доступа без постоянного авторизованного ключа подходит [Workload Identity Federation](https://yandex.cloud/ru/docs/iam/operations/wlif/setup-wlif): OIDC-токен задания обменивается на IAM-токен сервисного аккаунта.
