@@ -1,0 +1,220 @@
+{
+  "status": "accepted",
+  "description": "Синтетические примеры принятого проекта fixed; серверная реализация ещё не проверена",
+  "program_version_id": "program-v1",
+  "rule": {
+    "type": "fixed",
+    "targets": [
+      {
+        "target_id": "target-1",
+        "weight_g": 60000,
+        "suggested_reps": 10
+      },
+      {
+        "target_id": "target-2",
+        "weight_g": 65000,
+        "suggested_reps": 8
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "on_target",
+      "workout_status": "completed",
+      "accepted_results": [
+        {
+          "weight_g": 60000,
+          "reps": 10
+        },
+        {
+          "weight_g": 65000,
+          "reps": 8
+        }
+      ],
+      "expected_program_version_id": "program-v1",
+      "expected_next_targets": [
+        {
+          "target_id": "target-1",
+          "weight_g": 60000,
+          "suggested_reps": 10
+        },
+        {
+          "target_id": "target-2",
+          "weight_g": 65000,
+          "suggested_reps": 8
+        }
+      ]
+    },
+    {
+      "id": "above_target",
+      "workout_status": "completed",
+      "accepted_results": [
+        {
+          "weight_g": 60000,
+          "reps": 12
+        },
+        {
+          "weight_g": 65000,
+          "reps": 10
+        }
+      ],
+      "expected_program_version_id": "program-v1",
+      "expected_next_targets": [
+        {
+          "target_id": "target-1",
+          "weight_g": 60000,
+          "suggested_reps": 10
+        },
+        {
+          "target_id": "target-2",
+          "weight_g": 65000,
+          "suggested_reps": 8
+        }
+      ]
+    },
+    {
+      "id": "mixed_weights",
+      "workout_status": "completed",
+      "accepted_results": [
+        {
+          "weight_g": 61000,
+          "reps": 10
+        },
+        {
+          "weight_g": 64000,
+          "reps": 8
+        }
+      ],
+      "expected_program_version_id": "program-v1",
+      "expected_next_targets": [
+        {
+          "target_id": "target-1",
+          "weight_g": 60000,
+          "suggested_reps": 10
+        },
+        {
+          "target_id": "target-2",
+          "weight_g": 65000,
+          "suggested_reps": 8
+        }
+      ]
+    },
+    {
+      "id": "incomplete",
+      "workout_status": "completed",
+      "accepted_results": [
+        {
+          "weight_g": 60000,
+          "reps": 8
+        }
+      ],
+      "expected_program_version_id": "program-v1",
+      "expected_next_targets": [
+        {
+          "target_id": "target-1",
+          "weight_g": 60000,
+          "suggested_reps": 10
+        },
+        {
+          "target_id": "target-2",
+          "weight_g": 65000,
+          "suggested_reps": 8
+        }
+      ]
+    },
+    {
+      "id": "active_workout",
+      "workout_status": "active",
+      "accepted_results": [
+        {
+          "weight_g": 60000,
+          "reps": 10
+        }
+      ],
+      "expected_program_version_id": "program-v1",
+      "expected_next_targets": [
+        {
+          "target_id": "target-1",
+          "weight_g": 60000,
+          "suggested_reps": 10
+        },
+        {
+          "target_id": "target-2",
+          "weight_g": 65000,
+          "suggested_reps": 8
+        }
+      ]
+    },
+    {
+      "id": "draft_not_published",
+      "draft_targets": [
+        {
+          "target_id": "target-1",
+          "weight_g": 62500,
+          "suggested_reps": 10
+        },
+        {
+          "target_id": "target-2",
+          "weight_g": 65000,
+          "suggested_reps": 9
+        }
+      ],
+      "published": false,
+      "expected_program_version_id": "program-v1",
+      "expected_next_targets": [
+        {
+          "target_id": "target-1",
+          "weight_g": 60000,
+          "suggested_reps": 10
+        },
+        {
+          "target_id": "target-2",
+          "weight_g": 65000,
+          "suggested_reps": 8
+        }
+      ]
+    },
+    {
+      "id": "approved_published_change",
+      "published": true,
+      "new_program_version_id": "program-v2",
+      "new_targets": [
+        {
+          "target_id": "target-1",
+          "weight_g": 62500,
+          "suggested_reps": 10
+        },
+        {
+          "target_id": "target-2",
+          "weight_g": 65000,
+          "suggested_reps": 9
+        }
+      ],
+      "expected_program_version_id": "program-v2",
+      "expected_next_targets": [
+        {
+          "target_id": "target-1",
+          "weight_g": 62500,
+          "suggested_reps": 10
+        },
+        {
+          "target_id": "target-2",
+          "weight_g": 65000,
+          "suggested_reps": 9
+        }
+      ],
+      "existing_workout_snapshot_targets": [
+        {
+          "target_id": "target-1",
+          "weight_g": 60000,
+          "suggested_reps": 10
+        },
+        {
+          "target_id": "target-2",
+          "weight_g": 65000,
+          "suggested_reps": 8
+        }
+      ]
+    }
+  ]
+}
