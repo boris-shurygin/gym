@@ -10,6 +10,41 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      browser: ${{ steps.paths.outputs.browser }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Detect browser changes
+        id: paths
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          # Если диапазон недоступен, безопаснее выполнить браузерные тесты.
+          browser=true
+          if [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ && "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] &&
+             git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null &&
+             git cat-file -e "$HEAD_SHA^{commit}" 2>/dev/null; then
+            if [[ "$EVENT_NAME" == pull_request ]]; then
+              BASE_SHA=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+            fi
+            if git diff --quiet --no-renames "$BASE_SHA" "$HEAD_SHA" -- web/ .github/workflows/ci.yml; then
+              browser=false
+            else
+              status=$?
+              if [[ "$status" != 1 ]]; then exit "$status"; fi
+            fi
+          fi
+          echo "browser=$browser" >> "$GITHUB_OUTPUT"
+          echo "Browser tests: $browser"
   contracts:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -27,8 +62,6 @@ jobs:
       - run: python -m unittest discover -s tests/contracts -p 'test_*.py' -v
   web:
     runs-on: ubuntu-24.04
-    container:
-      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
     timeout-minutes: 10
     defaults:
       run:
@@ -47,4 +80,25 @@ jobs:
       - run: npm run build
       - run: npm test
       - run: node ../tests/contracts/canonical-vectors.mjs
+  browser:
+    needs: [changes, web]
+    if: needs.changes.outputs.browser == 'true'
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: web/.node-version
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run build
       - run: npm run test:e2e
