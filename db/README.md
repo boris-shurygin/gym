@@ -30,7 +30,7 @@ docker stop gym-ydb
 
 ## Подключение и границы транзакции
 
-`api.database.DatabaseSettings` принимает отдельные endpoint, абсолютный путь базы и способ доступа: `anonymous`, `metadata` либо временный `token`. Без TLS/авторизации разрешён только loopback. IAM-токен передаётся в `create_engine(..., token=...)` отдельно от URL; файлы ключей/секреты в Git не нужны. Для будущей облачной функции предусмотрены `MetadataUrlCredentials` её сервисного аккаунта; роли и запрет DDL проверяются в P04.
+`api.database.DatabaseSettings` принимает отдельные endpoint, абсолютный путь базы и способ доступа: `anonymous`, `metadata` либо временный `token`. Без TLS/авторизации разрешён только loopback. IAM-токен передаётся в `create_engine(..., token=...)` отдельно от URL; файлы ключей/секреты в Git не нужны. Для будущей облачной функции предусмотрены `MetadataUrlCredentials` её сервисного аккаунта. В P04.2.1 [точечные права staging](../infra/ydb-access.md) применены и проверены под временными токенами: API получает DML только на разрешённой таблице, DDL/GRANT и служебные данные закрыты; CI без DML/DDL. Metadata-аутентификация развёрнутого runtime проверяется далее.
 
 Закреплены SQLAlchemy 2.0.55, ydb-sqlalchemy/ydb-dbapi 0.1.24 и YDB SDK 3.33.2 с транзитивными зависимостями. По умолчанию dialect использует autocommit, поэтому фабрика явно применяет `SERIALIZABLE` при каждом подключении через `OptionEngine`. Этот публичный механизм также обходит ошибку сброса isolation level при переключении на DDL в выбранной версии dialect.
 
