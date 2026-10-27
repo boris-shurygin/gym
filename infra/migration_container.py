@@ -1,6 +1,7 @@
 """План/развёртывание приватного миграционного контейнера только в staging."""
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -29,6 +30,15 @@ def environment(config, release, prefix, mode, ticket=None, crash=False):
         raise ValueError('Некорректная конфигурация worker')
     if (mode == 'recovery') != (ticket is not None):
         raise ValueError('Recovery требует ticket, другие режимы его не принимают')
+    if ticket is not None:
+        keys = {'job_id', 'owner', 'generation', 'not_before', 'evidence_sha256'}
+        if (not isinstance(ticket, dict) or set(ticket) != keys
+                or not isinstance(ticket['job_id'], str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', ticket['job_id'])
+                or not isinstance(ticket['owner'], str) or not re.fullmatch(r'[a-f0-9]{32}', ticket['owner'])
+                or type(ticket['generation']) is not int or ticket['generation'] < 1
+                or type(ticket['not_before']) is not int or ticket['not_before'] < 0
+                or not isinstance(ticket['evidence_sha256'], str) or not re.fullmatch(r'[a-f0-9]{64}', ticket['evidence_sha256'])):
+            raise ValueError('Некорректное подтверждение recovery до развёртывания')
     if crash and (mode != 'worker' or not prefix.startswith('gym_worker_probe_')):
         raise ValueError('Crash допустим только для синтетического staging probe')
     result = {'GYM_YDB_ENDPOINT': config['endpoint'], 'GYM_YDB_DATABASE': config['database'],
@@ -41,7 +51,27 @@ def environment(config, release, prefix, mode, ticket=None, crash=False):
     return result
 
 
-def plan(yc, image, env):
+def recovery_evidence(evidence, ticket, revisions, image):
+    keys = {'old_revision', 'observed_obsolete_at', 'execution_timeout_seconds', 'quiescence_seconds',
+            'owner', 'generation', 'job_id'}
+    if (not isinstance(evidence, dict) or set(evidence) != keys
+            or type(evidence['observed_obsolete_at']) is not int
+            or not 0 <= evidence['observed_obsolete_at'] <= time.time()
+            or evidence['execution_timeout_seconds'] != 120 or evidence['quiescence_seconds'] != 180
+            or ticket['not_before'] < evidence['observed_obsolete_at'] + 180
+            or any(evidence[key] != ticket[key] for key in ('job_id', 'owner', 'generation'))):
+        raise ValueError('Свидетельство не подтверждает требуемое ожидание и владельца')
+    digest = hashlib.sha256(json.dumps(evidence, sort_keys=True).encode()).hexdigest()
+    old = next((r for r in revisions if r['id'] == evidence['old_revision']), None)
+    if (ticket['evidence_sha256'] != digest or not old or old['container_id'] != CONTAINER
+            or old['status'] != 'OBSOLETE' or old['execution_timeout'] != '120s'
+            or old['image']['image_digest'] != image.split('@')[1]
+            or old['service_account_id'] != load_config()['accounts']['migrations']
+            or 'http' not in old.get('runtime', {})):
+        raise ValueError('Свидетельство/прежняя ревизия не соответствуют staging worker')
+
+
+def plan(yc, image, env, *, evidence=None):
     if not re.fullmatch(IMAGE_PATTERN, image):
         raise ValueError('Укажи образ миграций нашего реестра по digest')
     config = load_config()
@@ -63,6 +93,8 @@ def plan(yc, image, env):
     if any(binding['role_id'] != 'container-registry.images.puller' for binding in own):
         raise ValueError('У мигратора лишние прямые роли в реестре')
     revisions = cloud(yc, 'serverless', 'container', 'revision', 'list', '--container-id', CONTAINER)
+    if env['GYM_WORKER_MODE'] == 'recovery':
+        recovery_evidence(evidence, ticket, revisions, image)
     active = next((r for r in revisions if r['status'] == 'ACTIVE'), None)
     matches = (active is not None and active['image']['image_digest'] == image.split('@')[1]
                and active['image'].get('environment', {}) == env
@@ -70,6 +102,9 @@ def plan(yc, image, env):
                and active['execution_timeout'] == '120s' and active.get('concurrency', '1') == '1'
                and active['resources']['memory'] == '536870912'
                and str(active['resources']['cores']) == '1'
+               and str(active['resources'].get('core_fraction')) == '100'
+               and active.get('metadata_options') == {'gce_http_endpoint': 'ENABLED', 'aws_v1_http_endpoint': 'DISABLED'}
+               and 'http' in active.get('runtime', {})
                and active.get('log_options', {}).get('disabled') is True
                and active.get('provision_policy', {}).get('min_instances', '0') == '0'
                and active.get('scaling_policy', {}).get('zone_instances_limit') == '1'
@@ -86,8 +121,8 @@ def api(yc, url, *, payload=None):
         return json.load(response)
 
 
-def deploy(yc, image, env, *, apply=False):
-    result = plan(yc, image, env)
+def deploy(yc, image, env, *, apply=False, evidence=None):
+    result = plan(yc, image, env, evidence=evidence)
     if not apply:
         return result
     config = load_config()
@@ -113,7 +148,7 @@ def deploy(yc, image, env, *, apply=False):
         operation = yc.run('operation', 'get', operation['id'])
     if not operation.get('done') or operation.get('error'):
         raise RuntimeError('Развёртывание не подтверждено; проверь операцию/реальную ревизию перед повтором')
-    confirmed = plan(yc, image, env)
+    confirmed = plan(yc, image, env, evidence=evidence)
     if confirmed['deploy'] or confirmed['add_registry_puller']:
         raise RuntimeError('Фактическая ревизия отличается от конфигурации')
     return confirmed
@@ -126,6 +161,7 @@ def main():
     parser.add_argument('--prefix', default='gym_')
     parser.add_argument('--mode', choices=['worker', 'bootstrap', 'recovery'], default='worker')
     parser.add_argument('--ticket', type=Path)
+    parser.add_argument('--evidence', type=Path)
     parser.add_argument('--crash-probe', action='store_true')
     parser.add_argument('--apply', action='store_true')
     parser.add_argument('--yc', default=str(ROOT / '.local/bin/yc.exe'))
@@ -134,7 +170,8 @@ def main():
         raise ValueError('Этот staging-инструмент запускает оператор вне CI')
     ticket = json.loads(args.ticket.read_text()) if args.ticket else None
     env = environment(load_config(), args.release, args.prefix, args.mode, ticket, args.crash_probe)
-    print(json.dumps(deploy(Yc(args.yc), args.image, env, apply=args.apply), ensure_ascii=False))
+    evidence = json.loads(args.evidence.read_text()) if args.evidence else None
+    print(json.dumps(deploy(Yc(args.yc), args.image, env, apply=args.apply, evidence=evidence), ensure_ascii=False))
 
 
 if __name__ == '__main__':

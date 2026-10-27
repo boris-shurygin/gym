@@ -1,8 +1,10 @@
 import copy
+import hashlib
+import json
 import unittest
 from unittest.mock import Mock, patch
 
-from infra.migration_container import CONTAINER, deploy, environment, plan
+from infra.migration_container import CONTAINER, deploy, environment, plan, recovery_evidence
 from infra.ydb_access import load_config
 
 
@@ -62,7 +64,8 @@ class ContainerPlanTests(unittest.TestCase):
                               'subject': {'id': self.config['accounts']['migrations']}})
         active = {'id': 'revision', 'status': 'ACTIVE', 'image': {'image_digest': 'sha256:' + '1' * 64,
                   'environment': self.env}, 'service_account_id': self.config['accounts']['migrations'],
-                  'execution_timeout': '120s', 'concurrency': '1', 'resources': {'memory': '536870912', 'cores': '1'},
+                  'execution_timeout': '120s', 'concurrency': '1', 'resources': {'memory': '536870912', 'cores': '1', 'core_fraction': '100'},
+                  'metadata_options': {'gce_http_endpoint': 'ENABLED', 'aws_v1_http_endpoint': 'DISABLED'}, 'runtime': {'http': {}},
                   'log_options': {'disabled': True}, 'scaling_policy': {'zone_instances_limit': '1', 'zone_requests_limit': '1'}}
         self.revisions.append(active)
         self.assertFalse(plan(self.yc, self.image, self.env)['deploy'])
@@ -72,7 +75,8 @@ class ContainerPlanTests(unittest.TestCase):
 
     def test_modes_and_fault_are_only_operator_configuration(self):
         for kwargs in ({'prefix': 'gym_production_'}, {'crash': True, 'prefix': 'gym_'},
-                       {'mode': 'recovery'}, {'mode': 'worker', 'ticket': {'x': 1}}):
+                       {'mode': 'recovery'}, {'mode': 'worker', 'ticket': {'x': 1}},
+                       {'mode': 'recovery', 'ticket': {}}, {'mode': 'recovery', 'ticket': {'x': 1}}):
             values = dict(release='validation', prefix='gym_', mode='worker') | kwargs
             with self.assertRaises(ValueError):
                 environment(self.config, **values)
@@ -87,6 +91,24 @@ class ContainerPlanTests(unittest.TestCase):
                 patch('infra.migration_container.time.sleep'):
             self.assertEqual(deploy(self.yc, self.image, self.env, apply=True), confirmed)
         self.yc.run.assert_called_once_with('operation', 'get', 'operation')
+
+    def test_recovery_requires_consistent_observation_and_obsolete_same_image(self):
+        evidence = {'old_revision': 'old', 'observed_obsolete_at': 100,
+                    'execution_timeout_seconds': 120, 'quiescence_seconds': 180,
+                    'owner': 'a' * 32, 'generation': 1, 'job_id': 'job'}
+        ticket = {'job_id': 'job', 'owner': 'a' * 32, 'generation': 1, 'not_before': 280,
+                  'evidence_sha256': hashlib.sha256(json.dumps(evidence, sort_keys=True).encode()).hexdigest()}
+        old = {'id': 'old', 'container_id': CONTAINER, 'status': 'OBSOLETE', 'execution_timeout': '120s',
+               'image': {'image_digest': 'sha256:' + '1' * 64},
+               'service_account_id': self.config['accounts']['migrations'], 'runtime': {'http': {}}}
+        recovery_evidence(evidence, ticket, [old], self.image)
+        for changed in ({'not_before': 279}, {'evidence_sha256': '0' * 64}, {'generation': 2}):
+            with self.assertRaises(ValueError):
+                recovery_evidence(evidence, ticket | changed, [old], self.image)
+        with self.assertRaises(ValueError):
+            recovery_evidence(evidence, ticket, [old | {'status': 'ACTIVE'}], self.image)
+        with self.assertRaises(ValueError):
+            recovery_evidence(evidence, ticket, [], self.image)
 
 
 if __name__ == '__main__':

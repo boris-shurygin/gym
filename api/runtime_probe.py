@@ -15,6 +15,10 @@ def handler(event, context=None):
     import ydb
     import ydb_dbapi
     import ydb_sqlalchemy
+    import requests
+    import charset_normalizer
+    from ydb.iam import MetadataUrlCredentials
+    MetadataUrlCredentials()  # Проверь optional-зависимость без запроса токена/БД.
     from api.handler import handler as http_handler
     response = http_handler({'httpMethod': 'GET', 'path': '/api/v1/health'})
     if response['statusCode'] != 200:
@@ -23,5 +27,6 @@ def handler(event, context=None):
             'body': json.dumps({'status': 'ok', 'python': '.'.join(map(str, sys.version_info[:3])),
                 'libc': platform.libc_ver(),
                 'dependencies': {name: version(name) for name in
-                    ['SQLAlchemy', 'ydb-sqlalchemy', 'ydb-dbapi', 'ydb', 'grpcio', 'greenlet', 'jsonschema', 'rpds-py']}}),
+                    ['SQLAlchemy', 'ydb-sqlalchemy', 'ydb-dbapi', 'ydb', 'grpcio', 'greenlet', 'jsonschema', 'rpds-py',
+                     'requests', 'certifi', 'charset-normalizer', 'urllib3']}}),
             'isBase64Encoded': False}
