@@ -1,9 +1,15 @@
 import unittest
+from unittest.mock import patch
 
 from api.database import DatabaseSettings, create_engine, transaction
 
 
 class SettingsTests(unittest.TestCase):
+    def test_metadata_provider_has_dependencies_without_network_at_startup(self):
+        with patch('requests.get', side_effect=AssertionError('Startup must not fetch credentials')):
+            engine = create_engine(DatabaseSettings('grpcs://unreachable.invalid:2135', '/db'))
+            engine.dispose()
+
     def test_insecure_or_ambiguous_endpoints_are_rejected(self):
         for endpoint, database, auth in [
             ('grpc://remote:2136', '/local', 'anonymous'),

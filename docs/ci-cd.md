@@ -16,6 +16,8 @@
 
 CI P03.2.2 подтверждён на PR #9 и main после merge. P04 разделён на три подпункта; в P04.1 добавлены [формат манифеста/проверка файлов и условный publisher](../infra/release-artifacts.md). На настоящем Object Storage проверены повтор и конфликт параллельных авторов. Новые 16 тестов работают в job `api` без облачного доступа; workflow доверенной публикации/выкатки будет добавлен в P04.3.
 
+В P04.2.2 добавлен ручной `migration-image-validation` в Cloud access: только `workflow_dispatch` рабочей ветки, без Environment/OIDC/облачных секретов/публикации. Он проверяет Linux-образ и metadata health без доступной БД, сохраняет validation-only архив на 7 дней. Оператор переносит его по хешам и проверяет [приватный контейнер](../infra/migration-worker.md) на синтетическом staging. Это не доверенная сборка выпуска main и не production-promotion; они остаются P04.3/P05. Job api устанавливает `db/requirements.txt` для HTTP/административных тестов, job ydb включает реальные проверки worker/recovery; PR по-прежнему не получает облачный доступ. Изменение ci.yml штатно включает browser при будущем PR.
+
 ## Деплой из GitHub Actions в Yandex Cloud
 
 Автоматический деплой поддерживается: у Yandex есть [руководство по GitHub Actions и Cloud Functions](https://yandex.cloud/ru/docs/tutorials/serverless/ci-cd-github-functions). Для доступа без постоянного авторизованного ключа подходит [Workload Identity Federation](https://yandex.cloud/ru/docs/iam/operations/wlif/setup-wlif): OIDC-токен задания обменивается на IAM-токен сервисного аккаунта.

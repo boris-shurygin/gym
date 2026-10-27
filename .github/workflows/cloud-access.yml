@@ -51,3 +51,24 @@ jobs:
           YC_OIDC_AUDIENCE: ${{ vars.YC_OIDC_AUDIENCE }}
           GYM_ENVIRONMENT: ${{ vars.GYM_ENVIRONMENT }}
         run: python3 infra/verify_oidc.py
+
+  migration-image-validation:
+    # Ручная проверка рабочей ветки: нет Environment, OIDC и публикации.
+    # Доверенную сборку main и выпуск добавляет отдельный P04.3.
+    if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: python3 scripts/build_worker_image.py
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: migration-image-validation
+          path: .local/migration-image/
+          retention-days: 7
+          if-no-files-found: error
+          compression-level: 0
