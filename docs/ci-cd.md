@@ -12,6 +12,8 @@
 
 После повторных отмен из-за медленной установки пакетов Ubuntu браузерный job использует официальный `mcr.microsoft.com/playwright:v1.64.1-noble`, закреплённый также по digest. Браузеры/системные зависимости уже находятся в образе, `npx playwright install --with-deps` убран. Версия образа должна совпадать с `@playwright/test`; облачных прав у этих заданий нет.
 
+В P03.2.1 добавлен job `api`: Python 3.12, закреплённые общие зависимости и тесты [HTTP-каркаса](../api/README.md), включая реальный локальный HTTP-сервер. Облачных прав нет; YDB/SQLAlchemy и миграции этот job пока не проверяет.
+
 ## Деплой из GitHub Actions в Yandex Cloud
 
 Автоматический деплой поддерживается: у Yandex есть [руководство по GitHub Actions и Cloud Functions](https://yandex.cloud/ru/docs/tutorials/serverless/ci-cd-github-functions). Для доступа без постоянного авторизованного ключа подходит [Workload Identity Federation](https://yandex.cloud/ru/docs/iam/operations/wlif/setup-wlif): OIDC-токен задания обменивается на IAM-токен сервисного аккаунта.

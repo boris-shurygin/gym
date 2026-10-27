@@ -4,18 +4,18 @@
 
 | Поле | Значение |
 | --- | --- |
-| Активный этап | P02.4.2 — формальные REST/MCP-схемы, ошибки и сквозная приёмка |
-| Состояние | PR открыт; P02.4.2 одобрен, ADR-0017 принят |
-| Локальная ветка | docs/p02-4-2-contracts |
-| Локальный базовый main | `a015d1b0efb22a260047b2dd0ebccd749a7fcc57` — merge P02.4.1 |
-| Актуальность origin/main | Подтверждена повторным fetch 2026-10-26; main/origin/main совпадают на `a015d1b`, ветка этапа основана на нём |
-| PR | [#7](https://github.com/boris-shurygin/gym/pull/7), head `a5e91b25ad7e72a4b7904b64dd44bd15565b506b`, base main `a015d1b`; открыт, не Draft, конфликтов нет |
-| CI PR | [Web checks](https://github.com/boris-shurygin/gym/actions/runs/40383569180): job contracts успешен, web выполняется; [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40383569237) выполняется |
-| CI после merge | [Web checks](https://github.com/boris-shurygin/gym/actions/runs/40321654597) и [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40321654763) успешны на main `a015d1b`; новый job contracts в этой ветке ещё не запускался в GitHub |
-| Реальная проверка OIDC | [Cloud access после merge #6](https://github.com/boris-shurygin/gym/actions/runs/40321654763) успешен, включая OIDC staging и изоляцию от production. Production OIDC отдельно ещё не запускался |
+| Активный этап | P03.2.1 — HTTP-каркас Python Cloud Functions |
+| Состояние | P03.2.1 одобрен, подготовка PR; P03 целиком не завершён |
+| Локальная ветка | feat/p03-2-1-http-skeleton |
+| Локальный базовый main | `0e625b87be4d5df6433552209865c221114eb5ea` — merge P02.4.2 |
+| Актуальность origin/main | Fetch/fast-forward 2026-10-26: main/origin/main совпадают на `0e625b8`, новая ветка основана на нём |
+| PR | [#7](https://github.com/boris-shurygin/gym/pull/7) слит с head `a027c91abeaf785bc7ce96406b31eb16c5769ac3`; PR P03.2.1 не создавался |
+| CI PR | [Web checks](https://github.com/boris-shurygin/gym/actions/runs/40390363375) и [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40390363380) успешны на итоговом head #7; фильтр путей и браузерный job проверены |
+| CI после merge | [Web checks](https://github.com/boris-shurygin/gym/actions/runs/40390572504) и [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40390572360) успешны на main `0e625b8`; новый job api пока проверяется локально |
+| Реальная проверка OIDC | [Cloud access после merge #7](https://github.com/boris-shurygin/gym/actions/runs/40390572360) успешен, включая OIDC staging и изоляцию от production. Production OIDC отдельно ещё не запускался |
 | Престейбл | Пустые ресурсы созданы и проверены; приложения/автовыкатки нет |
 | Стейбл | Пустые ресурсы и gate GitHub созданы; приложения/выпуска нет |
-| Следующее действие | Проверить итог всего CI PR #7; merge отдельно. После слияния/CI можно закрыть P02, P03.2 пока не начат |
+| Следующее действие | Опубликовать PR P03.2.1 и проверить CI; merge отдельной командой. P03.2.2 ещё не начат |
 
 ## Выполнено в P00
 
@@ -380,3 +380,26 @@ GitHub подтвердил обычный merge с проверкой ожид�
 По замечанию пользователя E2E вынесены из `web` в отдельный job `browser`: он нужен для изменений `web/` или самого `ci.yml`, а документация/контракты его пропускают. Фильтр охватывает весь PR/диапазон push, удаления и переименования; при недоступном диапазоне выбирает полный прогон. Проверки контрактов, lint/сборка/unit и Node остаются безусловными. Образ Playwright загружается только для браузерного job. На head `b487f4f` оба workflow уже успешны: [Web checks](https://github.com/boris-shurygin/gym/actions/runs/40389494127), [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40389493974). Новый фильтр проверяется отдельно перед merge; изменение CI намеренно запускает E2E и в текущем PR.
 
 Локально успешно проверены YAML/права/зависимости job и 11 сценариев фактического Bash-фильтра во временном Git-репозитории: docs/контракты, web/CI, ранний web-коммит PR, несколько коммитов push, переименование из web, изменения только base, отсутствующий/некорректный base. Также успешны проверка 44 Markdown-файлов/218 ссылок и `git diff --check`. Вспомогательный проверяющий сценарий находится в игнорируемом `.local/`.
+
+### 2026-10-26 — merge #7 и P03.2.1
+
+Применены gym-merge-pr и gym-next-stage по объединённому запросу пользователя. Итоговый head #7 `a027c91abeaf785bc7ce96406b31eb16c5769ac3` проверен: оба workflow успешны, открытых замечаний/ревью нет, base main, конфликтов нет. Merge выполнен с проверкой ожидаемого head; GitHub вернул `merged=true`, SHA `0e625b87be4d5df6433552209865c221114eb5ea`. Локальный main обновлён fast-forward и совпадает с origin/main. Последующие Web checks и Cloud access успешны, включая OIDC staging; это не выкатка приложения. Фильтр браузерных тестов уже находится в main. P02 завершён.
+
+Для следующего проверяемого результата P03.2 предварительно разделён на P03.2.1 (HTTP-каркас) и P03.2.2 (реальные YDB/SQLAlchemy, миграции, Linux ZIP). Создана `feat/p03-2-1-http-skeleton` от merge SHA. В `api/` добавлены обработчик события Cloud Functions, локальный loopback-сервер, health, ограничения тела/строгий JSON, ошибки принятых контрактов и очищенный журнал. Личные маршруты закрыты независимо от присланных credentials/claims; вход/OAuth/MCP возвращают недоступность. Автоматического подключения демо-очереди, миграций в HTTP или облачных вызовов нет.
+
+Проверки P03.2.1 успешны:
+
+- `.local/contracts-venv/Scripts/python.exe -m unittest discover -s tests/api -p 'test_*.py' -v` — 12 тестов, включая все 27 маршрутов контракта, подмену личности, malformed/base64/JSON/лимиты/повторяющиеся заголовки, скрытие секретов и настоящий локальный HTTP.
+- Запуск отдельного процесса `python -m api.dev --port 0` — HTTP health 200/no-store, процесс остановлен после проверки.
+- `python -m contracts.generate --check` и 14 тестов контрактов — успешны, схемы не менялись.
+- Повтор 11 Git-сценариев фильтра; YAML и права job; 45 Markdown-файлов/223 локальные ссылки; `git diff --check` — успешны.
+
+Добавлен job `api` без облачных прав; его исполнение на GitHub предстоит после команды завершения. Облачный runtime ещё не выбран/не испытан; Python 3.12 — локальная/CI-версия. Реальные транзакции YDB, роли runtime, миграции/упаковка и Gateway остаются P03.2.2/P04, вход — P06. Результат P03.2.1 на проверке; коммит/PR нового этапа не создавались, production не запускался. Команды проверки описаны в [api/README.md](../api/README.md).
+
+### 2026-10-26 — завершение P03.2.1
+
+Основание: «Завершаем этап», применён gym-finish-stage. Дополнительно выполнено замечание пользователя: gym-next-stage и процесс разработки теперь завершают ответ краткой сводкой изменений, проверок и ограничений без обязательного вопроса о результате. Скилл проверен штатным `quick_validate.py`: успешно.
+
+Повторный fetch подтвердил main `0e625b87be4d5df6433552209865c221114eb5ea` без новых коммитов. Просмотрен объём HTTP-каркаса, тестов, job api и связанных документов; служебные файлы `.local/`, зависимости/кэши в коммит не включаются. Публичный health не подтверждает доступ к БД; настоящая авторизация и YDB/миграции не объявляются выполненными.
+
+Локальные проверки перед PR успешны: 12 тестов API и 14 контрактов; отсутствие расхождений OpenAPI/MCP; отдельный процесс локального API с HTTP 200/no-store; 11 сценариев фильтра путей в Git; YAML/права CI; ссылки/якоря, Markdown и `git diff --check`. Код web/infra не изменён, прежний CI этой базы успешен; браузерный и инфраструктурный прогоны итоговой ветки выполнятся в GitHub. Изменение ci.yml намеренно включает E2E по действующему фильтру. Команда разрешает коммит/push/PR; merge и production не выполняются.
