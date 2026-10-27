@@ -1,1 +1,2 @@
 -r ../contracts/requirements.txt
+-r runtime-requirements.txt

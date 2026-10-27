@@ -73,9 +73,41 @@ jobs:
           cache: pip
           cache-dependency-path: |
             api/requirements.txt
+            api/runtime-requirements.txt
             contracts/requirements.txt
       - run: python -m pip install --disable-pip-version-check -r api/requirements.txt
       - run: python -m unittest discover -s tests/api -p 'test_*.py' -v
+      - run: python -m unittest discover -s tests/build -p 'test_*.py' -v
+      - run: python scripts/build_api.py --smoke
+  ydb:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      ydb:
+        # Официальный local-ydb 26.2.1.14; отдельная БД каждого job.
+        image: ydbplatform/local-ydb@sha256:9e46fd45875551a75bcf34d0bb9ca0baa1d8763a4ccf2070af45f4467c4b7402
+        ports:
+          - 2136:2136
+        options: --hostname localhost --health-interval 10s --health-timeout 10s --health-retries 18
+    env:
+      GYM_YDB_ENDPOINT: grpc://127.0.0.1:2136
+      GYM_YDB_DATABASE: /local
+      GYM_YDB_AUTH: anonymous
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            api/requirements.txt
+            api/runtime-requirements.txt
+            contracts/requirements.txt
+            db/requirements.txt
+      - run: python -m pip install --disable-pip-version-check -r db/requirements.txt
+      - run: python -m unittest discover -s tests/ydb -p 'test_*.py' -v
   web:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
