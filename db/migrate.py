@@ -46,7 +46,10 @@ class Migrator:
 
     def _guard(self):
         with self.engine.connect() as connection:
-            owner = connection.execute(sa.select(self.lock.c.owner).where(self.lock.c.name == 'schema')).scalar_one_or_none()
+            self._assert_owner(connection)
+
+    def _assert_owner(self, connection):
+        owner = connection.execute(sa.select(self.lock.c.owner).where(self.lock.c.name == 'schema')).scalar_one_or_none()
         if owner != self.owner:
             raise MigrationBusy('Исполнитель потерял блокировку схемы')
 
@@ -57,6 +60,7 @@ class Migrator:
 
     def _record(self, job_id, state, digest):
         def write(connection):
+            self._assert_owner(connection)
             row = connection.execute(sa.select(self.jobs).where(self.jobs.c.job_id == job_id)).mappings().one_or_none()
             if row:
                 connection.execute(self.jobs.update().where(self.jobs.c.job_id == job_id).values(
@@ -82,6 +86,14 @@ class Migrator:
         ensure_table(self.engine, self.lock)
         ensure_table(self.engine, self.jobs)
         transaction(self.engine, self._acquire)
+        try:
+            return self.upgrade_locked(job_id, digest)
+        finally:
+            transaction(self.engine, self._release)
+
+    def upgrade_locked(self, job_id, digest):
+        """Вызови только под своей блокировкой; worker управляет её жизненным циклом."""
+        self._guard()
         started = False
         try:
             with self.engine.connect() as connection:
@@ -96,7 +108,7 @@ class Migrator:
             config = Config()
             config.set_main_option('script_location', str(ROOT))
             config.attributes.update(engine=self.engine, prefix=self.prefix, guard=self._guard)
-            command.upgrade(config, 'head')
+            command.upgrade(config, REVISION)
             self.verify()
             self._guard()
             self._record(job_id, 'succeeded', digest)
@@ -105,8 +117,6 @@ class Migrator:
             if started:
                 self._record(job_id, 'failed', digest)
             raise
-        finally:
-            transaction(self.engine, self._release)
 
 
 def main():

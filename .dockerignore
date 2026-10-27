@@ -1,0 +1,14 @@
+**
+!api/
+!api/__init__.py
+!api/database.py
+!api/requirements.txt
+!api/runtime-requirements.txt
+!contracts/
+!contracts/__init__.py
+!contracts/canonical.py
+!contracts/requirements.txt
+!db/
+!db/**
+**/__pycache__
+**/*.pyc
