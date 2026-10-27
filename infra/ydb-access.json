@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "environment": "staging",
+  "cloud_id": "b1ghmudqihbvpnscd2fq",
+  "folder_id": "b1ghdeobqrevsim6jg9o",
+  "database_id": "etn63tldguvkj5kcpi3r",
+  "endpoint": "grpcs://ydb.serverless.yandexcloud.net:2135",
+  "database": "/ru-central1/b1ghmudqihbvpnscd2fq/etn63tldguvkj5kcpi3r",
+  "accounts": {
+    "api": "ajeffa6opd0qko82m4de",
+    "migrations": "ajedn74q9psjfecqnteg"
+  },
+  "runtime_tables": []
+}
