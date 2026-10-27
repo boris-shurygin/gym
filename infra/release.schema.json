@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "release_id", "main_sha", "build", "api", "migration", "compatibility", "artifacts"],
+  "properties": {
+    "format": {"const": 1},
+    "release_id": {"type": "string", "pattern": "^[0-9a-f]{40}_[1-9][0-9]*_[1-9][0-9]*$", "maxLength": 100},
+    "main_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "build": {
+      "type": "object", "additionalProperties": false,
+      "required": ["repository", "ref", "workflow", "run_id", "attempt"],
+      "properties": {
+        "repository": {"const": "boris-shurygin/gym"},
+        "ref": {"const": "refs/heads/main"},
+        "workflow": {"const": ".github/workflows/deploy-staging.yml"},
+        "run_id": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+        "attempt": {"type": "integer", "minimum": 1, "maximum": 10000}
+      }
+    },
+    "api": {
+      "type": "object", "additionalProperties": false,
+      "required": ["runtime", "entrypoint"],
+      "properties": {"runtime": {"const": "python312"}, "entrypoint": {"const": "index.handler"}}
+    },
+    "migration": {
+      "type": "object", "additionalProperties": false,
+      "required": ["image", "revision"],
+      "properties": {
+        "image": {"type": "string", "pattern": "^cr\\.yandex/crpe91o8ka9e03n3n90c/gym-migrations@sha256:[0-9a-f]{64}$"},
+        "revision": {"type": "string", "pattern": "^[a-zA-Z0-9_]{1,64}$"}
+      }
+    },
+    "compatibility": {
+      "type": "object", "additionalProperties": false,
+      "required": ["api_major", "sync_schema_versions"],
+      "properties": {"api_major": {"const": 1}, "sync_schema_versions": {"const": [1]}}
+    },
+    "artifacts": {
+      "type": "array", "minItems": 5, "maxItems": 2000,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["path", "sha256", "bytes", "content_type", "cache_control"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1, "maxLength": 240, "pattern": "^[A-Za-z0-9_./-]+$"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "bytes": {"type": "integer", "minimum": 1, "maximum": 134217728},
+          "content_type": {"enum": ["application/zip", "application/json", "text/html; charset=utf-8", "application/javascript; charset=utf-8", "text/css; charset=utf-8", "image/svg+xml", "image/png", "image/x-icon", "font/woff2", "application/manifest+json"]},
+          "cache_control": {"enum": ["no-cache", "public, max-age=31536000, immutable"]}
+        }
+      }
+    }
+  }
+}
