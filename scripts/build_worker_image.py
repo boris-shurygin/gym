@@ -19,8 +19,8 @@ def main():
     metadata = json.loads(subprocess.check_output(['docker', 'run', '--rm', '--entrypoint', 'python', IMAGE,
         '-c', 'import json; from db.migrate import checksum,REVISION; print(json.dumps({"checksum":checksum(),"revision":REVISION}))'], text=True))
     container = subprocess.check_output(['docker', 'run', '-d', '--rm', '-p', '127.0.0.1:8088:8080',
-        '-e', 'GYM_YDB_ENDPOINT=grpc://localhost:2136', '-e', 'GYM_YDB_DATABASE=/local',
-        '-e', 'GYM_YDB_AUTH=anonymous', '-e', 'GYM_RELEASE_ID=validation', IMAGE], text=True).strip()
+        '-e', 'GYM_YDB_ENDPOINT=grpcs://unreachable.invalid:2135', '-e', 'GYM_YDB_DATABASE=/unused',
+        '-e', 'GYM_YDB_AUTH=metadata', '-e', 'GYM_RELEASE_ID=validation', IMAGE], text=True).strip()
     try:
         for attempt in range(40):
             try:
