@@ -1,0 +1,107 @@
+name: Staging release
+
+on:
+  workflow_run:
+    workflows: [Web checks]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gym-staging-release
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    if: github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      source_sha: ${{ steps.gate.outputs.source_sha }}
+      release_id: ${{ steps.gate.outputs.release_id }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Подтвердить push CI и исходники main
+        id: gate
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 -m infra.release_gate
+
+  build:
+    needs: gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.gate.outputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            api/requirements.txt
+            api/runtime-requirements.txt
+            contracts/requirements.txt
+            db/requirements.txt
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: python -m pip install --disable-pip-version-check -r db/requirements.txt
+      - name: Собрать готовые API, PWA, Gateway и образ миграций
+        env:
+          SOURCE_SHA: ${{ needs.gate.outputs.source_sha }}
+        run: python -m infra.release_bundle --output-directory .local/release-build --purpose release --source-sha "$SOURCE_SHA"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: ready-release
+          path: .local/release-build/bundle/
+          retention-days: 7
+          if-no-files-found: error
+          compression-level: 6
+
+  publish:
+    needs: [gate, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # main-ref subject издателя; Environment появится у staging-деплоя в P04.3.2.
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.gate.outputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check -r contracts/requirements.txt
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: ready-release
+          path: .local/downloaded-release/
+      - name: Повторно проверить происхождение и опубликовать без деплоя
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m infra.publish_release
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: published-release
+          path: .local/published-release.json
+          retention-days: 7
+          if-no-files-found: error
