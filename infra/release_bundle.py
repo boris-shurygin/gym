@@ -94,7 +94,7 @@ def build_bundle(output, *, purpose='validation-only', source_sha=None):
     subprocess.run(['npm', 'ci'], cwd=ROOT / 'web', check=True)
     subprocess.run(['npm', 'run', 'build'], cwd=ROOT / 'web', check=True)
     shutil.copytree(ROOT / 'web/dist', payload / 'web')
-    shutil.copyfile(ROOT / 'infra/gateway-bootstrap.json', payload / 'gateway.json')
+    shutil.copyfile(ROOT / 'infra/gateway-release.json', payload / 'gateway.json')
     worker = build_worker(output / 'worker-build', purpose=purpose)
     (output / 'bundle/worker').mkdir()
     shutil.copyfile(output / 'worker-build/image.tar', output / 'bundle/worker/image.tar')

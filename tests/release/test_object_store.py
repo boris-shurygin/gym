@@ -50,6 +50,19 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(store.put('releases/id/manifest.json', b'same')['state'], 'verified')
         self.assertEqual([r.method for r in opener.requests], ['PUT', 'GET'])
 
+    def test_public_file_headers_keep_conditional_write(self):
+        store, opener = self.store(Response())
+        store.put('assets/app.js', b'fixture', content_type='application/javascript; charset=utf-8', cache_control='public, max-age=31536000, immutable')
+        headers = {k.lower(): v for k, v in opener.requests[0].header_items()}
+        self.assertEqual(headers['if-none-match'], '*')
+        self.assertEqual(headers['content-type'], 'application/javascript; charset=utf-8')
+        self.assertEqual(headers['cache-control'], 'public, max-age=31536000, immutable')
+
+    def test_header_injection_rejected_before_request(self):
+        store, opener = self.store()
+        with self.assertRaises(ValueError): store.put('assets/app.js', b'fixture', content_type='text/plain\r\nX-Evil: yes')
+        self.assertEqual(opener.requests, [])
+
     def test_matching_metadata_does_not_hide_changed_body(self):
         store, opener = self.store(http_error(412), Response(b'evil', headers={
             'Content-Length': '4', 'X-Amz-Meta-Sha256': hashlib.sha256(b'same').hexdigest()}))
