@@ -88,18 +88,21 @@ def context_from_github():
     return validate_context(os.environ, event, source, current, workflow, jobs, main_sha)
 
 
-def validate_publisher_claims(claims, context):
-    expected = {'iss': 'https://token.actions.githubusercontent.com', 'aud': AUDIENCE, 'sub': SUBJECT,
+def validate_publisher_claims(claims, context, *, staging=False):
+    subject = SUBJECT if not staging else 'repo:boris-shurygin@8566203/gym@1424201451:environment:staging'
+    expected = {'iss': 'https://token.actions.githubusercontent.com', 'aud': AUDIENCE, 'sub': subject,
                 'repository': REPOSITORY, 'repository_id': str(REPOSITORY_ID),
                 'repository_owner_id': str(OWNER_ID), 'ref': 'refs/heads/main', 'event_name': 'workflow_run',
                 'workflow_ref': REPOSITORY + '/' + WORKFLOW + '@refs/heads/main',
                 'sha': context['source_sha'], 'workflow_sha': context['source_sha'],
                 'run_id': str(context['run_id']), 'run_attempt': str(context['attempt'])}
+    if staging:
+        expected['environment'] = 'staging'
     if any(claims.get(k) != v for k, v in expected.items()):
         raise ValueError('OIDC не соответствует проверенному run/source SHA')
 
 
-def publisher_token(context):
+def _workload_token(context, *, staging=False):
     url = os.environ['ACTIONS_ID_TOKEN_REQUEST_URL']
     parsed = urllib.parse.urlsplit(url)
     if (parsed.scheme != 'https' or not (parsed.hostname or '').endswith('.actions.githubusercontent.com')
@@ -112,14 +115,23 @@ def publisher_token(context):
     if len(parts) != 3:
         raise ValueError('Некорректный JWT')
     claims = json.loads(base64.urlsafe_b64decode(parts[1] + '=' * (-len(parts[1]) % 4)))
-    validate_publisher_claims(claims, context)
+    validate_publisher_claims(claims, context, staging=staging)
     # Локальные проверки ловят ошибку контекста; подпись JWT проверяет YC/JWKS.
     result = request_json('https://auth.yandex.cloud/oauth/token',
         headers={'Content-Type': 'application/x-www-form-urlencoded'},
         data=urllib.parse.urlencode({'grant_type': 'urn:ietf:params:oauth:grant-type:token-exchange',
-            'requested_token_type': 'urn:ietf:params:oauth:token-type:access_token', 'audience': PUBLISHER,
+            'requested_token_type': 'urn:ietf:params:oauth:token-type:access_token',
+            'audience': 'aje1ia9cf3t1g7o5p6pg' if staging else PUBLISHER,
             'subject_token': jwt, 'subject_token_type': 'urn:ietf:params:oauth:token-type:id_token'}).encode())
     return result['access_token']
+
+
+def publisher_token(context):
+    return _workload_token(context)
+
+
+def staging_token(context):
+    return _workload_token(context, staging=True)
 
 
 def main():
