@@ -56,6 +56,8 @@ def main():
     verify_bundle(bundle, purpose='release', source_sha=context['source_sha'])
     # Секрет не появляется до проверки bundle/источника, не выводится и не пишется на диск.
     result = publish_bundle(bundle, context, publisher_token(context))
+    with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+        output.write('manifest_sha256=' + result['manifest_sha256'] + '\n')
     Path(ROOT / '.local/published-release.json').write_text(json.dumps(result, indent=2) + '\n')
     with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
         summary.write('Опубликованы артефакты выпуска `' + context['release_id'] + '`.\n\n')

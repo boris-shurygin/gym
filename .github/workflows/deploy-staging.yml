@@ -77,7 +77,9 @@ jobs:
     needs: [gate, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    # main-ref subject издателя; Environment появится у staging-деплоя в P04.3.2.
+    outputs:
+      manifest_sha256: ${{ steps.publish.outputs.manifest_sha256 }}
+    # main-ref subject издателя; у job migrations отдельный Environment staging.
     permissions:
       contents: read
       actions: read
@@ -96,6 +98,7 @@ jobs:
           name: ready-release
           path: .local/downloaded-release/
       - name: Повторно проверить происхождение и опубликовать без деплоя
+        id: publish
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python -m infra.publish_release
@@ -103,5 +106,36 @@ jobs:
         with:
           name: published-release
           path: .local/published-release.json
+          retention-days: 7
+          if-no-files-found: error
+
+  migrations:
+    needs: [gate, publish]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: staging
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.gate.outputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check -r contracts/requirements.txt
+      - name: Проверить выпуск и выполнить приватные миграции staging
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GYM_RELEASE_ID: ${{ needs.gate.outputs.release_id }}
+          GYM_MANIFEST_SHA256: ${{ needs.publish.outputs.manifest_sha256 }}
+        run: python -m infra.staging_migrations
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: staging-migrations
+          path: .local/staging-migrations.json
           retention-days: 7
           if-no-files-found: error
