@@ -4,6 +4,7 @@ import io
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -159,6 +160,39 @@ class BundleTests(unittest.TestCase):
                 publish_release.publish_bundle(self.root, {'source_sha': SHA}, 'unused')
             publish.assert_not_called()
 
+    def test_success_publishes_digest_and_manifest_last_without_token_file(self):
+        writes = []
+        image = publish_release.REPOSITORY + '@sha256:' + 'b' * 64
+        def run(args, *, env=None):
+            if env:
+                config = Path(env['DOCKER_CONFIG'], 'config.json').read_text()
+                self.assertNotIn('synthetic-token', config)
+                self.assertEqual(env['GYM_REGISTRY_IAM_TOKEN'], 'synthetic-token')
+            if '{{.Id}}' in args: return self.metadata['worker']['config_digest']
+            if '{{json .RepoDigests}}' in args: return json.dumps([image])
+            return ''
+        class Store:
+            def __init__(self, *args): pass
+            def put(self, key, data):
+                writes.append((key, data))
+                return {'key': key, 'state': 'created'}
+        with patch.object(publish_release, 'docker', side_effect=run), patch.object(publish_release, 'ImmutableStore', Store):
+            result = publish_release.publish_bundle(self.root,
+                {'source_sha': SHA, 'release_id': SHA + '_123_2', 'run_id': 123, 'attempt': 2}, 'synthetic-token')
+        self.assertEqual(result['image'], image)
+        self.assertEqual(writes[-1][0], 'releases/' + SHA + '_123_2/manifest.json')
+        self.assertEqual(json.loads(writes[-1][1])['migration']['image'], image)
+
+    def test_credential_helper_only_serves_fixed_registry(self):
+        helper = Path(__file__).resolve().parents[2] / 'infra/docker-credential-gym'
+        import os
+        env = os.environ | {'GYM_REGISTRY_IAM_TOKEN': 'synthetic-token'}
+        for server, code in [('cr.yandex', 0), ('other.invalid', 1)]:
+            result = subprocess.run([sys.executable, str(helper), 'get'], input=server + '\n', env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, code)
+            if code: self.assertNotIn('synthetic-token', result.stdout + result.stderr)
+            else: self.assertEqual(json.loads(result.stdout), {'Username': 'iam', 'Secret': 'synthetic-token'})
+
     def test_docker_error_does_not_expose_output(self):
         with patch.object(subprocess, 'run', return_value=subprocess.CompletedProcess([], 1, 'SECRET', 'SECRET')):
             with self.assertRaisesRegex(RuntimeError, 'сырые stdout/stderr не выводятся') as error:
@@ -167,6 +201,53 @@ class BundleTests(unittest.TestCase):
 
 
 class DeliveryPolicyTests(unittest.TestCase):
+    def setUp(self):
+        self.bucket_api = patch.object(delivery_access, 'bucket_api', return_value={}).start()
+        self.addCleanup(patch.stopall)
+
+    def fake_yc(self, *, existing_policy=None, roles=None):
+        class Fake:
+            def run(self, *args):
+                if args == ('iam', 'whoami'): return delivery_access.OPERATOR
+                if args[:3] == ('storage', 'bucket', 'get'):
+                    return {'folder_id': delivery_access.FOLDER, 'resource_id': delivery_access.BUCKET_ID, 'anonymous_access_flags':
+                            {'read': False, 'list': False, 'config_read': False}, 'policy': existing_policy}
+                if args[:3] == ('container', 'repository', 'get'):
+                    return {'id': delivery_access.REPOSITORY, 'name': delivery_access.REGISTRY + '/gym-migrations'}
+                if 'list-access-bindings' in args:
+                    return roles or [] if args[:2] == ('container', 'repository') else []
+                raise AssertionError('Unexpected mutation: ' + str(args))
+        return Fake()
+
+    def test_plan_is_read_only_and_repeat_is_empty(self):
+        first = delivery_access.plan(self.fake_yc())
+        self.assertTrue(first['set_bucket_policy'])
+        self.assertTrue(first['add_repository_binding'])
+        self.assertTrue(first['add_bucket_binding'])
+        self.bucket_api.return_value = {'accessBindings': [{'roleId': delivery_access.UPLOADER,
+            'subject': {'id': delivery_access.PUBLISHER, 'type': 'serviceAccount'}}]}
+        repeated = delivery_access.apply(self.fake_yc(existing_policy=delivery_access.policy(), roles=[delivery_access.desired_binding()]))
+        self.assertFalse(repeated['set_bucket_policy'])
+        self.assertFalse(repeated['add_repository_binding'])
+        self.assertFalse(repeated['add_bucket_binding'])
+
+    def test_bucket_binding_drift_rejected(self):
+        self.bucket_api.return_value = {'accessBindings': [{'roleId': 'storage.admin',
+            'subject': {'id': delivery_access.PUBLISHER, 'type': 'serviceAccount'}}]}
+        with self.assertRaises(ValueError): delivery_access.plan(self.fake_yc())
+
+    def test_bucket_iam_never_added_without_protecting_policy(self):
+        yc = self.fake_yc()
+        original = yc.run
+        yc.run = lambda *args: None if args[:3] == ('storage', 'bucket', 'update') else original(*args)
+        with self.assertRaisesRegex(ValueError, 'Политика/отсутствие обходных ACL'):
+            delivery_access.apply(yc)
+        self.assertTrue(all(call.args[1] == 'listAccessBindings' for call in self.bucket_api.call_args_list))
+
+    def test_unknown_policy_stops_before_any_mutation(self):
+        with self.assertRaisesRegex(ValueError, 'неизвестную политику'):
+            delivery_access.apply(self.fake_yc(existing_policy={'Statement': []}))
+
     def test_only_conditional_create_on_delivery_prefixes(self):
         policy = delivery_access.policy()
         allows = [s for s in policy['Statement'] if s['Principal'] == {'CanonicalUser': delivery_access.PUBLISHER} and s['Effect'] == 'Allow']

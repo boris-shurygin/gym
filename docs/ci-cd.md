@@ -18,6 +18,8 @@ CI P03.2.2 подтверждён на PR #9 и main после merge. P04 ра�
 
 В P04.2.2 добавлен ручной `migration-image-validation` в Cloud access: только `workflow_dispatch` рабочей ветки, без Environment/OIDC/облачных секретов/публикации. Он проверяет Linux-образ и metadata health без доступной БД, сохраняет validation-only архив на 7 дней. Оператор переносит его по хешам и проверяет [приватный контейнер](../infra/migration-worker.md) на синтетическом staging. Это не доверенная сборка выпуска main и не production-promotion; они остаются P04.3/P05. Job api устанавливает `db/requirements.txt` для HTTP/административных тестов, job ydb включает реальные проверки worker/recovery; PR по-прежнему не получает облачный доступ. Изменение ci.yml штатно включает browser при будущем PR.
 
+В P04.3.1 подготовлен [Staging release](../infra/release-pipeline.md), запускаемый через `workflow_run` после успешного **push main / Web checks**. Отдельный gate подтверждает происхождение и обязательные jobs через GitHub API; исходный SHA, код workflow и актуальный main должны совпадать. Сборка без облачных прав передаёт готовые байты отдельному publisher, который повторяет допуск и только затем использует OIDC main-ref издателя. Это пока публикация артефактов без миграций/деплоя; они будут в P04.3.2. Для рабочей ветки добавлен `Cloud access / release-bundle-validation` без OIDC. Ручная Linux-сборка успешна; точечные права издателя применены после отдельного согласия и проверены оператором. Первое выполнение публикации main проверяется после merge.
+
 ## Деплой из GitHub Actions в Yandex Cloud
 
 Автоматический деплой поддерживается: у Yandex есть [руководство по GitHub Actions и Cloud Functions](https://yandex.cloud/ru/docs/tutorials/serverless/ci-cd-github-functions). Для доступа без постоянного авторизованного ключа подходит [Workload Identity Federation](https://yandex.cloud/ru/docs/iam/operations/wlif/setup-wlif): OIDC-токен задания обменивается на IAM-токен сервисного аккаунта.
@@ -29,7 +31,7 @@ CI P03.2.2 подтверждён на PR #9 и main после merge. P04 ра�
 | Процесс | Событие | Что делает | Облачный доступ |
 | --- | --- | --- | --- |
 | `ci.yml` | `pull_request` в main | Проверки изменённых компонентов и одноразовой YDB | Без production; синтетические данные |
-| `deploy-staging.yml` | `push` в main после merge; ручной повтор при необходимости | Проверки конкретного main SHA, однократная сборка пакетов, миграция, API/PWA, smoke-тесты | Только staging и хранилище артефактов |
+| `deploy-staging.yml` | `workflow_run` после успешного Web checks / push main; повтор через Re-run | P04.3.1: проверка main SHA, однократная сборка и публикация пакетов; P04.3.2 добавит миграции, API/PWA и smoke | Издатель — только delivery; отдельный staging-доступ добавляется в P04.3.2 |
 | `deploy-production.yml` | `workflow_dispatch` с `release_id` | Проверка успешного staging этого выпуска, продвижение тех же пакетов, миграция и smoke-тесты | Production только в защищённом задании |
 
 Автоматический престейбл можно запустить от push в main, выполняя проверки перед шагами деплоя внутри этого процесса либо через переиспользуемый workflow. Не предполагать, что зелёный CI прежнего PR автоматически проверил новый merge SHA. Выбор структуры зависимостей workflow уточняется в P01/P03.

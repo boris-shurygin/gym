@@ -5,17 +5,31 @@ import json
 import os
 from pathlib import Path
 import tempfile
+from urllib.request import Request, build_opener
 
+from infra.object_store import NoRedirect
 from infra.ydb_access import Yc
 
 
 BUCKET = 'gym-delivery-b1ghmudqihbvpnscd2fq'
+BUCKET_ID = 'e3e9b3p987mraociqtio'
 FOLDER = 'b1gtp00mbao11pppvkk8'
 REGISTRY = 'crpe91o8ka9e03n3n90c'
 REPOSITORY = 'crpbvi15g2kc6667ksdh'
 PUBLISHER = 'aje0omi931fri66pbdir'
 OPERATOR = 'aje01oganeq2se1li11l'
 PUSHER = 'container-registry.images.pusher'
+UPLOADER = 'storage.uploader'
+
+
+def bucket_api(yc, action, body=None):
+    if action not in {'listAccessBindings', 'updateAccessBindings'}:
+        raise ValueError('Неизвестный метод IAM бакета')
+    request = Request('https://storage.api.cloud.yandex.net/storage/v1/buckets/' + BUCKET_ID + ':' + action,
+        method='GET' if body is None else 'PATCH', data=None if body is None else json.dumps(body).encode(),
+        headers={'Authorization': 'Bearer ' + yc.token(), 'Content-Type': 'application/json'})
+    with build_opener(NoRedirect()).open(request, timeout=30) as response:
+        return json.load(response)
 
 
 def policy():
@@ -56,7 +70,8 @@ def plan(yc):
     if yc.run('iam', 'whoami') != OPERATOR:
         raise ValueError('Проверь учётную запись первоначального оператора')
     bucket = yc.run('storage', 'bucket', 'get', BUCKET)
-    if (bucket.get('folder_id') != FOLDER or bucket.get('anonymous_access_flags') !=
+    if (bucket.get('folder_id') != FOLDER or bucket.get('resource_id') != BUCKET_ID
+            or bucket.get('acl', {}).get('grants') or bucket.get('anonymous_access_flags') !=
             {'read': False, 'list': False, 'config_read': False}):
         raise ValueError('Бакет не соответствует закрытому delivery')
     existing = bucket.get('policy')
@@ -77,8 +92,14 @@ def plan(yc):
     ]:
         check_bindings(yc.run(*command, 'list-access-bindings', resource), allowed)
     roles = check_bindings(yc.run('container', 'repository', 'list-access-bindings', REPOSITORY), {PUSHER})
+    bucket_bindings = bucket_api(yc, 'listAccessBindings')
+    if bucket_bindings.get('nextPageToken'):
+        raise ValueError('Неожиданное число привязок IAM бакета')
+    bucket_roles = check_bindings([{'role_id': b['roleId'], 'subject': b['subject']}
+                                  for b in bucket_bindings.get('accessBindings', [])], {UPLOADER})
     return {'bucket': BUCKET, 'publisher': PUBLISHER, 'policy': policy(),
             'set_bucket_policy': existing is None, 'repository': REPOSITORY,
+            'add_bucket_binding': UPLOADER not in bucket_roles,
             'add_repository_binding': PUSHER not in roles, 'binding': desired_binding(),
             'provider_limit': 'pusher также разрешает удаление образов/репозитория; delete не выполняется'}
 
@@ -90,11 +111,26 @@ def apply(yc):
             path = Path(directory) / 'policy.json'
             path.write_text(json.dumps(changes['policy']), encoding='utf-8')
             yc.run('storage', 'bucket', 'update', BUCKET, '--policy-from-file', str(path))
+    # Не выдавай базовый IAM до подтверждения ограничивающей политики.
+    protected = yc.run('storage', 'bucket', 'get', BUCKET)
+    actual_policy = protected.get('policy')
+    if isinstance(actual_policy, str):
+        actual_policy = json.loads(actual_policy)
+    if actual_policy != policy() or protected.get('acl', {}).get('grants'):
+        raise ValueError('Политика/отсутствие обходных ACL не подтверждены')
+    if changes['add_bucket_binding']:
+        operation = bucket_api(yc, 'updateAccessBindings', {'accessBindingDeltas': [
+            {'action': 'ADD', 'accessBinding': {'roleId': UPLOADER,
+                'subject': {'id': PUBLISHER, 'type': 'serviceAccount'}}}]})
+        if not operation.get('done'):
+            operation = yc.run('operation', 'get', operation['id'], '--endpoint', 'storage.api.cloud.yandex.net:443')
+        if not operation.get('done') or operation.get('error'):
+            raise RuntimeError('Операция IAM бакета не подтверждена; проверь фактические привязки')
     if changes['add_repository_binding']:
         yc.run('container', 'repository', 'add-access-binding', REPOSITORY,
                '--role', PUSHER, '--service-account-id', PUBLISHER)
     result = plan(yc)
-    if result['set_bucket_policy'] or result['add_repository_binding']:
+    if result['set_bucket_policy'] or result['add_repository_binding'] or result['add_bucket_binding']:
         raise RuntimeError('Применение прав не подтверждено')
     return result
 
