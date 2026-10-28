@@ -69,13 +69,15 @@ class ImmutableStore:
         except (URLError, TimeoutError, OSError, ValueError):
             raise StorageError('Не удалось подтвердить содержимое объекта') from None
 
-    def put(self, key, data):
+    def put(self, key, data, *, content_type='application/octet-stream', cache_control='private, max-age=31536000, immutable'):
         if not isinstance(data, bytes) or len(data) > MAX_OBJECT:
             raise ValueError('Ожидаются байты объекта размером до 128 MiB')
+        if any(not isinstance(value, str) or not value or '\r' in value or '\n' in value for value in (content_type, cache_control)):
+            raise ValueError('Некорректные заголовки объекта')
         digest = hashlib.sha256(data).hexdigest()
-        headers = {'If-None-Match': '*', 'Content-Type': 'application/octet-stream',
+        headers = {'If-None-Match': '*', 'Content-Type': content_type,
                    'Content-MD5': base64.b64encode(hashlib.md5(data, usedforsecurity=False).digest()).decode('ascii'),
-                   'X-Amz-Meta-Sha256': digest, 'Cache-Control': 'private, max-age=31536000, immutable'}
+                   'X-Amz-Meta-Sha256': digest, 'Cache-Control': cache_control}
         for attempt in range(3):
             try:
                 with self._open('PUT', key, data=data, headers=headers) as response:

@@ -4,20 +4,20 @@
 
 | Поле | Значение |
 | --- | --- |
-| Активный этап | P04.3.2.1 — права staging CI и оркестрация приватных миграций |
-| Состояние | Одобрен к завершению и merge после CI; финальные локальные проверки успешны |
-| Локальная ветка | feat/p04-3-2-1-staging-migrations |
-| Локальный базовый main | `38f8b74dbf278fee98c0278656e517dfef62f0c2` — merge P04.3.1 |
-| Актуальность origin/main | Fetch 2026-10-28 подтвердил origin/main `38f8b74`; ветка этапа создана от него с сохранением метаданных merge #13 |
-| PR | [#13](https://github.com/boris-shurygin/gym/pull/13) слит с проверкой head `4feb2afc544e7ab14090d106a3119d4de49acacd`, merge `38f8b74dbf278fee98c0278656e517dfef62f0c2` |
-| CI PR | [Web checks](https://github.com/boris-shurygin/gym/actions/runs/40671295268) и [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40671295296) успешны для head `4feb2af`; browser, ручные сборки и OIDC штатно пропущены |
+| Активный этап | P04.3.2.2 — выкатка API/PWA/Gateway и smoke после миграций |
+| Состояние | На проверке; права применены с согласия пользователя, operator-validation и повтор успешны; 157 локальных Python-тестов прошли |
+| Локальная ветка | feat/p04-3-2-2-staging-app |
+| Локальный базовый main | `e903b05c3131cbe568940475f06a63f260282432` — merge P04.3.2.1 |
+| Актуальность origin/main | Fetch/fast-forward 2026-10-28 подтвердил main/origin/main `e903b05`; локальные метаданные сохранены, коммитов в main не создавалось |
+| PR | Для P04.3.2.2 не создан; предыдущий [#14](https://github.com/boris-shurygin/gym/pull/14) слит, merge `e903b05c3131cbe568940475f06a63f260282432` |
+| CI PR | [Web checks](https://github.com/boris-shurygin/gym/actions/runs/40738483308) и [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40738483537) успешны для head `4041c21`; browser и облачные задания штатно пропущены |
 | CI сборки | [Ручная сборка полного bundle](https://github.com/boris-shurygin/gym/actions/runs/40638716407) успешна на `7c0641fd019c314533b1687e2ef38d167bc95a81`; bootstrap-tests и release-bundle-validation выполнены, OIDC пропущен |
-| CI после merge | [Web checks](https://github.com/boris-shurygin/gym/actions/runs/40679791733) и [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40679791735) успешны на main `38f8b74` |
-| Реальная проверка OIDC | [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40679791735) выполнил staging oidc; [Staging release](https://github.com/boris-shurygin/gym/actions/runs/40679888801) успешно выполнил main-ref publisher OIDC и публикацию. Production OIDC отдельно не запускался |
-| Выпуск артефактов | `38f8b74dbf278fee98c0278656e517dfef62f0c2_40679888801_1`; закрытый manifest SHA-256 `0820c4709d6d46e2b61666aa1c6783c51c2aef12825b789adc2bcfa0b4d81880`, 8 файлов и digest образа проверены |
-| Престейбл | namespace gym_ инициализирован, 5 таблиц; приватный worker `bbao40rh7vapji9hugcj` в обычном режиме по опубликованному main-выпуску. Миграция succeeded/generation 2, повтор проверен. Gateway — заглушка 503, выкатки приложения нет |
+| CI после merge | [Web checks](https://github.com/boris-shurygin/gym/actions/runs/40738840656), [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40738840914) и [Staging release](https://github.com/boris-shurygin/gym/actions/runs/40738952322) успешны на main `e903b05`, attempt 1 |
+| Реальная проверка OIDC | Cloud access выполнил базовый staging oidc; Staging release успешно выполнил main-ref publisher OIDC и новый staging Environment OIDC/migration job. Production OIDC отдельно не запускался |
+| Выпуск артефактов | `e903b05c3131cbe568940475f06a63f260282432_40738952322_1`; manifest SHA-256 `8bc437b39f64e23c0be36098880af7dab237f903f6ef3a6686af5f9dd4e7f219`, все 8 файлов независимо проверены |
+| Престейбл | [HTTPS-приложение](https://d5d734k3s76t42pa5rtn.764nr5vy.apigw.yandexcloud.net/), API `d4e113dlg7tag6h82eb4`, purpose operator-validation на пакетах main `e903b05`; HTTP/offline smoke и повтор успешны. Namespace gym_, 5 служебных таблиц; worker `bbaaun749ci5q9bqct8a`, succeeded/generation 2 |
 | Стейбл | Пустые ресурсы и gate GitHub созданы; приложения/выпуска нет |
-| Следующее действие | Создать PR, дождаться CI, выполнить разрешённый пользователем merge и проверить новый migration job main; API/PWA/Gateway — P04.3.2.2 |
+| Следующее действие | Пользователь разрешил завершение, ожидание CI и merge; создать PR, дождаться проверок и подтвердить первый автоматический deploy main. P05 и production не начаты |
 
 ## Выполнено в P00
 
@@ -628,3 +628,41 @@ P04.3.2.1 переведён в «На проверке». PR/merge не вып�
 Пользователь объединил завершение, ожидание CI PR и merge в одном запросе. Fetch подтвердил origin/main `38f8b74` без новых коммитов, открытых PR нет. Просмотрен согласованный diff: staging-оркестратор/права/цели, OIDC, выход manifest digest и зависимый job, 19 новых тестов и связанные документы. Исходные метаданные merge #13 сохранены; несвязанных правок/секретов в выбранном объёме нет.
 
 Повторно успешны **142 локальных Python-теста** (49 API, 3 упаковки, 14 контрактов, 22 инфраструктуры, 54 release), `contracts.generate --check`, `pip check`, документация (51 Markdown/268 ссылок), 11 Git-сценариев фильтра browser и `git diff --check`. Read-only план staging_access не содержит изменений; свидетельства реальной CI-выкатки/повтора и изоляции complete. Новые DDL, bootstrap или выдача прав ради повторения тестов не выполнялись. Новый workflow migration/OIDC проверяется после merge; API/PWA/Gateway не входят в этот подпункт. После публикации PR дождаться реального CI, проверить head/ревью и выполнить разрешённый merge; production и следующий этап не запускаются.
+
+Опубликован коммит `4041c21f54fdfcc019187b81b588f0203b4ccc2b`, создан обычный PR #14 в main: 15 файлов, 744 добавленных/27 удалённых строк. GitHub подтвердил ожидаемые refs/head/base, отсутствие Draft/конфликтов. Запущены Web checks `40738483308` и Cloud access `40738483537`; ожидается их завершение перед merge. Метаданные PR сохранены локально для следующего содержательного коммита, отдельный коммит самоссылки не создавался.
+
+Оба workflow PR завершились успешно. Подтверждены api (новые release-тесты и Linux ZIP smoke), ydb, contracts, web/changes и bootstrap-tests; browser/OIDC/ручные сборки штатно skipped. Повторно проверены head `4041c21`, base main, отсутствие Draft/конфликтов и пустые reviews/review threads. Выполнен разрешённый merge с expected head SHA: `e903b05c3131cbe568940475f06a63f260282432`. Локальные main/origin/main обновлены fast-forward, выполнен switch main с сохранением незакоммиченных метаданных; ветки не удалялись. Push CI нового main успешен. Автоматически запущен Staging release `40738952322`; gate успешен, ожидается итог build/publish/migrations.
+
+### 2026-10-28 — подтверждён первый migration job main
+
+Staging release `40738952322`, attempt 1 завершился успешно: gate, build, publish и **migrations** выполнены с первого запуска. Базовый OIDC Cloud access также успешен. Новый job использовал staging Environment/OIDC, проверенный source/run и digest манифеста выхода publisher, развернул приватный контейнер с metadata SA и завершил ограниченные миграции. SQL на GitHub runner не выполнялся; bootstrap/recovery не запускались.
+
+Из лога успешного job получен очищенный receipt: release `e903b05c3131cbe568940475f06a63f260282432_40738952322_1`, manifest SHA-256 `8bc437b39f64e23c0be36098880af7dab237f903f6ef3a6686af5f9dd4e7f219`, job `migration_e903b05c3131cbe568940475f06a63f260282432_40738952322_1`, checksum `817b36ee789008086745ac206fe3a0524fd7d1433c01f4d2c6e3afe024761deb`, schema `0001_runtime_metadata`, state succeeded/generation 2, container revision `bbaaun749ci5q9bqct8a`.
+
+Независимая проверка коротким staging CI-токеном перечитала manifest/схему/восемь blob и подтвердила все хеши/размеры, source/run/attempt. Активная ревизия соответствует image `cr.yandex/crpe91o8ka9e03n3n90c/gym-migrations@sha256:a616b17327701b03cc43c7dd1ee83a78c45db192182279a4ff73f92a5ab81ffa`, ожидаемым SA, environment и лимитам. Health/checksum совпали с receipt; отдельный **status без step** снова проверил реальную схему и вернул те же succeeded/job/release/revision/generation. Свидетельства без секретов сохранены в `.local/p04-3-2-1-main-ci-receipt.json` и `.local/p04-3-2-1-main-ci-validation.json`.
+
+P04.3.2.1 завершён, журнал/план обновлены локально без коммита в main. API/PWA/Gateway/smoke остаются P04.3.2.2; этот подпункт не начат. Production не затрагивался.
+
+### 2026-10-28 — P04.3.2.2: приложение на staging
+
+По команде «Дальше» восстановлены процесс/план/журнал, проверены merge #14 и успешный первый migration job main. Ветка `feat/p04-3-2-2-staging-app` создана от `e903b05c3131cbe568940475f06a63f260282432` с сохранением исходных метаданных. Выполняется только этот подпункт; P05 и production не начаты.
+
+Добавлены операторский план прав и оркестратор API/PWA/Gateway. Job `deploy` зависит от gate/publish/migrations, повторно проверяет происхождение и digest выпуска, фактическую конфигурацию worker и succeeded статус той же миграции. Готовый ZIP загружается в приватную версию API с уникальным тегом; PWA сохраняет неизменяемые assets и отдельный префикс выпуска. Gateway переключается после подготовки всего набора, квитанция создаётся только после HTTPS smoke. Повтор сверяет фактическое состояние; recovery/DDL, удаление старых выпусков и production-promotion сюда не входят. Новый bundle содержит нейтральный `gateway-release.json`; API/PWA/образ миграций не менялись.
+
+Автоматическая проверка первоначально потребовала конкретного согласия на постоянные IAM-права. Пользователь явно разрешил план [staging-app.md](../infra/staging-app.md): CI editor/invoker только API, editor только Gateway, user только API/Gateway SA, uploader только PWA-бакета с условной политикой; Gateway SA — invoker API и viewer публичных файлов. После согласия применены точечные привязки и ограничивающая policy; повторный план пуст. Прямые YDB-права, production и анонимный доступ к функции/бакету не менялись. Editor включает удаление целевых ресурсов, actAs — выполнение под целевыми SA; эти границы описаны в плане.
+
+Операторский прогон использовал опубликованный выпуск `e903b05c3131cbe568940475f06a63f260282432_40738952322_1`, manifest SHA-256 `8bc437b39f64e23c0be36098880af7dab237f903f6ef3a6686af5f9dd4e7f219`. Допущен только точный хеш прежнего bootstrap Gateway-артефакта, рендерер проверен локально; манифест/пакеты не подменялись. Результат помечен `operator-validation` и не является кандидатом production. В CI этот режим запрещён.
+
+Установлена версия API `d4e113dlg7tag6h82eb4`, тег `v-270ef3608d13bb355805d9e1c89db4da`, 256 MiB/30 секунд/concurrency 1, metadata SA API и готовый ZIP из delivery по хешу. Gateway SHA-256 `62aebb75bea11a303e5800af338f27def49ec99cc4abe6ab1485cd5ca5c53025`. [HTTPS staging](https://d5d734k3s76t42pa5rtn.764nr5vy.apigw.yandexcloud.net/) отдаёт шесть PWA-файлов с точными байтами/Content-Type/Cache-Control, health 200, закрытые `/api/v1/program` и `/auth/session` — 401 при отсутствующих и поддельных credentials. Неизвестные пути возвращают 404, прямой анонимный доступ к функции/бакету — 403. Квитанция сохранена приватно в `deployments/<release_id>/operator-validation.json` и `.local/staging-deployment.json`.
+
+В установленном Chrome 156, с изолированным профилем/viewport 390×844, проверены загрузка PWA, регистрация service worker, запись подхода 70 кг × 9 и восстановление после offline-перезагрузки; page errors отсутствуют. Браузер не устанавливался. Повтор полного оркестратора вернул идентичную квитанцию; вызовов создания версии API или изменения Gateway не было. Синтетическая IAM-проба подтвердила чтение assets под Gateway SA и 403 на перезапись без условия, удаление, изменение ACL, запись вне префиксов под CI и чтение deployment receipt под Gateway SA. Собственный временный объект удалён оператором, токены оставались в памяти. Свидетельства: `.local/p04-3-2-2-browser.json`, `...-repeat.json`, `...-access.json`.
+
+При реальном прогоне уточнены raw-вызов preflight, REST FieldMask `openapiSpec` и нормализация path-параметров YC; добавлены регрессионные проверки. Успешны **157 локальных Python-тестов** (49 API, 3 упаковки, 14 контрактов, 22 инфраструктуры, 69 release), `contracts.generate --check`, `pip check`, 11 сценариев браузерного фильтра, структура нового CI job, документация (52 Markdown/278 ссылок) и `git diff --check`. Linux-зависимости/образ не менялись; полной локальной Docker-сборки нет. Новый Gateway-артефакт попадёт в доверенную сборку main после merge.
+
+P04.3.2.2 переведён в «На проверке». PR/merge не выполнялись. Следующая точка — проверка результата пользователем и завершение/PR по отдельной команде; после merge подтвердить настоящий автоматический job `deploy`, Summary и artifact `staging-deployment` того же выпуска. Только после этого можно считать P04 завершённым.
+
+### 2026-10-28 — завершение P04.3.2.2 с merge после проверок
+
+Пользователь объединил завершение этапа, ожидание CI и merge. Fetch подтвердил origin/main `e903b05` без новых коммитов, открытых PR нет. Просмотрены изменения workflow, Gateway-артефакта, оркестратора/точечных прав, условной публикации, тестов и документации. Исходные метаданные предыдущего merge сохранены; несвязанных правок и секретов в объёме нет.
+
+Повторно успешны **157 Python-тестов** (49 API, 3 упаковки, 14 контрактов, 22 инфраструктуры, 69 release), генерация контрактов, `pip check`, структура CI/Gateway-артефакт, документация (52 Markdown/278 ссылок), 11 сценариев browser-фильтра и `git diff --check`. Свидетельства реального operator-validation, повторного запуска и ограничений доступа подтверждены complete. Дополнительные IAM/DDL/пересоздание ресурсов ради этих проверок не выполнялись. Новая Linux-сборка проверяется CI; первый автоматический `deploy` — после разрешённого merge. Далее создать PR, дождаться CI, сверить head/ревью и выполнить merge с проверкой SHA. Production и следующий этап не запускаются.
