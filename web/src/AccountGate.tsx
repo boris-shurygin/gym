@@ -224,50 +224,97 @@ export default function Account() {
 
   return (
     <>
-      <section className="account-panel card" aria-label="Аккаунт">
-        {message && !demo && <p>{message}</p>}
-        {session ? (
-          <>
-            <span>Аккаунт {session.user_id}</span>{' '}
-            <button onClick={() => void logout()} disabled={busy}>
-              Выйти
-            </button>
-          </>
-        ) : (
-          <a href="/auth/login?return_to=/app">Войти через Яндекс ID</a>
+      <section
+        className={`account-panel card ${!profile && !demo ? 'account-welcome' : ''}`}
+        aria-label="Аккаунт"
+      >
+        <div className="account-heading">
+          <div>
+            {!profile && !demo && <p className="eyebrow">Gym</p>}
+            <h2>
+              {session
+                ? 'Твой аккаунт'
+                : demo
+                  ? 'Демо-режим'
+                  : profile
+                    ? 'Профиль на устройстве'
+                    : 'Твои тренировки — рядом'}
+            </h2>
+          </div>
+          {session && (
+            <span className="account-status">
+              <span className="status-dot" />
+              Яндекс ID
+            </span>
+          )}
+        </div>
+        {message && !demo && (
+          <p className="account-message" role="status">
+            {message}
+          </p>
         )}
-        {(profile || demo) && <button onClick={hide}>Скрыть данные на устройстве</button>}
-        {candidate && (
-          <>
+        <div className="account-actions">
+          {!session && (
+            <a className="primary" href="/auth/login?return_to=/app">
+              Войти через Яндекс ID
+            </a>
+          )}
+          {candidate && (
+            <>
+              <button
+                className="primary"
+                onClick={() => {
+                  localStorage.setItem(ownerKey, candidate.user_id);
+                  localStorage.removeItem('gym.hidden');
+                  setCandidate(undefined);
+                  setRevision((r) => r + 1);
+                }}
+              >
+                Открыть отдельный профиль
+              </button>
+              <a className="secondary" href="/auth/login?purpose=switch&return_to=/app">
+                Войти прежним аккаунтом
+              </a>
+            </>
+          )}
+          {!profile && !candidate && (
             <button
+              className="secondary"
               onClick={() => {
-                localStorage.setItem(ownerKey, candidate.user_id);
-                localStorage.removeItem('gym.hidden');
-                setCandidate(undefined);
-                setRevision((r) => r + 1);
+                localStorage.setItem(modeKey, 'demo');
+                setDemo(true);
               }}
             >
-              Открыть отдельный профиль
+              Открыть демо
             </button>
-            <a href="/auth/login?purpose=switch&return_to=/app">Войти прежним аккаунтом</a>
-          </>
+          )}
+          {session && (
+            <button className="secondary" onClick={() => setRevision((r) => r + 1)}>
+              Обновить программу
+            </button>
+          )}
+        </div>
+        {(profile || demo) && (
+          <details className="account-options">
+            <summary>Управление аккаунтом</summary>
+            <div className="account-actions">
+              <button className="secondary" onClick={hide}>
+                Скрыть данные на устройстве
+              </button>
+              {session && (
+                <button className="secondary" onClick={() => void logout()} disabled={busy}>
+                  Выйти
+                </button>
+              )}
+            </div>
+          </details>
         )}
-        {!profile && !candidate && (
-          <button
-            onClick={() => {
-              localStorage.setItem(modeKey, 'demo');
-              setDemo(true);
-            }}
-          >
-            Открыть демо
-          </button>
-        )}
-        {session && <button onClick={() => setRevision((r) => r + 1)}>Обновить программу</button>}
       </section>
       {change && session && (
-        <main>
-          <h2>Изменение программы</h2>
-          <p>{change.proposal.rationale}</p>
+        <main className="program-review">
+          <p className="eyebrow">Проверка перед публикацией</p>
+          <h1>Изменение программы</h1>
+          <p className="subheading">{change.proposal.rationale}</p>
           <h3>Сейчас</h3>
           {profile?.program.version ? (
             <Plan content={profile.program.version.content} />
@@ -276,14 +323,18 @@ export default function Account() {
           )}
           <h3>Предложено</h3>
           <Plan content={change.proposal.content} />
-          <button
-            className="primary"
-            disabled={busy || change.status === 'published'}
-            onClick={() => void publish()}
-          >
-            Одобрить и опубликовать
-          </button>
-          <a href={`/auth/login?purpose=reauth&return_to=/program`}>Подтвердить вход перед одобрением</a>
+          <div className="review-actions">
+            <button
+              className="primary"
+              disabled={busy || change.status === 'published'}
+              onClick={() => void publish()}
+            >
+              Одобрить и опубликовать
+            </button>
+            <a className="secondary" href={`/auth/login?purpose=reauth&return_to=/program`}>
+              Подтвердить вход перед одобрением
+            </a>
+          </div>
         </main>
       )}
       {profile && !candidate && (

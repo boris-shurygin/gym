@@ -590,7 +590,11 @@ export default function App({
       <>
         <p className="eyebrow">Тренируйся в своём ритме</p>
         <h1>Твоя тренировка</h1>
-        <p className="subheading">Выбери шаблон или продолжи начатое</p>
+        <p className="subheading">
+          {active || program.templates.length
+            ? 'Выбери шаблон или продолжи начатое'
+            : 'Здесь будет твой план и история занятий'}
+        </p>
         {active && (
           <section className="card active-card">
             <span className="eyebrow">Уже начата</span>
@@ -604,7 +608,12 @@ export default function App({
           </section>
         )}
         <div className="section-title">
-          {demo ? 'Тестовая программа' : 'Твоя программа'} <span>{program.templates.length} шаблона</span>
+          {demo ? 'Тестовая программа' : 'Твоя программа'}{' '}
+          <span>
+            {program.templates.length
+              ? `${program.templates.length} ${plural(program.templates.length, ['шаблон', 'шаблона', 'шаблонов'])}`
+              : 'Пока пусто'}
+          </span>
         </div>
         {program.templates.map((template, i) => (
           <button
@@ -629,7 +638,16 @@ export default function App({
           <p className="footnote">Цели в этой программе — синтетические примеры для проверки приложения.</p>
         )}
         {!demo && program.templates.length === 0 && (
-          <p>Программа ещё не опубликована. После публикации здесь появятся шаблоны тренировок.</p>
+          <section className="card empty-program">
+            <span className="template-icon icon-0" aria-hidden="true">
+              ◈
+            </span>
+            <h2>Программа ещё не опубликована</h2>
+            <p className="subheading">После публикации здесь появятся твои шаблоны тренировок.</p>
+            <p className="caption">
+              Когда программа будет готова, нажми «Обновить программу» в блоке аккаунта.
+            </p>
+          </section>
         )}
       </>
     );

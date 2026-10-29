@@ -544,16 +544,149 @@ h2 {
   margin-bottom: 16px;
 }
 .account-panel {
-  max-width: 680px;
-  margin: 12px auto;
-  padding: 16px;
+  max-width: 632px;
+  margin: 20px auto 0;
+  padding: 20px;
+}
+.account-panel:not(.account-welcome) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+}
+.account-panel:not(.account-welcome) > .account-heading,
+.account-panel:not(.account-welcome) > .account-message {
+  grid-column: 1 / -1;
+}
+.account-panel:not(.account-welcome) > .account-actions {
+  margin-top: 0;
+}
+.account-heading {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.account-heading h2 {
+  margin-bottom: 0;
+  line-height: 1.35;
+}
+.account-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #586880;
+}
+.account-message {
+  color: #586880;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 16px 0 0;
+}
+.account-actions,
+.review-actions {
+  display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  margin-top: 16px;
 }
-.account-panel p {
-  width: 100%;
+.account-actions .primary,
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 12px 16px;
+  text-align: center;
+  line-height: 1.4;
+  font-size: 14px;
+  font-weight: 600;
+}
+.secondary {
+  border: 1px solid #dce2f0;
+  background: #f8f9fd;
+  color: #425477;
+}
+.secondary:hover {
+  background: #edf1fa;
+}
+.account-options {
+  min-width: 0;
+  align-self: center;
+}
+.account-options[open] {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.account-options summary {
+  cursor: pointer;
+  min-height: 44px;
+  align-content: center;
+  font-size: 13px;
+  color: #586880;
+  border-radius: 8px;
+  line-height: 1.5;
+}
+.account-options summary:focus-visible {
+  outline: 3px solid #839aff;
+  outline-offset: 4px;
+}
+.account-options .account-actions {
+  margin-top: 4px;
+}
+.account-welcome {
+  margin-top: max(24px, 12vh);
+  padding: 28px;
+}
+.account-welcome h2 {
+  font-size: 25px;
+  letter-spacing: -0.6px;
+}
+.program-review {
+  max-width: 680px;
+  margin: 32px auto;
+  padding: 0 24px 24px;
+  overflow-wrap: anywhere;
+}
+.program-review h3 {
+  font-size: 15px;
+}
+.program-review .card h3 {
+  margin-top: 0;
+  font-size: 18px;
+}
+.program-review .card p {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.empty-program {
+  padding: 28px 24px;
+}
+.empty-program .template-icon {
+  margin-bottom: 20px;
+}
+.empty-program h2 {
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+.empty-program .subheading {
+  margin-bottom: 16px;
+}
+@media (max-width: 679px) {
+  .account-panel {
+    margin-left: 24px;
+    margin-right: 24px;
+  }
+  .account-actions > *,
+  .review-actions > * {
+    flex: 1 1 100%;
+  }
+  .account-panel:not(.account-welcome) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+  }
 }
 body:has(.exercise-screen) .account-panel {
   display: none;
