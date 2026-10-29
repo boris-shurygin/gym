@@ -21,7 +21,7 @@ MIGRATIONS = RUNTIME | {
     'ydb.granular.create_table', 'ydb.granular.alter_schema',
     'ydb.granular.remove_schema', 'ydb.access.grant',
 }
-ADMIN_TABLES = {'gym_migration_lock', 'gym_migration_jobs', 'gym_migration_requests', 'gym_alembic_version'}
+ADMIN_TABLES = {'gym_migration_lock', 'gym_migration_jobs', 'gym_migration_requests', 'gym_alembic_version', 'gym_schema_version'}
 
 
 def load_config(path=CONFIG):

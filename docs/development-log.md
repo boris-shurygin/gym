@@ -11,8 +11,8 @@
 | Изменение процесса | Правила автономной работы слиты в #16 и проверены полным staging |
 | Локальный базовый main | `f3796a2b2d7b93271ecce559d2dc45075b69a7f7` — merge исправления P05 #18 |
 | Актуальность origin/main | Fetch/fast-forward 2026-10-29 подтвердил main/origin/main `f3796a2`; постфактум-метаданные сохранены, коммитов в main нет |
-| PR | Основной [#17](https://github.com/boris-shurygin/gym/pull/17) и исправление [#18](https://github.com/boris-shurygin/gym/pull/18) слиты с проверкой ожидаемых head; итоговый merge `f3796a2b2d7b93271ecce559d2dc45075b69a7f7` |
-| CI PR | Для #18 [Web checks](https://github.com/boris-shurygin/gym/actions/runs/40862758427) и [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40862758399) успешны; CI #17 также успешен |
+| PR | [Draft #19](https://github.com/boris-shurygin/gym/pull/19), feat/p06-accounts-programs; основной коммит `9e2715b`. P05 #17/#18 слиты ранее |
+| CI PR | Первый [Web checks](https://github.com/boris-shurygin/gym/actions/runs/40873984577): API/Linux ZIP, contracts, web/browser успешны; новые прикладные YDB-сценарии прошли, миграции выявили запрет UPDATE PK таблицы Alembic. Исправление и повтор CI — текущая работа. [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40873984514) успешен без OIDC PR |
 | CI сборки | Linux-пакеты `9a16a2f…_40852028322_1` продвинуты в production без пересборки; текущий main `f3796a2` отдельно прошёл доверенную сборку/staging |
 | CI после merge | [Web checks](https://github.com/boris-shurygin/gym/actions/runs/40863058121), [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40863058241) и полный [Staging release](https://github.com/boris-shurygin/gym/actions/runs/40863137641) успешны на main `f3796a2` |
 | Реальная проверка OIDC | Staging publisher/migrations/deploy и production Environment OIDC в [Production release](https://github.com/boris-shurygin/gym/actions/runs/40863249879) успешны; постоянные облачные ключи не создавались |
@@ -22,6 +22,8 @@
 | Следующее действие | P06: проверить реализацию на SQLite/YDB CI и в браузере, провести PR/merge, миграцию и права staging. Реальный OAuth ждёт Client ID/безопасного ввода секрета; личность владельца допускается только по конкретной подтверждённой заявке |
 
 ## P06 — автономная реализация 2026-10-29
+
+- Открыт Draft PR #19. Первый CI подтвердил новые прикладные сценарии на YDB, но выявил прежний формат Alembic с version_num в PK: переход 0001→0002 запрещён YDB. Исправлен публичный version_table_impl: отдельная административная schema_version с постоянным PK, guarded-bridge проверенной legacy-0001 без изменения старой таблицы. Добавлены реальные YDB-тесты перехода/сохранения данных и запрета неизвестной legacy-ревизии. Повтор CI должен подтвердить исправление; облачный переход не выполнялся.
 
 - Разрешение: весь P06 до CI/merge/staging, без P07 и production; базовый main `f3796a2b2d7b93271ecce559d2dc45075b69a7f7`, fetch успешен, ветка `feat/p06-accounts-programs`. Исходные постфактум-записи P05 включаются в этот содержательный PR.
 - Добавлены code/PKCE и одноразовый claim до внешнего обмена, проверка client_id/subject Яндекса, operator-only допуск по подтверждённой заявке, отзываемые hash-сессии, сроки, Origin/CSRF и ротация cookie. Провайдерские токены/профиль не сохраняются. Саморегистрации и роли «первый вошедший» нет.
