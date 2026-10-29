@@ -32,6 +32,17 @@ try {
             -Headers @{ Authorization = "Bearer $gymToken" } -ContentType 'application/json; charset=utf-8' `
             -Body ([Text.Encoding]::UTF8.GetBytes($gymBody)) -TimeoutSec 30
     } catch { throw 'Создание секрета не подтверждено. Проверь список секретов перед повтором; не публикуй диагностику HTTP с payload.' }
+    $gymDeadline = [DateTime]::UtcNow.AddSeconds(60)
+    while (-not $gymOperation.done -and [DateTime]::UtcNow -lt $gymDeadline) {
+        Start-Sleep -Seconds 2
+        try {
+            $gymOperation = Invoke-RestMethod -Uri ('https://operation.api.cloud.yandex.net/operations/' + $gymOperation.id) `
+                -Headers @{ Authorization = "Bearer $gymToken" } -TimeoutSec 15
+        } catch {
+            [pscustomobject]@{ operation_id = $gymOperation.id } | ConvertTo-Json
+            throw 'Статус операции не подтверждён. Проверь её через YC; не создавай секрет повторно.'
+        }
+    }
     if (-not $gymOperation.done -or $gymOperation.error -or -not $gymOperation.response.id) {
         [pscustomobject]@{ operation_id = $gymOperation.id } | ConvertTo-Json
         throw 'Операция не завершена: проверь её статус через YC, не создавай второй секрет вслепую'

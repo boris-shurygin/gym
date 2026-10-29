@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import time
 from urllib.error import HTTPError
+from urllib.parse import parse_qs, urlsplit
 from urllib.request import Request, build_opener
 
 from contracts.canonical import canonical_bytes, parse_request
@@ -213,6 +214,40 @@ def switch_gateway(cloud, spec, *, target=target):
     if parse_request(confirmed['openapiSpec'].encode()) != spec: raise InterventionRequired('Gateway не подтверждён')
 
 
+def auth_smoke(manifest, *, target=target):
+    configured = configure_api({'environment': {}}, manifest, target)
+    if not configured.get('secrets'):
+        return
+    code, headers, _ = raw_request(target.ORIGIN + '/auth/login?return_to=%2Fapp')
+    normalized = {key.lower(): value for key, value in headers.items()}
+    location = urlsplit(normalized.get('location', ''))
+    query = parse_qs(location.query)
+    binder = normalized.get('set-cookie', '')
+    if (code != 302 or normalized.get('cache-control') != 'no-store'
+            or location.scheme != 'https' or location.netloc != 'oauth.yandex.ru' or location.path != '/authorize'
+            or query.get('client_id') != [configured['environment']['GYM_YANDEX_CLIENT_ID']]
+            or query.get('redirect_uri') != [target.ORIGIN + '/auth/callback/yandex']
+            or query.get('response_type') != ['code'] or query.get('scope') != ['login:info']
+            or query.get('code_challenge_method') != ['S256']
+            or len(query.get('state', [''])[0]) < 43 or len(query.get('code_challenge', [''])[0]) != 43
+            or not binder.startswith('__Host-gym_login=')
+            or not all(flag in binder for flag in ('Path=/', 'Secure', 'HttpOnly', 'SameSite=Lax', 'Max-Age=300'))
+            or 'domain=' in binder.lower()):
+        raise InterventionRequired('Начало Яндекс ID/PKCE/cookie через Gateway не подтверждено')
+    # Валидная по форме, но случайная cookie заставляет runtime прочитать YDB.
+    # Liveness и заведомо некорректная cookie такой проверки не обеспечивают.
+    import secrets
+    code, headers, body = raw_request(target.ORIGIN + '/auth/session',
+        headers={'Cookie': '__Host-gym_session=' + secrets.token_urlsafe(32)})
+    if (code != 401 or parse_request(body).get('error', {}).get('code') != 'session_required'
+            or headers.get('Cache-Control') != 'no-store'):
+        raise InterventionRequired('Проверка сессии в YDB через Gateway не подтверждена')
+    code, headers, body = raw_request(target.ORIGIN + '/auth/callback/yandex?state=' + 'x' * 43 + '&code=readiness-probe')
+    if (code != 400 or parse_request(body).get('error', {}).get('code') != 'invalid_request'
+            or headers.get('Cache-Control') != 'no-store'):
+        raise InterventionRequired('Callback без браузерной привязки должен отклоняться')
+
+
 def smoke(manifest, files, *, validation=False, target=target):
     for item in manifest['artifacts']:
         if not item['path'].startswith('web/'): continue
@@ -238,6 +273,7 @@ def smoke(manifest, files, *, validation=False, target=target):
     for path in ('/api/v1/unknown-path', '/assets/missing-asset.js', '/unknown-page'):
         code, _, _ = raw_request(target.ORIGIN + path)
         if code != 404: raise InterventionRequired('Неизвестный маршрут не вернул 404')
+    auth_smoke(manifest, target=target)
     for url in ('https://functions.yandexcloud.net/' + target.FUNCTION, 'https://storage.yandexcloud.net/' + target.WEB_BUCKET + '/' + web_key(manifest['release_id'], 'web/index.html')):
         code, _, _ = raw_request(url)
         if code != 403: raise InterventionRequired('Backend не является приватным')
