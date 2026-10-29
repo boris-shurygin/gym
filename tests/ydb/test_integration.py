@@ -12,11 +12,15 @@ from uuid import uuid4
 import sqlalchemy as sa
 import ydb
 import ydb_dbapi
+from alembic import command
+from alembic.config import Config
 
 from api.database import DatabaseSettings, create_engine, transaction
 from db.migrate import Migrator, MigrationBusy, REVISION
 from db.schema import SchemaMismatch, ensure_table, tables
 from db.schema import verify_table
+from api.store import Store
+from db.migrate import ROOT as MIGRATIONS_ROOT
 
 
 class YdbIntegrationTests(unittest.TestCase):
@@ -227,6 +231,22 @@ class YdbIntegrationTests(unittest.TestCase):
                 Migrator(self.engine, holder.prefix).upgrade('parallel')
         finally:
             transaction(self.engine, holder._release)
+
+    def test_upgrade_from_p06_preserves_accounts_programs_and_sessions(self):
+        migrator = self.migration('from_p06')
+        config = Config()
+        config.set_main_option('script_location', str(MIGRATIONS_ROOT))
+        config.attributes.update(engine=self.engine, prefix=migrator.prefix, guard=lambda: None)
+        command.upgrade(config, '0002_accounts_programs')
+        store = Store(self.engine, migrator.prefix)
+        fixtures = [('program_records', 'alice', 'version:retain', {'note': 'Сохранённая программа'}),
+            ('admissions', 'yandex', 'synthetic', {'user_id': 'alice', 'state': 'active'}),
+            ('sessions', 'session', 'synthetic', {'user_id': 'alice'})]
+        store.run(lambda db: [db.put(*row) for row in fixtures])
+        self.assertEqual(migrator.upgrade('p06-to-p07')['revision'], REVISION)
+        migrator.verify()
+        for name, owner, key, payload in fixtures:
+            self.assertEqual(store.run(lambda db: db.get(name, owner, key)), payload)
 
     def test_replay_checks_actual_schema_and_job_checksum(self):
         migrator = self.migration('replay')

@@ -16,6 +16,7 @@ from contracts.validation import validate
 from api.errors import ServiceError
 from api.auth import Auth, AuthSettings, cookies, SESSION_COOKIE
 from api.programs import Programs
+from api.workouts import Workouts, OPERATIONS as WORKOUT_OPERATIONS
 
 from contracts.canonical import MAX_BYTES, canonical_bytes, parse_request
 
@@ -153,12 +154,12 @@ def _response(status, value, trace_id):
     }
 
 
-def _error(code, trace_id, *, reason=None):
+def _error(code, trace_id, *, reason=None, receipt=None):
     rule = ERRORS[code]
     return _response(rule['http_status'], {'error': {
         'code': code, 'message': AUTH_FAILURES.get(reason, MESSAGES.get(code, 'Запрос отклонён. Проверь действие и повтори.')), 'trace_id': trace_id,
         'retryable': rule['retryable'], 'action': rule['action'],
-        'retry_after_seconds': None, 'field_errors': [], 'receipt': None,
+        'retry_after_seconds': None, 'field_errors': [], 'receipt': receipt,
     }}, trace_id)
 
 
@@ -220,6 +221,12 @@ def dispatch(request, route, trace_id):
                 raise RequestError()
             value[name] = path_value
     try:
+        if operation == 'submit_operation' and type(value.get('schema_version')) is int and value['schema_version'] != 1:
+            raise RequestError('upgrade_required')
+        if operation in {'list_workouts', 'get_changes'} and 'limit' in value and request.method == 'GET':
+            if not re.fullmatch(r'[0-9]{1,3}', value['limit']):
+                raise RequestError()
+            value['limit'] = int(value['limit'])
         validate(route['input'], value)
     except (ValidationError, ValueError):
         raise RequestError('invalid_request') from None
@@ -233,9 +240,10 @@ def dispatch(request, route, trace_id):
         return response
     if operation == 'auth_session':
         result = auth.session(token)
-    elif operation in PROGRAM_OPERATIONS:
+    elif operation in PROGRAM_OPERATIONS or operation in WORKOUT_OPERATIONS:
         try:
-            result = Programs(auth).execute(operation, token, value)
+            service = Programs(auth) if operation in PROGRAM_OPERATIONS else Workouts(auth)
+            result = service.execute(operation, token, value)
         except (ValidationError, ValueError):
             raise RequestError('validation_failed') from None
     else:
@@ -266,7 +274,7 @@ def handler(event, context=None):
             else:
                 raise RequestError('not_found')
     except ServiceError as error:
-        response = _error(error.code, trace_id, reason=error.reason)
+        response = _error(error.code, trace_id, reason=error.reason, receipt=error.receipt)
     except Exception:
         # Не выводи исключение: оно может включать тело/credentials запроса.
         response = _error('unavailable', trace_id)

@@ -18,6 +18,9 @@ class AuthConfigurationTests(unittest.TestCase):
             self.assertNotIn('GYM_YANDEX_CLIENT_SECRET', payload['environment'])
             self.assertEqual(payload['secrets'][0]['environmentVariable'], 'GYM_YANDEX_CLIENT_SECRET')
             self.assertEqual(payload['secrets'][0]['versionId'], 'c' * 20)
+            evolved = {'migration': {'revision': '0003_workouts_sync'}}
+            self.assertEqual(configure_api(copy.deepcopy(source), evolved, staging_target), payload)
+            self.assertEqual(configure_api(copy.deepcopy(source), evolved, production_target), source)
             self.assertEqual(configure_api(copy.deepcopy(source), manifest, production_target), source)
             self.assertEqual(configure_api(copy.deepcopy(source), {'migration': {'revision': '0001_runtime_metadata'}}, staging_target), source)
 

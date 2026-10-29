@@ -16,7 +16,7 @@ from api.database import DatabaseSettings, create_engine, transaction
 from db.schema import SchemaMismatch, ensure_table, tables, verify_table, schema_version_table
 
 ROOT = Path(__file__).resolve().parent / 'migrations'
-REVISION = '0002_accounts_programs'
+REVISION = '0003_workouts_sync'
 
 
 class MigrationBusy(RuntimeError):
