@@ -26,15 +26,16 @@ class InterventionRequired(RuntimeError):
 
 
 class Cloud:
-    def __init__(self, token):
+    def __init__(self, token, *, target=target):
         self.token = token
+        self.target = target
 
     def json(self, url, payload=None):
-        if not any(url.startswith(host + '/') for host in (CONTROL, OPERATIONS, target.URL)):
-            raise ValueError('Endpoint вне согласованного staging')
+        if not any(url.startswith(host + '/') for host in (CONTROL, OPERATIONS, self.target.URL)):
+            raise ValueError('Endpoint вне выбранного окружения')
         request = Request(url, data=canonical_bytes(payload) if payload is not None else None,
                           headers={'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json'})
-        with build_opener(NoRedirect()).open(request, timeout=135 if url.startswith(target.URL + '/') else 30) as response:
+        with build_opener(NoRedirect()).open(request, timeout=135 if url.startswith(self.target.URL + '/') else 30) as response:
             raw = response.read(1024 * 1024 + 1)
         if len(raw) > 1024 * 1024:
             raise ValueError('Слишком большой административный ответ')
@@ -72,8 +73,8 @@ def read_manifest(token, release_id, expected_digest):
     return manifest
 
 
-def revision_payload(manifest, *, mode='worker'):
-    return {'containerId': target.CONTAINER, 'description': 'Gym staging migration release ' + manifest['release_id'],
+def revision_payload(manifest, *, mode='worker', target=target):
+    return {'containerId': target.CONTAINER, 'description': 'Gym ' + target.NAME + ' migration release ' + manifest['release_id'],
             'resources': {'memory': '536870912', 'cores': '1', 'coreFraction': '100'},
             'executionTimeout': '120s', 'concurrency': '1', 'serviceAccountId': target.MIGRATOR,
             'imageSpec': {'imageUrl': manifest['migration']['image'],
@@ -85,7 +86,7 @@ def revision_payload(manifest, *, mode='worker'):
 
 def matches(revision, expected):
     image = revision.get('image', {})
-    return (revision.get('status') == 'ACTIVE' and revision.get('containerId') == target.CONTAINER
+    return (revision.get('status') == 'ACTIVE' and revision.get('containerId') == expected['containerId']
             and image.get('imageDigest') == expected['imageSpec']['imageUrl'].split('@')[1]
             and image.get('environment') == expected['imageSpec']['environment']
             and not any(image.get(key) for key in ('command', 'args', 'workingDir'))
@@ -96,7 +97,7 @@ def matches(revision, expected):
             and not any(revision.get(key) for key in ('secrets', 'connectivity', 'mounts', 'storageMounts', 'asyncInvocationConfig')))
 
 
-def active_revision(cloud):
+def active_revision(cloud, *, target=target):
     container = cloud.json(CONTROL + '/containers/v1/containers/' + target.CONTAINER)
     if (container.get('folderId') != target.FOLDER or container.get('name') != 'gym-migrations'
             or container.get('labels', {}).get('gym-project') != 'gym'):
@@ -113,34 +114,51 @@ def active_revision(cloud):
     return active[0] if active else {}
 
 
-def deploy_worker(cloud, manifest, *, mode='worker'):
+def deploy_worker(cloud, manifest, *, mode='worker', target=target):
     check_manifest(manifest)
-    expected = revision_payload(manifest, mode=mode)
-    current = active_revision(cloud)
+    expected = revision_payload(manifest, mode=mode, target=target)
+    current = active_revision(cloud, target=target)
     if not matches(current, expected):
         # Не повторяй неидемпотентный POST при потере ответа.
         operation = cloud.json(CONTROL + '/containers/v1/revisions:deploy', expected)
         cloud.wait(operation)
-        current = active_revision(cloud)
+        current = active_revision(cloud, target=target)
         if not matches(current, expected):
             raise InterventionRequired('Фактическая конфигурация ревизии отличается')
     return current['id']
 
 
-def health(cloud, manifest, *, mode='worker'):
-    result = cloud.json(target.URL + '/health')
+def read_ready(call):
+    """Повторяй только безопасное чтение после переходного отказа, максимум 4 раза."""
+    for attempt in range(4):
+        try:
+            return call()
+        except HTTPError as error:
+            code = error.code
+            error.close()
+            if code not in {500, 502, 503, 504} or attempt == 3:
+                raise
+        except (URLError, TimeoutError, OSError):
+            if attempt == 3:
+                raise
+        time.sleep(3)
+
+
+def health(cloud, manifest, *, mode='worker', target=target):
+    result = read_ready(lambda: cloud.json(target.URL + '/health'))
     if (result.get('state') != 'ready' or result.get('release_id') != manifest['release_id']
             or result.get('mode') != mode or not re.fullmatch(r'[a-f0-9]{64}', result.get('checksum', ''))):
         raise ValueError('Health другого выпуска/режима')
     return result
 
 
-def run_steps(cloud, manifest):
-    ready = health(cloud, manifest)
+def run_steps(cloud, manifest, *, target=target):
+    ready = health(cloud, manifest, target=target)
     base = {'release_id': manifest['release_id'], 'checksum': ready['checksum'],
             'job_id': 'migration_' + manifest['release_id']}
     def call(operation):
-        return cloud.json(target.URL + '/v1/migrations', base | {'operation': operation})
+        request = lambda: cloud.json(target.URL + '/v1/migrations', base | {'operation': operation})
+        return read_ready(request) if operation == 'status' else request()
     def validate(result):
         if result.get('state') == 'not_found' and result.get('job_id') == base['job_id']:
             return
@@ -180,29 +198,29 @@ def run_steps(cloud, manifest):
     raise InterventionRequired('Лимит ограниченных шагов исчерпан')
 
 
-def execute(token, release_id, manifest_digest, *, bootstrap=False):
+def execute(token, release_id, manifest_digest, *, bootstrap=False, target=target):
     manifest = read_manifest(token, release_id, manifest_digest)
-    cloud = Cloud(token)
+    cloud = Cloud(token, target=target)
     if bootstrap:
         if os.environ.get('GITHUB_ACTIONS'):
             raise ValueError('Первоначальный bootstrap выполняет только оператор')
-        deploy_worker(cloud, manifest, mode='bootstrap')
-        ready = health(cloud, manifest, mode='bootstrap')
+        deploy_worker(cloud, manifest, mode='bootstrap', target=target)
+        ready = health(cloud, manifest, mode='bootstrap', target=target)
         result = cloud.json(target.URL + '/v1/migrations', {'operation': 'bootstrap',
                             'release_id': release_id, 'checksum': ready['checksum']})
         if (result.get('state') != 'ready' or result.get('checksum') != ready['checksum']
                 or result.get('revision') != manifest['migration']['revision']):
             raise InterventionRequired('Bootstrap не подтверждён; проверь облачный worker')
-    revision = deploy_worker(cloud, manifest)
+    revision = deploy_worker(cloud, manifest, target=target)
     if bootstrap:
         # Оператор подготавливает только служебные таблицы и обычный режим.
         # Прикладную additive-миграцию затем инициирует staging CI.
         return {'state': 'ready', 'release_id': release_id, 'checksum': ready['checksum'],
                 'revision': manifest['migration']['revision'], 'container_revision': revision,
-                'manifest_sha256': manifest_digest, 'environment': 'staging'}
-    result = run_steps(cloud, manifest)
+                'manifest_sha256': manifest_digest, 'environment': target.NAME}
+    result = run_steps(cloud, manifest, target=target)
     return result | {'container_revision': revision, 'manifest_sha256': manifest_digest,
-                     'main_sha': manifest['main_sha'], 'environment': 'staging'}
+                     'main_sha': manifest['main_sha'], 'environment': target.NAME}
 
 
 def main():
@@ -238,5 +256,6 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as error:
-        print('Миграции staging остановлены: ' + type(error).__name__)
+        detail = ': HTTP ' + str(error.code) if isinstance(error, HTTPError) else ''
+        print('Миграции staging остановлены: ' + type(error).__name__ + detail)
         raise SystemExit(1)

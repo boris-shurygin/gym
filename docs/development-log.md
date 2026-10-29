@@ -4,21 +4,22 @@
 
 | Поле | Значение |
 | --- | --- |
-| Активный этап | P04.3.2.2 — выкатка API/PWA/Gateway и smoke после миграций |
-| Состояние | Слит; CI PR/main и полный автоматический staging успешны, P04 завершён |
-| Локальная ветка | docs/autonomous-workflow — отдельное изменение процесса; рабочая ветка P04 сохранена |
+| Активный этап | P05 — ручное продвижение в стейбл и восстановление выпуска |
+| Состояние | В работе; автономная реализация/PR/CI/merge/staging разрешены; production-выпуск требует конкретного согласия |
+| Локальная ветка | feat/p05-production-promotion |
+| Режим и объём | Автономно: merge правил процесса, затем весь P05 до проверенного результата. P06 не входит; явного разрешения production-выпуска пока нет |
 | Изменение процесса | Автономный режим согласован 2026-10-29: полный цикл этапа/диапазона до staging без промежуточных подтверждений; правила/навыки обновлены и проверены локально |
-| Локальный базовый main | `f0b99d663917c6076585ebda2884f294bfb13532` — merge P04.3.2.2 |
-| Актуальность origin/main | Fetch/fast-forward 2026-10-28 подтвердил main/origin/main `f0b99d6`; локальные метаданные сохранены, коммитов в main не создавалось |
-| PR | [#15](https://github.com/boris-shurygin/gym/pull/15) слит с проверкой head `6010e99b6117269ab812234707acdb01ff787b3c`, merge `f0b99d663917c6076585ebda2884f294bfb13532` |
-| CI PR | [Web checks](https://github.com/boris-shurygin/gym/actions/runs/40764190068) и [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40764189907) успешны для head `6010e99`; browser/OIDC/ручные сборки штатно пропущены |
-| CI сборки | Доверенный Linux build в [Staging release](https://github.com/boris-shurygin/gym/actions/runs/40765558574) успешен на main `f0b99d6`; готовые пакеты опубликованы и развёрнуты без пересборки |
-| CI после merge | [Web checks](https://github.com/boris-shurygin/gym/actions/runs/40764378551) attempt 2, [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40764378660) и [Staging release](https://github.com/boris-shurygin/gym/actions/runs/40765558574) успешны. Первый staging run остановился до задания миграций; диагноз/повтор описаны ниже |
+| Локальный базовый main | `9a16a2f02a77f5227aa96046d5b0fa26f7d525b1` — merge правил автономной работы #16 |
+| Актуальность origin/main | Fetch/fast-forward 2026-10-29 подтвердил main/origin/main `9a16a2f`; текущая ветка P05 создана от него |
+| PR | P05 ещё не опубликован; предыдущий [#16](https://github.com/boris-shurygin/gym/pull/16) слит, merge `9a16a2f02a77f5227aa96046d5b0fa26f7d525b1` |
+| CI PR | Для #16 [Web checks](https://github.com/boris-shurygin/gym/actions/runs/40851622796) и [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40851622903) успешны; CI P05 ожидает публикации |
+| CI сборки | Доверенный Linux build в [Staging release](https://github.com/boris-shurygin/gym/actions/runs/40852028322) успешен на main `9a16a2f`; готовые пакеты опубликованы и развёрнуты без пересборки |
+| CI после merge | [Web checks](https://github.com/boris-shurygin/gym/actions/runs/40851937491), [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40851937578) и полный [Staging release](https://github.com/boris-shurygin/gym/actions/runs/40852028322) успешны на main `9a16a2f` с первого запуска |
 | Реальная проверка OIDC | Cloud access — базовый staging oidc; Staging release — publisher main-ref и отдельные staging Environment OIDC для migrations/deploy, все успешны. Production OIDC не запускался |
-| Выпуск артефактов | `f0b99d663917c6076585ebda2884f294bfb13532_40765558574_1`; manifest SHA-256 `b490d98fb95a2af6e7d34dc74bcf08ac81eb80e404b58d28879ffbd1632f7874`, все 8 файлов независимо проверены |
-| Престейбл | [HTTPS-приложение](https://d5d734k3s76t42pa5rtn.764nr5vy.apigw.yandexcloud.net/), API `d4en1ufog34uv21nksqu`, purpose staging-release, main `f0b99d6`; CI deploy/smoke и независимая сверка успешны. Worker `bbaa9ovna0ullqib0cch`, schema 0001_runtime_metadata, succeeded/generation 2; 5 служебных таблиц |
+| Выпуск артефактов | `9a16a2f02a77f5227aa96046d5b0fa26f7d525b1_40852028322_1`; manifest SHA-256 `6e1e369063bee94f6c68a4bda3efa307803eb12ef0cf285d57a210818af3cac9` |
+| Престейбл | [HTTPS-приложение](https://d5d734k3s76t42pa5rtn.764nr5vy.apigw.yandexcloud.net/), API `d4ep9qaidlmsvg2q59qd`, purpose staging-release, main `9a16a2f`; CI deploy/smoke успешны, публичная идентичность подтверждена |
 | Стейбл | Пустые ресурсы и gate GitHub созданы; приложения/выпуска нет |
-| Следующее действие | P04 завершён; P05 — ручное продвижение в стейбл и восстановление — по отдельной команде. Production не запускался |
+| Следующее действие | Завершить проверки/репетицию P05, получить конкретное согласие на production IAM/ACL/bootstrap и первый выпуск, затем выполнить разрешённые PR/CI/merge и облачные проверки |
 
 ## Выполнено в P00
 
@@ -703,3 +704,19 @@ Fetch подтвердил origin/main `f0b99d663917c6076585ebda2884f294bfb13532
 Пользователь запросил коммит/merge последних изменений, затем P05 полностью. Разрешённый объём: сначала PR правил автономной работы с ожиданием CI/merge и проверкой staging; затем реализация всего P05, проверки, PR/CI/merge и staging без промежуточных разговорных подтверждений. Явного разрешения на фактический выпуск в production в запросе нет; подготовка процесса и независимые проверки выполняются, конкретный необходимый выпуск/новые права предъявляются после подготовки проверяемого результата. P06 и последующие этапы в разрешение не входят.
 
 Fetch подтвердил main `f0b99d6`, открытых PR нет. Перед коммитом повторно успешны штатная проверка четырёх навыков, YAML-метаданные, 52 Markdown/287 ссылок и `git diff --check`. Исходные постфактум-записи P04 сохранены. Изменения приложения и облачных ресурсов в PR процесса не входят.
+
+Правила опубликованы коммитом `2ab57031c66eee6e864e198f16aefbdbe9c1ec60`, PR #16. Web checks `40851622796` и Cloud access `40851622903` успешны; обязательные jobs прошли, browser/OIDC/ручные сборки штатно пропущены. Перед merge подтверждены head/base, отсутствие Draft/конфликтов и пустые reviews/threads. Обычный merge с expected head успешен: `9a16a2f02a77f5227aa96046d5b0fa26f7d525b1`. Локальный main обновлён fast-forward, ветки сохранены.
+
+Push Web checks `40851937491`, Cloud access `40851937578` и полный Staging release `40852028322` успешны с первого запуска. Release `9a16a2f02a77f5227aa96046d5b0fa26f7d525b1_40852028322_1`, manifest SHA-256 `6e1e369063bee94f6c68a4bda3efa307803eb12ef0cf285d57a210818af3cac9`, API `d4ep9qaidlmsvg2q59qd`, Gateway SHA-256 `472fe6ca510ef86a85278861e9d3fceaec03061a2326528bb23466d74c46d983`. Квитанция CI и публичная идентичность staging совпали. После этого создана ветка P05 от проверенного main; формальных подпунктов/промежуточных подтверждений нет.
+
+### 2026-10-29 — реализация P05
+
+Подготовлены фиксированные production-цели из read-only инвентаризации, общий оркестратор окружений, ручной workflow, допуск кандидата по полному staging run/attempt и приватной квитанции, отдельный план IAM/ACL и bootstrap оператора. Повтор/rollback сохраняют историю намерений и успешных операций, совместимый rollback не меняет worker/схему. Только безопасные readiness/status-чтения получают ограниченный повтор, HTTP-коды ошибок сохраняются без сырых ответов. Детали и точный объём прав — в [production-release.md](../infra/production-release.md).
+
+Изменения IAM/ACL, bootstrap и выпуск production пока не выполнялись. Все права готовятся как конкретный проверяемый план; существующие данные и конфигурации production не меняются до согласия. Реализация, независимые проверки и репетиция на синтетическом staging продолжаются в разрешённом объёме.
+
+Пройдены **179 локальных Python-тестов**: 49 API, 3 упаковки, 14 контрактов, 22 инфраструктуры, 91 release (22 новых). Проверены допуск точного run/attempt и OIDC, отказ чужого/неполного staging, условные политики, запрет прямой YDB-роли CI, read-only план IAM, остановка частичного чужого job, продолжение того же job, отсутствие миграций при rollback, отсутствие успеха после ошибки и повтор с исходным intent. Генерация контрактов и `pip check` успешны, структура dispatch-only workflow/Environment/OIDC/inputs проверена, 11 сценариев browser-фильтра прошли.
+
+Реальная staging-репетиция выполнила продвижение/повтор `9a16a2f…_40852028322_1`, откат/повтор к `f0b99d6…_40765558574_1` и восстановление исходного staging. Никаких новых ревизий worker или API не создавалось, схема/DDL не менялись; rollback выполнил один PATCH Gateway, повтор не изменил control plane. Все HTTP smoke успешны. Delivery-байты после чтения кэшировались в памяти диагностического процесса, состояние окружения читалось заново. Первую затянувшуюся репетицию остановили до изменения Gateway; повтор с выводом фаз и кэшем завершён. Свидетельство `.local/p05-staging-rehearsal.json` complete/restored_original. Production не затрагивался.
+
+Read-only план production подтвердил 11 недостающих точечных IAM-привязок, политики/4 IAM-привязки трёх бакетов и ACL мигратора только production YDB. Ресурсы/аккаунты соответствуют первоначально созданным. Проверка пустого Gateway выявила только добавленное YC поле servers с точным production-origin; известная нормализация включена в строгую проверку и регрессионный тест, чужой origin отклоняется. Запрошено одно конкретное согласие на план прав, служебный bootstrap и первый проверенный production-release `9a16a2f02a77f5227aa96046d5b0fa26f7d525b1_40852028322_1`; ответ ожидается. Разрешённая подготовка PR/CI/merge/staging продолжается без ожидания ответа.

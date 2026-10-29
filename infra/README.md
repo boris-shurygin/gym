@@ -1,6 +1,6 @@
 # Первоначальная настройка Yandex Cloud
 
-Состояние на 2026-10-28: инфраструктура создана в облаке `b1ghmudqihbvpnscd2fq` организации `organization-b-shurygin` (`bpf0t8ve1h1ckdn59bot`). Оплата активна. Синтетическое приложение опубликовано оператором на staging, первый автоматический deploy проверяется после merge P04.3.2.2. Production остаётся P05. Схема — в [ADR-0013](../docs/adr/0013-release-artifacts-and-migration-worker.md) и [проекте развёртывания](../docs/deployment-design.md).
+Состояние на 2026-10-29: инфраструктура создана в облаке `b1ghmudqihbvpnscd2fq` организации `organization-b-shurygin` (`bpf0t8ve1h1ckdn59bot`). Оплата активна. Полный автоматический staging P04 проверен; [production-процесс P05](production-release.md) в работе, права/bootstrap/первый выпуск ожидают конкретного согласия. Схема — в [ADR-0013](../docs/adr/0013-release-artifacts-and-migration-worker.md) и [проекте развёртывания](../docs/deployment-design.md).
 
 ## Конфигурация и запуск
 

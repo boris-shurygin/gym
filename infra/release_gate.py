@@ -102,7 +102,7 @@ def validate_publisher_claims(claims, context, *, staging=False):
         raise ValueError('OIDC не соответствует проверенному run/source SHA')
 
 
-def _workload_token(context, *, staging=False):
+def exchange_token(account, validate_claims):
     url = os.environ['ACTIONS_ID_TOKEN_REQUEST_URL']
     parsed = urllib.parse.urlsplit(url)
     if (parsed.scheme != 'https' or not (parsed.hostname or '').endswith('.actions.githubusercontent.com')
@@ -115,15 +115,20 @@ def _workload_token(context, *, staging=False):
     if len(parts) != 3:
         raise ValueError('Некорректный JWT')
     claims = json.loads(base64.urlsafe_b64decode(parts[1] + '=' * (-len(parts[1]) % 4)))
-    validate_publisher_claims(claims, context, staging=staging)
+    validate_claims(claims)
     # Локальные проверки ловят ошибку контекста; подпись JWT проверяет YC/JWKS.
     result = request_json('https://auth.yandex.cloud/oauth/token',
         headers={'Content-Type': 'application/x-www-form-urlencoded'},
         data=urllib.parse.urlencode({'grant_type': 'urn:ietf:params:oauth:grant-type:token-exchange',
             'requested_token_type': 'urn:ietf:params:oauth:token-type:access_token',
-            'audience': 'aje1ia9cf3t1g7o5p6pg' if staging else PUBLISHER,
+            'audience': account,
             'subject_token': jwt, 'subject_token_type': 'urn:ietf:params:oauth:token-type:id_token'}).encode())
     return result['access_token']
+
+
+def _workload_token(context, *, staging=False):
+    return exchange_token('aje1ia9cf3t1g7o5p6pg' if staging else PUBLISHER,
+        lambda claims: validate_publisher_claims(claims, context, staging=staging))
 
 
 def publisher_token(context):

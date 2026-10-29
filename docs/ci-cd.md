@@ -1,6 +1,6 @@
 # CI/CD и миграции схемы YDB
 
-**Статус: архитектура CI/CD принята (ADR-0011/0013), доверенная публикация и миграции main проверены; выкатка приложения P04.3.2.2 на проверке.** Обновлено 2026-10-28. API/PWA/Gateway и smoke проверены оператором на staging; первый автоматический `deploy` проверяется после merge. Production, окно совместимости и оставшаяся наблюдаемость требуют реализации/проверки.
+**Статус: архитектура CI/CD принята (ADR-0011/0013), полный автоматический staging main проверен; production-процесс P05 в работе.** Обновлено 2026-10-29. Публикация, миграции, API/PWA/Gateway и smoke подтверждены в CI. Production-права/bootstrap/первый выпуск ожидают конкретного согласия; окно совместимости и оставшаяся наблюдаемость требуют проверки.
 
 Детализация ниже добавлена для этапа P01 [плана работ](development-plan.md). **Престейбл = staging, стейбл = production.** Пользователь согласовал схему и запросил первоначальную настройку (P01.1); фактические ресурсы и команды — в [infra/README.md](../infra/README.md).
 
@@ -25,6 +25,8 @@ CI P03.2.2 подтверждён на PR #9 и main после merge. P04 ра�
 P04.3.2.2 добавляет job `deploy` после `migrations`: проверка того же выпуска/статуса схемы, приватная версия API с уникальным тегом, условная загрузка готовой PWA, переключение Gateway и HTTPS smoke. [Права и операторская проверка приложения](../infra/staging-app.md) успешны, включая offline и повтор без изменения ресурсов. Первый автоматический deploy нового main остаётся проверкой после merge. Статус смотри в GitHub Actions → **Staging release** → `deploy`, URL и выпуск — в Summary, квитанцию — в artifact `staging-deployment`.
 
 ## Деплой из GitHub Actions в Yandex Cloud
+
+В P05 подготовлен ручной [Production release](../.github/workflows/deploy-production.yml): preflight без облачных прав, защищённый job Environment production, отдельный OIDC CI и продвижение тех же пакетов без пересборки. Допуск проверяет точный успешный staging run/attempt, приватную квитанцию и хеши; повтор и совместимый откат API/PWA не выполняют downgrade БД. Точечные права, bootstrap, команды и границы восстановления — в [регламенте production](../infra/production-release.md). Фактические облачные проверки не подменяются наличием workflow.
 
 Автоматический деплой поддерживается: у Yandex есть [руководство по GitHub Actions и Cloud Functions](https://yandex.cloud/ru/docs/tutorials/serverless/ci-cd-github-functions). Для доступа без постоянного авторизованного ключа подходит [Workload Identity Federation](https://yandex.cloud/ru/docs/iam/operations/wlif/setup-wlif): OIDC-токен задания обменивается на IAM-токен сервисного аккаунта.
 
