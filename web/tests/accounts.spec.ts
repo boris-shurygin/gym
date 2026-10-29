@@ -85,6 +85,8 @@ test('смена аккаунта закрывает старый профиль
   await page.goto('/');
   await page.getByRole('button', { name: /План alice/ }).click();
   await page.getByRole('button', { name: 'Начать тренировку', exact: true }).click();
+  // Дождись фиксации занятия в IndexedDB до смены аккаунта и перезагрузки.
+  await expect(page.getByRole('button', { name: /Жим лёжа/ })).toBeVisible();
   owner.value = 'bob';
   await page.reload();
   await expect(page.getByText('Выполнен вход в другой аккаунт.', { exact: false })).toBeVisible();
@@ -92,6 +94,7 @@ test('смена аккаунта закрывает старый профиль
   await page.getByRole('button', { name: 'Открыть отдельный профиль' }).click();
   await expect(page.getByRole('button', { name: /План bob/ })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Продолжить тренировку' })).toHaveCount(0);
+  await page.getByText('Управление аккаунтом', { exact: true }).click();
   await page.getByRole('button', { name: 'Скрыть данные на устройстве' }).click();
   await page.reload();
   await expect(page.getByRole('button', { name: /План bob/ })).toHaveCount(0);
