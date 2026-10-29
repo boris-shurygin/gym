@@ -3,6 +3,7 @@ from unittest.mock import Mock,patch
 
 from infra import production_access as access,production_target as p,staging_target as s,delivery_access as delivery
 from infra.staging_app_access import web_policy
+from infra import storage_operations
 
 
 class FakeYc:
@@ -64,6 +65,19 @@ class AccessPlanTests(unittest.TestCase):
     def test_ci_direct_ydb_role_is_rejected_even_when_api_roles_are_missing(self):
         self.yc.extra_database_ci=True
         with self.assertRaises(ValueError): access.plan(self.yc)
+
+    def test_async_iam_completion_is_polled_without_reposting_binding(self):
+        yc=Mock()
+        yc.run.side_effect=[{'id':'operation1','done':False},{'id':'operation1','done':True}]
+        with patch.object(storage_operations.time,'sleep'):
+            access.wait_bucket(yc,{'id':'operation1','done':False})
+        self.assertEqual(yc.run.call_count,2)
+        self.assertTrue(all(call.args[:3]==('operation','get','operation1') for call in yc.run.call_args_list))
+        self.assertTrue(all(call.args[-1]=='operation.api.cloud.yandex.net:443' for call in yc.run.call_args_list))
+
+    def test_failed_iam_operation_is_not_treated_as_completed(self):
+        with self.assertRaises(ValueError):
+            access.wait_bucket(Mock(),{'id':'operation1','done':True,'error':{'code':7}})
 
 
 if __name__=='__main__': unittest.main()

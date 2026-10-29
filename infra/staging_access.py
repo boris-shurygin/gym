@@ -10,6 +10,7 @@ from infra import delivery_access as delivery
 from infra import staging_target as target
 from infra.migration_container import cloud
 from infra.ydb_access import Yc
+from infra.storage_operations import wait as wait_bucket
 
 
 EDITOR = 'serverless-containers.editor'
@@ -73,10 +74,7 @@ def apply(yc):
     if changes['add_delivery_reader']:
         operation = delivery.bucket_api(yc, 'updateAccessBindings', {'accessBindingDeltas': [
             {'action': 'ADD', 'accessBinding': {'roleId': READER, 'subject': {'id': target.CI, 'type': 'serviceAccount'}}}]})
-        if not operation.get('done'):
-            operation = yc.run('operation', 'get', operation['id'], '--endpoint', 'storage.api.cloud.yandex.net:443')
-        if not operation.get('done') or operation.get('error'):
-            raise RuntimeError('Проверь фактическую привязку IAM бакета перед повтором')
+        wait_bucket(yc, operation)
     if changes['add_migrator_user']:
         yc.run('iam', 'service-account', 'add-access-binding', target.MIGRATOR,
                '--role', ACT_AS, '--service-account-id', target.CI)

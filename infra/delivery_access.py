@@ -9,6 +9,7 @@ from urllib.request import Request, build_opener
 
 from infra.object_store import NoRedirect
 from infra.ydb_access import Yc
+from infra.storage_operations import wait as wait_bucket
 
 
 BUCKET = 'gym-delivery-b1ghmudqihbvpnscd2fq'
@@ -132,10 +133,7 @@ def apply(yc):
         operation = bucket_api(yc, 'updateAccessBindings', {'accessBindingDeltas': [
             {'action': 'ADD', 'accessBinding': {'roleId': UPLOADER,
                 'subject': {'id': PUBLISHER, 'type': 'serviceAccount'}}}]})
-        if not operation.get('done'):
-            operation = yc.run('operation', 'get', operation['id'], '--endpoint', 'storage.api.cloud.yandex.net:443')
-        if not operation.get('done') or operation.get('error'):
-            raise RuntimeError('Операция IAM бакета не подтверждена; проверь фактические привязки')
+        wait_bucket(yc, operation)
     if changes['add_repository_binding']:
         yc.run('container', 'repository', 'add-access-binding', REPOSITORY,
                '--role', PUSHER, '--service-account-id', PUBLISHER)

@@ -12,6 +12,7 @@ from infra.delivery_access import OPERATOR
 from infra.migration_container import cloud
 from infra.object_store import NoRedirect
 from infra.ydb_access import Yc
+from infra.storage_operations import wait as wait_bucket
 
 
 BINDINGS = [
@@ -115,9 +116,7 @@ def apply(yc):
     if actual not in (web_policy(), web_policy(production_reader=True)): raise ValueError('Ограничивающая политика не подтверждена')
     for binding in changes['bucket_bindings']:
         operation = bucket_api(yc, 'updateAccessBindings', {'accessBindingDeltas': [{'action': 'ADD', 'accessBinding': binding}]})
-        if not operation.get('done'):
-            operation = yc.run('operation', 'get', operation['id'], '--endpoint', 'storage.api.cloud.yandex.net:443')
-        if not operation.get('done') or operation.get('error'): raise RuntimeError('Проверь фактические IAM-привязки бакета')
+        wait_bucket(yc, operation)
     for binding in changes['bindings']:
         args = [*binding['group'], 'add-access-binding']
         args += [binding['resource']] if args[0] == 'iam' else ['--id', binding['resource']]
