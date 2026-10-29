@@ -65,6 +65,12 @@ class FunctionTests(unittest.TestCase):
             with self.subTest(method=method, path=path):
                 self.check_error(handler(event(method, path)), 404, 'not_found')
 
+    def test_query_container_must_be_mapping_even_when_empty(self):
+        for field in ('queryStringParameters', 'multiValueQueryStringParameters'):
+            for value in ([], '', False):
+                with self.subTest(field=field, value=value):
+                    self.check_error(handler(event(**{field: value})), 400, 'invalid_request')
+
     def test_oauth_and_mcp_do_not_create_fake_accounts(self):
         for path in ['/mcp', '/oauth/token', '/.well-known/oauth-protected-resource/mcp']:
             self.check_error(handler(event('POST', path)), 503, 'unavailable')

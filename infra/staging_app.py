@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 import time
 from urllib.error import HTTPError
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urlsplit, urlencode
 from urllib.request import Request, build_opener
 
 from contracts.canonical import canonical_bytes, parse_request
@@ -234,6 +234,19 @@ def auth_smoke(manifest, *, target=target):
             or not all(flag in binder for flag in ('Path=/', 'Secure', 'HttpOnly', 'SameSite=Lax', 'Max-Age=300'))
             or 'domain=' in binder.lower()):
         raise InterventionRequired('Начало Яндекс ID/PKCE/cookie через Gateway не подтверждено')
+    # Реальный callback с собственной привязкой и расширениями провайдера:
+    # отмена не вызывает внешний обмен, но должна одноразово потребить state.
+    cancel = target.ORIGIN + '/auth/callback/yandex?' + urlencode({
+        'state': query['state'][0], 'error': 'access_denied',
+        'error_description': 'readiness-probe', 'cid': 'readiness-probe'})
+    cookie_header = {'Cookie': binder.split(';', 1)[0]}
+    for expected_message in ('Яндекс не подтвердил вход.', 'Вход устарел или начат в другом браузере.'):
+        code, response_headers, body = raw_request(cancel, headers=cookie_header)
+        error = parse_request(body).get('error', {})
+        if (code != 400 or error.get('code') != 'invalid_request'
+                or not error.get('message', '').startswith(expected_message)
+                or response_headers.get('Cache-Control') != 'no-store'):
+            raise InterventionRequired('Callback с расширениями/одноразовая привязка не подтверждены')
     # Валидная по форме, но случайная cookie заставляет runtime прочитать YDB.
     # Liveness и заведомо некорректная cookie такой проверки не обеспечивают.
     import secrets

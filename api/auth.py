@@ -100,7 +100,7 @@ class YandexProvider:
             if (identity.get('client_id') != self.settings.client_id
                     or not isinstance(identity.get('id'), str)
                     or not re.fullmatch(r'[0-9]{1,64}', identity['id'])):
-                raise ServiceError('invalid_request')
+                raise ServiceError('invalid_request', reason='provider_identity_invalid')
             # Ни профиль, ни токен провайдера не сохраняются и не логируются.
             return identity['id']
         except ServiceError:
@@ -149,13 +149,13 @@ class Auth:
         binder = cookies(header).get(LOGIN_COOKIE)
         state = query.get('state', '')
         if not binder or not re.fullmatch(r'[A-Za-z0-9_-]{32,256}', state):
-            raise ServiceError('invalid_request')
+            raise ServiceError('invalid_request', reason='login_binding_invalid')
         now = int(self.now())
         def claim(db):
             row = db.get('login_transactions', 'login', digest(state))
             if (not row or row['expires'] <= now or row.get('consumed')
                     or not hmac.compare_digest(row['binder'], digest(binder))):
-                raise ServiceError('invalid_request')
+                raise ServiceError('invalid_request', reason='login_binding_invalid')
             row['consumed'] = True
             claimed = {key: value for key, value in row.items() if key != 'verifier'}
             db.put('login_transactions', 'login', digest(state), claimed)
@@ -163,7 +163,7 @@ class Auth:
         # Claim фиксируется до внешнего обмена. Потеря ответа => новый вход.
         row = self.store.run(claim)
         if 'error' in query:
-            raise ServiceError('invalid_request')
+            raise ServiceError('invalid_request', reason='provider_login_denied')
         subject = self.provider.identity(query['code'], row['verifier'])
         subject_key = digest('yandex:' + subject)
         token = secrets.token_urlsafe(32)

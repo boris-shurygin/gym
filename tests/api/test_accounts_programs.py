@@ -222,6 +222,32 @@ class ApplicationCases:
         self.assertNotIn('Domain=', headers[0])
         self.error('session_required', lambda: cookies(f'{SESSION_COOKIE}={self.alice};{SESSION_COOKIE}={self.bob}'))
 
+    def test_http_callback_ignores_provider_metadata_but_checks_security_fields(self):
+        self.provider.identity.return_value = '101'
+        def callback(query, binder):
+            return handler({'httpMethod': 'GET', 'path': '/auth/callback/yandex',
+                'headers': {'Cookie': binder}, 'multiValueQueryStringParameters': query})
+        with patch('api.handler.application', return_value=self.auth):
+            state, binder = self.begin()
+            response = callback({'state': [state], 'code': ['synthetic-code'],
+                'cid': ['provider-correlation'], 'extension': ['ignored'], 'expected_owner_id': ['bob']}, binder)
+            self.assertEqual(response['statusCode'], 302)
+            token = response['multiValueHeaders']['Set-Cookie'][-1].split(';')[0].split('=', 1)[1]
+            self.assertEqual(self.auth.session(token)['user_id'], 'alice')
+            self.assertEqual(callback({'state': [state], 'code': ['synthetic-code'], 'cid': ['x']}, binder)['statusCode'], 400)
+            state, binder = self.begin()
+            self.assertEqual(callback({'state': [state], 'code': ['one', 'two'], 'cid': ['x']}, binder)['statusCode'], 400)
+            self.assertEqual(callback({'code': ['synthetic-code'], 'cid': ['x']}, binder)['statusCode'], 400)
+            self.assertEqual(callback({'state': [state], 'code': ['synthetic-code'], 'error': ['access_denied']}, binder)['statusCode'], 400)
+            self.assertFalse(self.store.run(lambda db: db.get('login_transactions', 'login', digest(state))).get('consumed'))
+            self.provider.identity.reset_mock()
+            response = callback({'state': [state], 'error': ['access_denied'],
+                'error_description': ['PRIVATE PROVIDER TEXT'], 'cid': ['x']}, binder)
+            self.assertEqual(response['statusCode'], 400)
+            self.assertNotIn('PRIVATE PROVIDER TEXT', response['body'])
+            self.provider.identity.assert_not_called()
+            self.assertTrue(self.store.run(lambda db: db.get('login_transactions', 'login', digest(state)))['consumed'])
+
 
 class AccountsProgramsTests(ApplicationCases, unittest.TestCase):
     def setUp(self):

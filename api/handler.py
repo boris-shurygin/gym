@@ -33,6 +33,11 @@ MESSAGES = {
     'account_disabled': 'Доступ к аккаунту закрыт. Локальные записи сохранены.',
     'csrf_failed': 'Проверка действия не пройдена. Обнови сессию.',
 }
+AUTH_FAILURES = {
+    'login_binding_invalid': 'Вход устарел или начат в другом браузере. Начни вход заново в этом браузере.',
+    'provider_identity_invalid': 'Ответ Яндекса не соответствует приложению Gym. Вход не выполнен.',
+    'provider_login_denied': 'Яндекс не подтвердил вход. Начни вход заново и проверь разрешение доступа.',
+}
 SENSITIVE_HEADERS = {'authorization', 'cookie', 'origin', 'x-csrf-token'}
 PATTERNS = [
     (route, re.compile(re.sub(r'\{[a-z_]+\}', r'[A-Za-z0-9_-]+', route['path'])))
@@ -41,9 +46,8 @@ PATTERNS = [
 
 
 class RequestError(ServiceError):
-    def __init__(self, code='invalid_request'):
-        self.code = code
-        super().__init__(code)
+    def __init__(self, code='invalid_request', *, reason=None):
+        super().__init__(code, reason=reason)
 
 
 @dataclass(frozen=True)
@@ -109,7 +113,9 @@ class Request:
             raise RequestError('payload_too_large')
         query = {}
         for field, multiple in [('queryStringParameters', False), ('multiValueQueryStringParameters', True)]:
-            source = event.get(field) or {}
+            source = event.get(field)
+            if source is None:
+                source = {}
             if not isinstance(source, dict):
                 raise RequestError()
             for key, value in source.items():
@@ -147,10 +153,10 @@ def _response(status, value, trace_id):
     }
 
 
-def _error(code, trace_id):
+def _error(code, trace_id, *, reason=None):
     rule = ERRORS[code]
     return _response(rule['http_status'], {'error': {
-        'code': code, 'message': MESSAGES.get(code, 'Запрос отклонён. Проверь действие и повтори.'), 'trace_id': trace_id,
+        'code': code, 'message': AUTH_FAILURES.get(reason, MESSAGES.get(code, 'Запрос отклонён. Проверь действие и повтори.')), 'trace_id': trace_id,
         'retryable': rule['retryable'], 'action': rule['action'],
         'retry_after_seconds': None, 'field_errors': [], 'receipt': None,
     }}, trace_id)
@@ -194,6 +200,12 @@ def dispatch(request, route, trace_id):
         if request.body:
             raise RequestError()
         value = dict(request.query)
+        if operation == 'auth_callback':
+            # OAuth 2.0, RFC 6749 §4.1.2: игнорируй дополнительные параметры
+            # внешнего провайдера (cid/error_description и расширения).
+            # Внутренний DTO остаётся закрытым. Повторяющиеся параметры уже
+            # отклонены в Request.from_event; state/binder/PKCE обязательны.
+            value = {key: item for key, item in value.items() if key in {'state', 'code', 'error'}}
     else:
         if request.query:
             raise RequestError()
@@ -254,7 +266,7 @@ def handler(event, context=None):
             else:
                 raise RequestError('not_found')
     except ServiceError as error:
-        response = _error(error.code, trace_id)
+        response = _error(error.code, trace_id, reason=error.reason)
     except Exception:
         # Не выводи исключение: оно может включать тело/credentials запроса.
         response = _error('unavailable', trace_id)

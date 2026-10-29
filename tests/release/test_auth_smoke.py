@@ -14,11 +14,13 @@ class AuthSmokeTests(unittest.TestCase):
         headers = {'Location': location, 'Cache-Control': 'no-store',
             'Set-Cookie': '__Host-gym_login=' + 'b' * 43 + '; Path=/; Max-Age=300; Secure; HttpOnly; SameSite=Lax'}
         responses = [(302, headers, b''),
+            (400, {'Cache-Control': 'no-store'}, '{"error":{"code":"invalid_request","message":"Яндекс не подтвердил вход."}}'.encode()),
+            (400, {'Cache-Control': 'no-store'}, '{"error":{"code":"invalid_request","message":"Вход устарел или начат в другом браузере."}}'.encode()),
             (401, {'Cache-Control': 'no-store'}, b'{"error":{"code":"session_required"}}'),
             (400, {'Cache-Control': 'no-store'}, b'{"error":{"code":"invalid_request"}}')]
         with patch.object(app, 'configure_api', return_value=config), patch.object(app, 'raw_request', side_effect=responses) as transport:
             app.auth_smoke({})
-            self.assertEqual(transport.call_count, 3)
+            self.assertEqual(transport.call_count, 5)
             self.assertTrue(all(call.args[0].startswith(target.ORIGIN + '/auth/') for call in transport.call_args_list))
         for changed in (headers | {'Set-Cookie': headers['Set-Cookie'] + '; Domain=example.org'},
                         headers | {'Location': location.replace('S256', 'plain')}):
