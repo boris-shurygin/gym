@@ -5,23 +5,29 @@
 | Поле | Значение |
 | --- | --- |
 | Активный этап | P06 — аккаунты, права доступа и версии программ |
-| Состояние | В работе; P05 завершён, сведения о его выпуске ниже сохранены |
-| Локальная ветка | feat/p06-accounts-programs от main f3796a2; исходные метаданные P05 сохранены |
+| Состояние | Основа P06 слита и проверена на staging; включение OAuth ждёт точного согласия IAM/ACL и приёмки входа |
+| Локальная ветка | feat/p06-staging-identity от main 9deafac; метаданные и разрешение автономного P06 сохранены |
 | Режим и объём | Пользователь: «Сделай P06 полностью». Автономно весь P06 до PR, успешного CI, merge и проверенного staging. P07 и production не входят |
 | Изменение процесса | Правила автономной работы слиты в #16 и проверены полным staging |
-| Локальный базовый main | `f3796a2b2d7b93271ecce559d2dc45075b69a7f7` — merge исправления P05 #18 |
-| Актуальность origin/main | Fetch/fast-forward 2026-10-29 подтвердил main/origin/main `f3796a2`; постфактум-метаданные сохранены, коммитов в main нет |
-| PR | [Draft #19](https://github.com/boris-shurygin/gym/pull/19), feat/p06-accounts-programs; основной коммит `9e2715b`. P05 #17/#18 слиты ранее |
-| CI PR | Первый [Web checks](https://github.com/boris-shurygin/gym/actions/runs/40873984577): API/Linux ZIP, contracts, web/browser успешны; новые прикладные YDB-сценарии прошли, миграции выявили запрет UPDATE PK таблицы Alembic. Исправление и повтор CI — текущая работа. [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40873984514) успешен без OIDC PR |
+| Локальный базовый main | `9deafac82fda28ea4581cbfee310fbefdac1fcc5` — merge основы P06 #19 |
+| Актуальность origin/main | Fetch/fast-forward 2026-10-29 подтвердил main/origin/main `9deafac`; постфактум-метаданные сохранены, коммитов в main нет |
+| PR | [#19](https://github.com/boris-shurygin/gym/pull/19) слит с проверенным head de9ecf1; merge 9deafac. Подключение OAuth — feat/p06-staging-identity |
+| CI PR | [Web checks 40875006538](https://github.com/boris-shurygin/gym/actions/runs/40875006538) и [Cloud access 40875006571](https://github.com/boris-shurygin/gym/actions/runs/40875006571) успешны на de9ecf1: contracts, API/Linux ZIP, web, browser, YDB и bootstrap. На YDB прошла 31 проверка, включая гонки callback/publication и переход от legacy-0001. Первый run выявил UPDATE PK Alembic; исправление подтверждено повторным CI |
 | CI сборки | Linux-пакеты `9a16a2f…_40852028322_1` продвинуты в production без пересборки; текущий main `f3796a2` отдельно прошёл доверенную сборку/staging |
-| CI после merge | [Web checks](https://github.com/boris-shurygin/gym/actions/runs/40863058121), [Cloud access](https://github.com/boris-shurygin/gym/actions/runs/40863058241) и полный [Staging release](https://github.com/boris-shurygin/gym/actions/runs/40863137641) успешны на main `f3796a2` |
+| CI после merge | [Web checks 40879305630](https://github.com/boris-shurygin/gym/actions/runs/40879305630), [Cloud access 40879305698](https://github.com/boris-shurygin/gym/actions/runs/40879305698) и полный [Staging release 40879482626](https://github.com/boris-shurygin/gym/actions/runs/40879482626) успешны на main 9deafac |
 | Реальная проверка OIDC | Staging publisher/migrations/deploy и production Environment OIDC в [Production release](https://github.com/boris-shurygin/gym/actions/runs/40863249879) успешны; постоянные облачные ключи не создавались |
 | Выпуск артефактов | `9a16a2f02a77f5227aa96046d5b0fa26f7d525b1_40852028322_1`; manifest SHA-256 `6e1e369063bee94f6c68a4bda3efa307803eb12ef0cf285d57a210818af3cac9` |
-| Престейбл | [HTTPS-приложение](https://d5d734k3s76t42pa5rtn.764nr5vy.apigw.yandexcloud.net/), main `f3796a2`, release `f3796a2…_40863137641_1`; полный CI deploy/smoke успешен |
+| Престейбл | [HTTPS-приложение](https://d5d734k3s76t42pa5rtn.764nr5vy.apigw.yandexcloud.net/), release `9deafac…_40879482626_1`, API d4e1pn5s9v60csdmaohq, схема 0002. Все 8 артефактов/квитанция/API/Gateway/схема/HTTPS независимо сверены; вход пока выключен |
 | Стейбл | [HTTPS-приложение](https://d5dhqvda3eo6r4c2mgf6.764nr5vy.apigw.yandexcloud.net/), release `9a16a2f…_40852028322_1`, API `d4e7umbbk4a2t9spfecl`; [workflow](https://github.com/boris-shurygin/gym/actions/runs/40863249879), независимая проверка/HTTP/offline успешны. Пять служебных таблиц, пользовательских данных нет |
-| Следующее действие | P06: проверить реализацию на SQLite/YDB CI и в браузере, провести PR/merge, миграцию и права staging. Реальный OAuth ждёт Client ID/безопасного ввода секрета; личность владельца допускается только по конкретной подтверждённой заявке |
+| Следующее действие | Ожидается отдельное согласие на точный IAM/ACL-план P06: автопроверка отклонила применение новых постоянных прав. Пока права не менялись. После согласия — apply/пустой повтор/отрицательные пробы, PR включения OAuth, CI/merge/staging и настоящий вход владельца. Client ID и метаданные активного Lockbox уже получены; production не затрагивается |
 
 ## P06 — автономная реализация 2026-10-29
+
+- Продолжение по Client ID пользователя: `7cba5f50f12c44788311ba106f1bca8a`. Пользователь внёс Client secret скрытым вводом; операция e6qpv3fkvkdc9dl70ntr завершена успешно. Проверены только метаданные активного staging-секрета e6qd458h1rc6me3s7htp и версии e6qu9dcqjlhb4hc5u6js, ключ client_secret; payload агентом не читался. Скрипт исправлен: ожидает результат той же операции до 60 секунд без повторного создания.
+- #19 доставляет самостоятельную основу с выключенным OAuth: обязательные проверки доступны и успешны; реальный callback проверяется после доставки кода, миграции и включения. PR переведён из Draft и слит в автономном разрешении P06. Main обновлён только FF; отделённая read-only проверка исходников 9deafac в .local/p06-foundation-check сверила реальный выпуск 9deafac…_40879482626_1, manifest b06d958d2183f527742ee2e398c1f8367110cebc4fcb94a751430e1942df8335, API d4e1pn5s9v60csdmaohq, Gateway и схему 0002 без control mutations.
+- Подготовлены точный plan/apply infra.accounts_access и усиленный auth smoke: PKCE/binder через Gateway, случайная валидная cookie для реального чтения YDB и отказ callback без binder. Локально 99 release-тестов проходят. План показал только пять табличных ACL API и payloadViewer одного секрета, без новых YDB IAM-ролей. Автоматическая проверка **отклонила** apply: новые постоянные IAM/ACL-права требуют отдельного явного согласия на точный scope/blast radius. Пользователю отправлен запрос согласия; до ответа повтор/обход не выполняется.
+
+- Исправление de9ecf1 подтверждено успешными Web checks 40875006538 / Cloud access 40875006571. На настоящей одноразовой YDB прошла 31 проверка, включая конкретно две конкурентные публикации, одноразовый callback, изоляцию REST/прикладных сервисов и сохранение legacy-версии/данных при переходе. Draft #19 остаётся открытым: реального OAuth-приложения/Client ID пока нет, вопрос пользователю остаётся без ответа. Успешный CI не считается приёмкой реального Яндекс ID. План/журнал с этими постфактум-метаданными локально обновлены для следующего содержательного коммита.
 
 - Открыт Draft PR #19. Первый CI подтвердил новые прикладные сценарии на YDB, но выявил прежний формат Alembic с version_num в PK: переход 0001→0002 запрещён YDB. Исправлен публичный version_table_impl: отдельная административная schema_version с постоянным PK, guarded-bridge проверенной legacy-0001 без изменения старой таблицы. Добавлены реальные YDB-тесты перехода/сохранения данных и запрета неизвестной legacy-ревизии. Повтор CI должен подтвердить исправление; облачный переход не выполнялся.
 
