@@ -48,7 +48,7 @@
 
 ## Следующие шаги
 
-P04.3.1 и P04.3.2.1 слиты: [публикация выпуска](infra/release-pipeline.md) и [приватные миграции](infra/staging-migrations.md) main проверены в CI. P04.3.2.2 на проверке: [выкатка API/PWA/Gateway](infra/staging-app.md), точечные права, HTTPS/offline smoke и повтор без изменения ресурсов проверены оператором на пакетах main. Первый автоматический job `deploy` проверяется после отдельного merge. Подробные критерии — в [плане работ](docs/development-plan.md), состояние — в [журнале](docs/development-log.md).
+P04 завершён: [публикация выпуска](infra/release-pipeline.md), [приватные миграции](infra/staging-migrations.md), [API/PWA/Gateway и smoke](infra/staging-app.md) проверены полным автоматическим CI staging. В работе P05: [ручной production и восстановление](infra/production-release.md). Аккаунты и серверные операции — последующие этапы. Подробные критерии — в [плане работ](docs/development-plan.md), состояние — в [журнале](docs/development-log.md).
 
 Для работы используй фразы «Продолжаем разработку», «Завершаем этап», «Мержим ПР», «Деплой на стейбл» или навыки `$gym-next-stage`, `$gym-finish-stage`, `$gym-merge-pr`, `$gym-deploy-stable`. Престейбл — staging, стейбл — production.
 

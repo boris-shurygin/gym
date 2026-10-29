@@ -24,12 +24,12 @@ BINDINGS = [
 ]
 
 
-def web_policy():
+def web_policy(*, target=target, production_reader=False):
     bucket = 'arn:aws:s3:::' + target.WEB_BUCKET
     actor = {'CanonicalUser': target.CI}
     public = [bucket + '/assets/*', bucket + '/releases/*/web/*']
     writable = public + [bucket + '/deployments/*']
-    return {'Version': '2012-10-17', 'Statement': [
+    result = {'Version': '2012-10-17', 'Statement': [
         {'Sid': 'OperatorControl', 'Effect': 'Allow', 'Principal': {'CanonicalUser': OPERATOR},
          'Action': 's3:*', 'Resource': [bucket, bucket + '/*']},
         {'Sid': 'GatewayReadPublicFiles', 'Effect': 'Allow', 'Principal': {'CanonicalUser': target.GATEWAY_ACCOUNT},
@@ -45,6 +45,12 @@ def web_policy():
          'Action': ['s3:DeleteObject', 's3:DeleteBucket', 's3:PutBucketPolicy', 's3:DeleteBucketPolicy', 's3:PutObjectAcl', 's3:PutBucketAcl'],
          'Resource': [bucket, bucket + '/*']},
     ]}
+    if production_reader:
+        if target.NAME != 'staging': raise ValueError('Квитанции staging читаются только из staging')
+        result['Statement'].append({'Sid': 'ProductionReadStagingReceipts', 'Effect': 'Allow',
+            'Principal': {'CanonicalUser': 'aje5mg9tp1cachquiqlf'}, 'Action': 's3:GetObject',
+            'Resource': bucket + '/deployments/*/result.json'})
+    return result
 
 
 def bucket_api(yc, action, body=None):
@@ -70,7 +76,7 @@ def plan(yc):
         raise ValueError('Бакет не соответствует закрытому staging')
     policy = bucket.get('policy')
     if isinstance(policy, str): policy = json.loads(policy)
-    if policy is not None and policy != web_policy():
+    if policy is not None and policy not in (web_policy(), web_policy(production_reader=True)):
         raise ValueError('Не заменяй неизвестную web-policy')
     missing = []
     for group, identifier, role, actor in BINDINGS:
@@ -106,7 +112,7 @@ def apply(yc):
             yc.run('storage', 'bucket', 'update', target.WEB_BUCKET, '--policy-from-file', str(path))
     actual = yc.run('storage', 'bucket', 'get', target.WEB_BUCKET).get('policy')
     if isinstance(actual, str): actual = json.loads(actual)
-    if actual != web_policy(): raise ValueError('Ограничивающая политика не подтверждена')
+    if actual not in (web_policy(), web_policy(production_reader=True)): raise ValueError('Ограничивающая политика не подтверждена')
     for binding in changes['bucket_bindings']:
         operation = bucket_api(yc, 'updateAccessBindings', {'accessBindingDeltas': [{'action': 'ADD', 'accessBinding': binding}]})
         if not operation.get('done'):

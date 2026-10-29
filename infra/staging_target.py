@@ -1,5 +1,6 @@
 """Фиксированные цели приложения/миграций staging; не принимай ID окружения из запроса."""
 
+NAME = 'staging'
 FOLDER = 'b1ghdeobqrevsim6jg9o'
 CI = 'aje1ia9cf3t1g7o5p6pg'
 MIGRATOR = 'ajedn74q9psjfecqnteg'

@@ -32,7 +32,7 @@ def bucket_api(yc, action, body=None):
         return json.load(response)
 
 
-def policy(*, staging_reader=True):
+def policy(*, staging_reader=True, production_reader=False):
     bucket = 'arn:aws:s3:::' + BUCKET
     principal = {'CanonicalUser': PUBLISHER}
     result = {'Version': '2012-10-17', 'Statement': [
@@ -56,6 +56,10 @@ def policy(*, staging_reader=True):
     if staging_reader:
         result['Statement'].append({'Sid': 'StagingReleaseReader', 'Effect': 'Allow',
             'Principal': {'CanonicalUser': 'aje1ia9cf3t1g7o5p6pg'}, 'Action': 's3:GetObject',
+            'Resource': [bucket + '/blobs/sha256/*', bucket + '/releases/*']})
+    if production_reader:
+        result['Statement'].append({'Sid': 'ProductionReleaseReader', 'Effect': 'Allow',
+            'Principal': {'CanonicalUser': 'aje5mg9tp1cachquiqlf'}, 'Action': 's3:GetObject',
             'Resource': [bucket + '/blobs/sha256/*', bucket + '/releases/*']})
     return result
 
@@ -82,7 +86,7 @@ def plan(yc):
     existing = bucket.get('policy')
     if isinstance(existing, str):
         existing = json.loads(existing)
-    if existing is not None and existing not in (policy(), policy(staging_reader=False)):
+    if existing is not None and existing not in (policy(), policy(staging_reader=False), policy(production_reader=True)):
         raise ValueError('Не заменяй неизвестную политику бакета')
     repository = yc.run('container', 'repository', 'get', REPOSITORY)
     if repository != {'id': REPOSITORY, 'name': REGISTRY + '/gym-migrations'}:
@@ -102,8 +106,9 @@ def plan(yc):
         raise ValueError('Неожиданное число привязок IAM бакета')
     bucket_roles = check_bindings([{'role_id': b['roleId'], 'subject': b['subject']}
                                   for b in bucket_bindings.get('accessBindings', [])], {UPLOADER})
-    return {'bucket': BUCKET, 'publisher': PUBLISHER, 'policy': policy(),
-            'set_bucket_policy': existing != policy(), 'repository': REPOSITORY,
+    desired_policy = policy(production_reader=True) if existing == policy(production_reader=True) else policy()
+    return {'bucket': BUCKET, 'publisher': PUBLISHER, 'policy': desired_policy,
+            'set_bucket_policy': existing != desired_policy, 'repository': REPOSITORY,
             'add_bucket_binding': UPLOADER not in bucket_roles,
             'add_repository_binding': PUSHER not in roles, 'binding': desired_binding(),
             'provider_limit': 'pusher также разрешает удаление образов/репозитория; delete не выполняется'}
@@ -121,7 +126,7 @@ def apply(yc):
     actual_policy = protected.get('policy')
     if isinstance(actual_policy, str):
         actual_policy = json.loads(actual_policy)
-    if actual_policy != policy() or protected.get('acl', {}).get('grants'):
+    if actual_policy != changes['policy'] or protected.get('acl', {}).get('grants'):
         raise ValueError('Политика/отсутствие обходных ACL не подтверждены')
     if changes['add_bucket_binding']:
         operation = bucket_api(yc, 'updateAccessBindings', {'accessBindingDeltas': [

@@ -14,7 +14,7 @@ from contracts.canonical import canonical_bytes, parse_request
 from infra.object_store import ImmutableStore, NoRedirect
 from infra.release_artifacts import MAX_BUNDLE, MAX_OBJECT, validate_payloads
 from infra.release_gate import context_from_github, staging_token
-from infra.staging_migrations import Cloud, active_revision, matches, read_manifest, revision_payload, health, InterventionRequired
+from infra.staging_migrations import Cloud, active_revision, matches, read_manifest, revision_payload, health, read_ready, InterventionRequired
 from infra import staging_target as target
 
 
@@ -74,7 +74,7 @@ def web_key(release, path):
     return path[4:] if path.startswith('web/assets/') else 'releases/' + release + '/' + path
 
 
-def render_gateway(manifest, template_bytes, *, validation=False):
+def render_gateway(manifest, template_bytes, *, validation=False, target=target):
     if validation:
         if os.environ.get('GITHUB_ACTIONS') or hashlib.sha256(template_bytes).hexdigest() != BOOTSTRAP_HASH:
             raise ValueError('Validation разрешён оператору только для известного bootstrap-шаблона')
@@ -110,7 +110,7 @@ def render_gateway(manifest, template_bytes, *, validation=False):
                 'object': web_key(release, path), 'service_account_id': target.GATEWAY_ACCOUNT}}}
     paths['/'] = copy.deepcopy(paths['/index.html'])
     info = {'release_id': release, 'main_sha': manifest['main_sha'],
-            'purpose': 'operator-validation' if validation else 'staging-release'}
+            'purpose': 'operator-validation' if validation else target.NAME + '-release'}
     paths['/__gym/release'] = {'get': {'responses': {'200': {'description': 'Deployment identity'}},
         'x-yc-apigateway-integration': {'type': 'dummy', 'http_code': 200,
             'http_headers': {'Content-Type': 'application/json', 'Cache-Control': 'no-store'},
@@ -119,26 +119,26 @@ def render_gateway(manifest, template_bytes, *, validation=False):
     return spec
 
 
-def verify_migrations(cloud, manifest):
-    current = active_revision(cloud)
-    if not matches(current, revision_payload(manifest)):
+def verify_migrations(cloud, manifest, *, target=target):
+    current = active_revision(cloud, target=target)
+    if not matches(current, revision_payload(manifest, target=target)):
         raise InterventionRequired('Мигратор не соответствует этому выпуску')
-    ready = health(cloud, manifest)
-    result = cloud.json(target.URL + '/v1/migrations', {'operation': 'status', 'release_id': manifest['release_id'],
-        'checksum': ready['checksum'], 'job_id': 'migration_' + manifest['release_id']})
+    ready = health(cloud, manifest, target=target)
+    result = read_ready(lambda: cloud.json(target.URL + '/v1/migrations', {'operation': 'status', 'release_id': manifest['release_id'],
+        'checksum': ready['checksum'], 'job_id': 'migration_' + manifest['release_id']}))
     if (result.get('state') != 'succeeded' or result.get('release_id') != manifest['release_id']
             or result.get('checksum') != ready['checksum'] or result.get('revision') != manifest['migration']['revision']
             or result.get('job_id') != 'migration_' + manifest['release_id']):
         raise InterventionRequired('Обязательная миграция не подтверждена')
 
 
-def api_payload(manifest, validation=False):
+def api_payload(manifest, validation=False, *, target=target):
     artifact = next(item for item in manifest['artifacts'] if item['path'] == 'api.zip')
     return {'functionId': target.FUNCTION, 'runtime': 'python312', 'entrypoint': 'index.handler',
         'description': 'Gym ' + manifest['release_id'] + ' api-sha256=' + artifact['sha256'],
         'resources': {'memory': '268435456'}, 'executionTimeout': '30s', 'concurrency': '1',
         'serviceAccountId': target.API_ACCOUNT,
-        'environment': {'GYM_ENVIRONMENT': 'staging', 'GYM_RELEASE_ID': manifest['release_id'],
+        'environment': {'GYM_ENVIRONMENT': target.NAME, 'GYM_RELEASE_ID': manifest['release_id'],
             'GYM_API_ZIP_SHA256': artifact['sha256'], 'GYM_YDB_AUTH': 'metadata',
             'GYM_YDB_ENDPOINT': target.YDB_ENDPOINT, 'GYM_YDB_DATABASE': target.YDB_PATH, 'GYM_TABLE_PREFIX': 'gym_'},
         'package': {'bucketName': target.DELIVERY, 'objectName': 'blobs/sha256/' + artifact['sha256'], 'sha256': artifact['sha256']},
@@ -155,8 +155,8 @@ def api_matches(version, expected):
         and not any(version.get(key) for key in ('secrets', 'connectivity', 'mounts', 'storageMounts', 'namedServiceAccounts')))
 
 
-def function_version(cloud, manifest, validation=False):
-    expected = api_payload(manifest, validation)
+def function_version(cloud, manifest, validation=False, *, target=target):
+    expected = api_payload(manifest, validation, target=target)
     resource = cloud.json(FUNCTIONS + '/functions/v1/functions/' + target.FUNCTION)
     if resource.get('folderId') != target.FOLDER or resource.get('name') != 'gym-api': raise ValueError('Чужая функция')
     bindings = cloud.json(FUNCTIONS + '/functions/v1/functions/' + target.FUNCTION + ':listAccessBindings')
@@ -175,8 +175,8 @@ def function_version(cloud, manifest, validation=False):
     return versions[0]['id']
 
 
-def private_api_smoke(token, tag):
-    code, _, raw = raw_request(FUNCTION_URL + '?tag=' + tag + '&integration=raw', token=token,
+def private_api_smoke(token, tag, *, target=target):
+    code, _, raw = raw_request('https://functions.yandexcloud.net/' + target.FUNCTION + '?tag=' + tag + '&integration=raw', token=token,
         payload={'httpMethod': 'GET', 'path': '/api/v1/health', 'headers': {}, 'body': '', 'isBase64Encoded': False},
         headers={'Content-Type': 'application/json'})
     if code != 200: raise InterventionRequired('Приватный API не ответил успешно')
@@ -187,7 +187,7 @@ def private_api_smoke(token, tag):
     if value != {'status': 'ok'}: raise InterventionRequired('Неожиданный ответ API health')
 
 
-def upload_web(token, manifest, files):
+def upload_web(token, manifest, files, *, target=target):
     store = ImmutableStore(token, target.WEB_BUCKET)
     for item in manifest['artifacts']:
         if not item['path'].startswith('web/'): continue
@@ -198,7 +198,7 @@ def upload_web(token, manifest, files):
                 raise InterventionRequired('Метаданные готового PWA-объекта отличаются')
 
 
-def switch_gateway(cloud, spec):
+def switch_gateway(cloud, spec, *, target=target):
     url = GATEWAYS + '/apigateways/v1/apigateways/' + target.GATEWAY
     resource = cloud.json(url)
     if (resource.get('folderId') != target.FOLDER or resource.get('name') != 'gym-gateway'
@@ -211,7 +211,7 @@ def switch_gateway(cloud, spec):
     if parse_request(confirmed['openapiSpec'].encode()) != spec: raise InterventionRequired('Gateway не подтверждён')
 
 
-def smoke(manifest, files, *, validation=False):
+def smoke(manifest, files, *, validation=False, target=target):
     for item in manifest['artifacts']:
         if not item['path'].startswith('web/'): continue
         code, headers, body = raw_request(target.ORIGIN + '/' + item['path'][4:])
@@ -222,7 +222,7 @@ def smoke(manifest, files, *, validation=False):
     if code != 200 or body != files['web/index.html']: raise InterventionRequired('Главная страница не соответствует выпуску')
     code, headers, body = raw_request(target.ORIGIN + '/__gym/release')
     expected = {'release_id': manifest['release_id'], 'main_sha': manifest['main_sha'],
-                'purpose': 'operator-validation' if validation else 'staging-release'}
+                'purpose': 'operator-validation' if validation else target.NAME + '-release'}
     if code != 200 or parse_request(body) != expected or headers.get('Cache-Control') != 'no-store':
         raise InterventionRequired('Не совпала идентичность Gateway')
     code, headers, body = raw_request(target.ORIGIN + '/api/v1/health')
@@ -236,34 +236,40 @@ def smoke(manifest, files, *, validation=False):
     for path in ('/api/v1/unknown-path', '/assets/missing-asset.js', '/unknown-page'):
         code, _, _ = raw_request(target.ORIGIN + path)
         if code != 404: raise InterventionRequired('Неизвестный маршрут не вернул 404')
-    for url in (FUNCTION_URL, 'https://storage.yandexcloud.net/' + target.WEB_BUCKET + '/' + web_key(manifest['release_id'], 'web/index.html')):
+    for url in ('https://functions.yandexcloud.net/' + target.FUNCTION, 'https://storage.yandexcloud.net/' + target.WEB_BUCKET + '/' + web_key(manifest['release_id'], 'web/index.html')):
         code, _, _ = raw_request(url)
         if code != 403: raise InterventionRequired('Backend не является приватным')
 
 
-def execute(token, release, manifest_digest, *, validation=False):
-    if validation and os.environ.get('GITHUB_ACTIONS'): raise ValueError('Validation Gateway запрещён в CI')
+def execute(token, release, manifest_digest, *, validation=False, target=target, schema_manifest=None):
+    if validation and (os.environ.get('GITHUB_ACTIONS') or target.NAME != 'staging'):
+        raise ValueError('Validation Gateway разрешён оператору только для staging')
     manifest = read_manifest(token, release, manifest_digest)
     files = load_payload(token, manifest)
-    spec = render_gateway(manifest, files['gateway.json'], validation=validation)
-    cloud = AppCloud(token)
-    verify_migrations(cloud, manifest)
-    version = function_version(cloud, manifest, validation)
-    private_api_smoke(token, version_tag(release, validation))
-    upload_web(token, manifest, files)
-    switch_gateway(cloud, spec)
+    spec = render_gateway(manifest, files['gateway.json'], validation=validation, target=target)
+    cloud = AppCloud(token, target=target)
+    if schema_manifest is not None:
+        # Откат только к совместимому приложению; worker/схема остаются текущими.
+        if (schema_manifest['migration']['revision'] != manifest['migration']['revision']
+                or schema_manifest['compatibility'] != manifest['compatibility']):
+            raise InterventionRequired('Откат приложения несовместим с текущей схемой')
+    verify_migrations(cloud, schema_manifest if schema_manifest is not None else manifest, target=target)
+    version = function_version(cloud, manifest, validation, target=target)
+    private_api_smoke(token, version_tag(release, validation), target=target)
+    upload_web(token, manifest, files, target=target)
+    switch_gateway(cloud, spec, target=target)
     # Повторяй только чтение smoke во время распространения нового Gateway.
     for attempt in range(12):
         try:
-            smoke(manifest, files, validation=validation)
+            smoke(manifest, files, validation=validation, target=target)
             break
         except InterventionRequired:
             if attempt == 11: raise
             time.sleep(5)
-    receipt = {'format': 1, 'environment': 'staging', 'release_id': release, 'main_sha': manifest['main_sha'],
+    receipt = {'format': 1, 'environment': target.NAME, 'release_id': release, 'main_sha': manifest['main_sha'],
         'manifest_sha256': manifest_digest, 'function_version': version, 'function_tag': version_tag(release, validation),
         'gateway_sha256': hashlib.sha256(canonical_bytes(spec)).hexdigest(),
-        'purpose': 'operator-validation' if validation else 'staging-release', 'smoke': 'succeeded', 'origin': target.ORIGIN}
+        'purpose': 'operator-validation' if validation else target.NAME + '-release', 'smoke': 'succeeded', 'origin': target.ORIGIN}
     key = 'deployments/' + release + ('/operator-validation.json' if validation else '/result.json')
     ImmutableStore(token, target.WEB_BUCKET).put(key, canonical_bytes(receipt), content_type='application/json', cache_control='private, no-store')
     return receipt
