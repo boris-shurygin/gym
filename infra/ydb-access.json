@@ -10,6 +10,6 @@
     "api": "ajeffa6opd0qko82m4de",
     "migrations": "ajedn74q9psjfecqnteg"
   },
-  "runtime_tables": ["gym_login_transactions", "gym_sessions", "gym_login_requests", "gym_program_records"],
+  "runtime_tables": ["gym_login_transactions", "gym_sessions", "gym_login_requests", "gym_program_records", "gym_workout_records"],
   "runtime_readonly_tables": ["gym_admissions"]
 }

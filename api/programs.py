@@ -9,6 +9,7 @@ from contracts.canonical import fingerprint
 from contracts.validation import validate
 from api.auth import timestamp
 from api.errors import ServiceError
+from api.sync_state import append_event
 
 RULES = {route['operation_id']: route for route in json.loads(
     (Path(__file__).resolve().parents[1] / 'contracts/bindings.json').read_text(encoding='utf-8'))['routes']}
@@ -146,4 +147,5 @@ class Programs:
             'version': version['version'], 'program_id': version['program_id']})
         change['status'] = 'published'
         db.put('program_records', owner, 'change:' + change['change_id'], change)
+        append_event(db, owner, {'kind': 'program_published', 'version_id': version['program_version_id']}, now)
         return result

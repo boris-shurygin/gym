@@ -8,7 +8,7 @@ import sqlalchemy as sa
 from api.database import transaction
 from contracts.canonical import canonical_bytes
 
-NAMES = ('admissions', 'login_transactions', 'sessions', 'login_requests', 'program_records')
+NAMES = ('admissions', 'login_transactions', 'sessions', 'login_requests', 'program_records', 'workout_records')
 
 
 def application_tables(prefix='gym_'):
@@ -44,6 +44,16 @@ class Documents:
     def delete(self, name, owner, key):
         table = self.tables[name]
         self.connection.execute(table.delete().where(table.c.owner == owner, table.c.key == key))
+
+    def scan(self, name, owner, prefix, *, after=None, reverse=False, limit=100):
+        """Читай ограниченный диапазон PK только своего владельца, без OFFSET."""
+        table = self.tables[name]
+        query = sa.select(table.c.key, table.c.payload).where(
+            table.c.owner == owner, table.c.key >= prefix, table.c.key < prefix + '~')
+        if after is not None:
+            query = query.where(table.c.key < after if reverse else table.c.key > after)
+        query = query.order_by(table.c.key.desc() if reverse else table.c.key).limit(limit)
+        return [(key, json.loads(payload)) for key, payload in self.connection.execute(query)]
 
 
 class Store:
