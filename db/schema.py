@@ -25,6 +25,13 @@ class SchemaMismatch(RuntimeError):
     pass
 
 
+def schema_version_table(prefix='gym_'):
+    tables(prefix)  # Проверь префикс тем же валидатором, что и остальные таблицы.
+    return sa.Table(prefix + 'schema_version', sa.MetaData(),
+        sa.Column('name', sa.Text, primary_key=True, nullable=False, default='schema'),
+        sa.Column('version_num', sa.Text, nullable=False))
+
+
 def verify_table(connection, expected):
     # Reflection dialect сводит Int32/Int64 к одному SQLAlchemy Integer.
     # Для проверки ширины используй точные типы describe из того же DBAPI.

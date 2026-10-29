@@ -16,18 +16,20 @@ RUNTIME = frozenset({
     'ydb.granular.describe_schema', 'ydb.granular.select_row',
     'ydb.granular.update_row', 'ydb.granular.erase_row',
 })
+READ_ONLY = frozenset({'ydb.granular.describe_schema', 'ydb.granular.select_row'})
 MIGRATIONS = RUNTIME | {
     'ydb.granular.create_table', 'ydb.granular.alter_schema',
     'ydb.granular.remove_schema', 'ydb.access.grant',
 }
-ADMIN_TABLES = {'gym_migration_lock', 'gym_migration_jobs', 'gym_migration_requests', 'gym_alembic_version'}
+ADMIN_TABLES = {'gym_migration_lock', 'gym_migration_jobs', 'gym_migration_requests', 'gym_alembic_version', 'gym_schema_version'}
 
 
 def load_config(path=CONFIG):
     config = json.loads(Path(path).read_text(encoding='utf-8'))
     expected = {'schema_version', 'environment', 'cloud_id', 'folder_id',
                 'database_id', 'endpoint', 'database', 'accounts', 'runtime_tables'}
-    if set(config) != expected or type(config['schema_version']) is not int or config['schema_version'] != 1:
+    if (set(config) - {'runtime_readonly_tables'} != expected
+            or type(config['schema_version']) is not int or config['schema_version'] != 1):
         raise ValueError('Неизвестный формат конфигурации прав')
     # Этот инструмент намеренно не принимает production или произвольную БД.
     if (config['environment'] != 'staging'
@@ -44,6 +46,10 @@ def load_config(path=CONFIG):
             re.fullmatch(r'gym_[a-z][a-z0-9_]{0,90}', t) or t in ADMIN_TABLES for t in tables)
             or len(set(tables)) != len(tables)):
         raise ValueError('Явно перечисли только прикладные таблицы без административных')
+    readonly = config.get('runtime_readonly_tables', [])
+    if (not isinstance(readonly, list) or readonly not in ([], ['gym_admissions'])
+            or 'gym_admissions' in tables or set(tables) & set(readonly)):
+        raise ValueError('Таблица допуска доступна runtime только на чтение')
     return config
 
 
@@ -115,7 +121,8 @@ def acl_plan(driver, config):
             item = driver.scheme_client.describe_path(full)
             if item.interrupt_permission_inheritance:
                 raise ValueError('Наследование ACL отключено; права мигратора не доказаны')
-            desired = RUNTIME if path == root and child.name in config['runtime_tables'] else set()
+            desired = (RUNTIME if path == root and child.name in config['runtime_tables'] else
+                READ_ONLY if path == root and child.name in config.get('runtime_readonly_tables', []) else set())
             # Allowlist поддерживает только таблицы непосредственно в корне.
             if desired and not item.is_table():
                 raise ValueError('Прикладной объект не является таблицей')
@@ -128,7 +135,7 @@ def acl_plan(driver, config):
                 walk(full)
     walk(root)
     existing = {c.name for c in driver.scheme_client.list_directory(root).children if c.is_table()}
-    if set(config['runtime_tables']) - existing:
+    if (set(config['runtime_tables']) | set(config.get('runtime_readonly_tables', []))) - existing:
         raise ValueError('Прикладная таблица ещё не создана; сначала выполни миграцию')
     return actions
 

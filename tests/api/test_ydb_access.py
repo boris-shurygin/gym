@@ -26,6 +26,8 @@ def entry(name='', permissions=(), owner='operator@as', directory=False):
 class AccessTests(unittest.TestCase):
     def setUp(self):
         self.config = access.load_config()
+        self.config['runtime_tables'] = []
+        self.config['runtime_readonly_tables'] = []
         self.root = self.config['database']
         self.api = self.config['accounts']['api'] + '@as'
         self.migration = self.config['accounts']['migrations'] + '@as'
@@ -100,6 +102,14 @@ class AccessTests(unittest.TestCase):
         self.table('gym_private', owner=self.api)
         with self.assertRaises(ValueError):
             access.acl_plan(self.driver, self.config)
+
+    def test_admission_is_read_only_and_runtime_root_stays_empty(self):
+        self.config['runtime_readonly_tables'] = ['gym_admissions']
+        self.table('gym_admissions')
+        actions = access.acl_plan(self.driver, self.config)
+        runtime = [a for a in actions if a['subject'] == self.api]
+        self.assertEqual(runtime, [{'path': self.root + '/gym_admissions', 'subject': self.api,
+            'permissions': sorted(access.READ_ONLY)}])
 
     def test_migration_may_own_its_tables(self):
         self.table('gym_migration_lock', owner=self.migration)

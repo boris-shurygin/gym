@@ -28,7 +28,8 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => { event.waitUntil(self.clients.claim()); });
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
-  if (event.request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
+  if (event.request.method !== 'GET' || url.origin !== self.location.origin ||
+      ['/api/', '/auth/', '/oauth/', '/.well-known/'].some(prefix => url.pathname.startsWith(prefix)) || url.pathname === '/mcp') return;
   if (event.request.mode === 'navigate') {
     event.respondWith(caches.open(CACHE).then(cache => cache.match('/index.html')).then(cached => cached || fetch(event.request)));
   } else if (ASSETS.includes(url.pathname)) {

@@ -173,6 +173,35 @@ class YdbIntegrationTests(unittest.TestCase):
         ensure_table(self.engine, migrator.runtime)
         self.assertEqual(migrator.upgrade('partial-ddl')['state'], 'succeeded')
 
+    def test_upgrade_from_legacy_0001_preserves_version_table_and_data(self):
+        migrator = self.migration('legacy')
+        legacy = sa.Table(migrator.prefix + 'alembic_version', sa.MetaData(),
+            sa.Column('version_num', sa.Text, primary_key=True, nullable=False))
+        ensure_table(self.engine, legacy)
+        ensure_table(self.engine, migrator.runtime)
+        def seed(connection):
+            connection.execute(legacy.insert().values(version_num='0001_runtime_metadata'))
+            connection.execute(migrator.runtime.insert().values(key='retain', value='до P06'))
+        transaction(self.engine, seed)
+        self.assertEqual(migrator.upgrade('legacy-upgrade')['revision'], REVISION)
+        migrator.verify()
+        with self.engine.connect() as connection:
+            self.assertEqual(connection.execute(sa.select(legacy.c.version_num)).scalar_one(), '0001_runtime_metadata')
+            self.assertEqual(connection.execute(sa.select(migrator.runtime.c.value)).scalar_one(), 'до P06')
+        self.assertTrue(migrator.upgrade('legacy-upgrade')['replayed'])
+
+    def test_unknown_legacy_revision_is_not_replaced_or_upgraded(self):
+        migrator = self.migration('legacy_unknown')
+        legacy = sa.Table(migrator.prefix + 'alembic_version', sa.MetaData(),
+            sa.Column('version_num', sa.Text, primary_key=True, nullable=False))
+        ensure_table(self.engine, legacy)
+        transaction(self.engine, lambda c: c.execute(legacy.insert().values(version_num='unknown_revision')))
+        with self.assertRaises(SchemaMismatch):
+            migrator.upgrade('unknown-legacy')
+        with self.engine.connect() as connection:
+            self.assertEqual(connection.execute(sa.select(legacy.c.version_num)).scalar_one(), 'unknown_revision')
+            self.assertFalse(sa.inspect(connection).has_table(migrator.prefix + 'schema_version'))
+
     def test_wrong_schema_is_not_stamped_then_can_be_repaired(self):
         migrator = self.migration('wrong')
         wrong = sa.Table(migrator.runtime.name, sa.MetaData(),
@@ -182,7 +211,7 @@ class YdbIntegrationTests(unittest.TestCase):
         with self.assertRaises(SchemaMismatch):
             migrator.upgrade('repairable')
         with self.engine.connect() as connection:
-            version = sa.table(migrator.prefix + 'alembic_version', sa.column('version_num'))
+            version = sa.table(migrator.prefix + 'schema_version', sa.column('version_num'))
             self.assertEqual(connection.execute(sa.select(version)).all(), [])
             self.assertEqual(connection.execute(sa.select(migrator.jobs.c.state)).scalar_one(), 'failed')
         with self.engine.connect().execution_options(isolation_level='AUTOCOMMIT') as connection:

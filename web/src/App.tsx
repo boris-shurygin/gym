@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { DEMO_OWNER, demoProgram } from './demo-program';
 import {
   createSession,
   exerciseSets,
@@ -12,6 +11,7 @@ import {
   type Session,
   type SetKind,
   type SetResult,
+  type Program,
 } from './model';
 import { WorkoutRepository } from './repository';
 
@@ -84,7 +84,15 @@ function Volume({ set }: { set: SetResult }) {
   );
 }
 
-export default function App() {
+export default function App({
+  ownerId,
+  program,
+  demo = false,
+}: {
+  ownerId: string;
+  program: Program;
+  demo?: boolean;
+}) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [pending, setPending] = useState(0);
   const [view, setView] = useState<View>({ kind: 'home' });
@@ -100,7 +108,7 @@ export default function App() {
 
   async function load(reset = false) {
     try {
-      const data = await repository.read(DEMO_OWNER);
+      const data = await repository.read(ownerId);
       setSessions(data.sessions);
       setPending(data.pendingCount);
       setError('');
@@ -148,7 +156,7 @@ export default function App() {
     setError('');
     const command: Command = {
       id: crypto.randomUUID(),
-      ownerId: DEMO_OWNER,
+      ownerId,
       sessionId,
       expectedRevision: revision,
       mutation,
@@ -184,9 +192,9 @@ export default function App() {
   function start(templateId: string) {
     try {
       const created = createSession(
-        demoProgram,
+        program,
         templateId,
-        DEMO_OWNER,
+        ownerId,
         crypto.randomUUID(),
         new Date().toISOString(),
       );
@@ -519,7 +527,7 @@ export default function App() {
     content = exercise ? exerciseEditor(session, exercise, view.editSetId) : <p>Упражнение не найдено.</p>;
   } else if (view.kind === 'session' && session) content = sessionOverview(session);
   else if (view.kind === 'preview') {
-    const template = demoProgram.templates.find((t) => t.id === view.templateId)!;
+    const template = program.templates.find((t) => t.id === view.templateId)!;
     content = (
       <>
         <button className="back" onClick={() => setView({ kind: 'home' })}>
@@ -596,9 +604,9 @@ export default function App() {
           </section>
         )}
         <div className="section-title">
-          Тестовая программа <span>2 шаблона</span>
+          {demo ? 'Тестовая программа' : 'Твоя программа'} <span>{program.templates.length} шаблона</span>
         </div>
-        {demoProgram.templates.map((template, i) => (
+        {program.templates.map((template, i) => (
           <button
             className="card template-card"
             key={template.id}
@@ -609,12 +617,20 @@ export default function App() {
             <span className="grow">
               <strong>{template.name}</strong>
               <span className="caption block">{template.description}</span>
-              <span className="caption block">{template.exercises.length} упражнения · по 3 подхода</span>
+              <span className="caption block">
+                {template.exercises.length} упражнения ·{' '}
+                {template.exercises.reduce((n, e) => n + e.targets.length, 0)} подходов
+              </span>
             </span>
             <span className="chevron">›</span>
           </button>
         ))}
-        <p className="footnote">Цели в этой программе — синтетические примеры для проверки приложения.</p>
+        {demo && (
+          <p className="footnote">Цели в этой программе — синтетические примеры для проверки приложения.</p>
+        )}
+        {!demo && program.templates.length === 0 && (
+          <p>Программа ещё не опубликована. После публикации здесь появятся шаблоны тренировок.</p>
+        )}
       </>
     );
 
@@ -624,7 +640,7 @@ export default function App() {
         <a href="/" aria-label="Gym — на главную" className="brand">
           gym<span>↗</span>
         </a>
-        <span className="mode-badge">Локальная версия</span>
+        <span className="mode-badge">{demo ? 'Локальная версия' : 'Личный профиль'}</span>
       </header>
       <div className="storage-status" role="status">
         <span className="status-dot" />

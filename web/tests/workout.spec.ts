@@ -1,5 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('gym.mode', 'demo'));
+});
+
 async function start(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: /Верх тела.*Грудь/ }).click();
