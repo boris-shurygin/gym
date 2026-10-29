@@ -12,6 +12,7 @@ from infra.staging_app_access import web_policy
 from infra.migration_container import cloud
 from infra.object_store import NoRedirect
 from infra.ydb_access import Yc, connect, acl_plan, apply_acl
+from infra.storage_operations import wait as wait_bucket
 
 
 BINDINGS = [
@@ -140,9 +141,7 @@ def apply(yc):
         if actual!=expected: raise ValueError('Ограничивающая политика не подтверждена')
         for binding in item['add_bindings']:
             operation=bucket_api(yc,item['resource'],'updateAccessBindings',{'accessBindingDeltas':[{'action':'ADD','accessBinding':binding}]})
-            if not operation.get('done'):
-                operation=yc.run('operation','get',operation['id'],'--endpoint','storage.api.cloud.yandex.net:443')
-            if not operation.get('done') or operation.get('error'): raise ValueError('Проверь состояние операции IAM бакета')
+            wait_bucket(yc,operation)
     for item in changes['bindings']:
         args=[*item['group'],'add-access-binding']
         args+=['--id',item['resource']] if item['group'][0]=='serverless' else [item['resource']]
