@@ -18,7 +18,7 @@ def fixture():
              'web/index.html': b'<html>fixture</html>', 'web/service-worker.js': b'/* fixture */',
              'web/manifest.webmanifest': b'{"scope":"/","start_url":"/"}', 'web/icon.svg': b'<svg/>',
              'web/assets/index-hash.js': b'fixture'}
-    manifest = {'release_id': RELEASE, 'main_sha': 'a' * 40, 'artifacts': [
+    manifest = {'release_id': RELEASE, 'main_sha': 'a' * 40, 'migration': {'revision': '0001_runtime_metadata'}, 'artifacts': [
         {'path': path, 'sha256': 'b' * 64, 'bytes': len(data), 'content_type': attributes(path)[0],
          'cache_control': attributes(path)[1]} for path, data in sorted(files.items())]}
     return manifest, files

@@ -5,7 +5,7 @@ COPY api/requirements.txt api/runtime-requirements.txt /app/api/
 COPY contracts/requirements.txt /app/contracts/
 COPY db/requirements.txt /app/db/
 RUN python -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: -r db/requirements.txt && python -m pip check
-COPY api/__init__.py api/database.py /app/api/
+COPY api/__init__.py api/database.py api/store.py /app/api/
 COPY contracts/__init__.py contracts/canonical.py /app/contracts/
 COPY db/*.py /app/db/
 COPY db/migrations /app/db/migrations/

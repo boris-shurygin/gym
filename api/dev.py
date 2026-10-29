@@ -4,7 +4,7 @@ import argparse
 import base64
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import logging
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qs
 
 from api.handler import handler
 from contracts.canonical import MAX_BYTES
@@ -36,6 +36,7 @@ class Handler(BaseHTTPRequestHandler):
             event = {
                 'httpMethod': self.command,
                 'path': urlsplit(self.path).path,
+                'multiValueQueryStringParameters': parse_qs(urlsplit(self.path).query, keep_blank_values=True),
                 'multiValueHeaders': {key: self.headers.get_all(key) for key in self.headers.keys()},
                 'body': base64.b64encode(self.rfile.read(length)).decode('ascii'),
                 'isBase64Encoded': True,
@@ -45,6 +46,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(result['statusCode'])
         for key, value in result['headers'].items():
             self.send_header(key, value)
+        for key, values in result.get('multiValueHeaders', {}).items():
+            for value in values:
+                self.send_header(key, value)
         self.send_header('Content-Length', str(len(raw)))
         self.end_headers()
         if self.command != 'HEAD':

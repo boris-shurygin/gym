@@ -16,7 +16,7 @@ from api.database import DatabaseSettings, create_engine, transaction
 from db.schema import SchemaMismatch, ensure_table, tables, verify_table
 
 ROOT = Path(__file__).resolve().parent / 'migrations'
-REVISION = '0001_runtime_metadata'
+REVISION = '0002_accounts_programs'
 
 
 class MigrationBusy(RuntimeError):
@@ -71,7 +71,10 @@ class Migrator:
         transaction(self.engine, write)
 
     def verify(self):
+        from api.store import application_tables
         with self.engine.connect() as connection:
+            for table in application_tables(self.prefix).values():
+                verify_table(connection, table)
             verify_table(connection, self.runtime)
             version = sa.Table(self.prefix + 'alembic_version', sa.MetaData(),
                                sa.Column('version_num', sa.Text, primary_key=True, nullable=False))

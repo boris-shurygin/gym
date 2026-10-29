@@ -8,6 +8,14 @@ import logging
 from pathlib import Path
 import re
 from uuid import uuid4
+from functools import lru_cache
+import os
+
+from jsonschema import ValidationError
+from contracts.validation import validate
+from api.errors import ServiceError
+from api.auth import Auth, AuthSettings, cookies, SESSION_COOKIE
+from api.programs import Programs
 
 from contracts.canonical import MAX_BYTES, canonical_bytes, parse_request
 
@@ -21,6 +29,9 @@ MESSAGES = {
     'session_required': 'Требуется действующая сессия Gym.',
     'not_found': 'Маршрут не найден.',
     'unavailable': 'Сервис пока недоступен.',
+    'not_invited': 'Доступ пока не предоставлен. Передай владельцу Gym код trace_id этой подтверждённой заявки.',
+    'account_disabled': 'Доступ к аккаунту закрыт. Локальные записи сохранены.',
+    'csrf_failed': 'Проверка действия не пройдена. Обнови сессию.',
 }
 SENSITIVE_HEADERS = {'authorization', 'cookie', 'origin', 'x-csrf-token'}
 PATTERNS = [
@@ -29,7 +40,7 @@ PATTERNS = [
 ]
 
 
-class RequestError(Exception):
+class RequestError(ServiceError):
     def __init__(self, code='invalid_request'):
         self.code = code
         super().__init__(code)
@@ -41,6 +52,7 @@ class Request:
     path: str
     headers: dict[str, str]
     body: bytes
+    query: dict[str, str]
 
     @classmethod
     def from_event(cls, event):
@@ -95,7 +107,19 @@ class Request:
             raise RequestError() from error
         if len(raw) > MAX_BYTES:
             raise RequestError('payload_too_large')
-        return cls(method, path, headers, raw)
+        query = {}
+        for field, multiple in [('queryStringParameters', False), ('multiValueQueryStringParameters', True)]:
+            source = event.get(field) or {}
+            if not isinstance(source, dict):
+                raise RequestError()
+            for key, value in source.items():
+                values = value if multiple else [value]
+                if (not isinstance(key, str) or not isinstance(values, list) or len(values) != 1
+                        or not isinstance(values[0], str) or len(values[0]) > 4096
+                        or key in query and query[key] != values[0]):
+                    raise RequestError()
+                query[key] = values[0]
+        return cls(method, path, headers, raw, query)
 
     def check_json(self):
         if self.body:
@@ -115,6 +139,7 @@ def _response(status, value, trace_id):
             'Content-Type': 'application/json; charset=utf-8',
             'Cache-Control': 'no-store',
             'X-Content-Type-Options': 'nosniff',
+            'Referrer-Policy': 'no-referrer',
             'X-Request-ID': trace_id,
         },
         'body': canonical_bytes(value).decode('utf-8'),
@@ -125,10 +150,86 @@ def _response(status, value, trace_id):
 def _error(code, trace_id):
     rule = ERRORS[code]
     return _response(rule['http_status'], {'error': {
-        'code': code, 'message': MESSAGES[code], 'trace_id': trace_id,
+        'code': code, 'message': MESSAGES.get(code, 'Запрос отклонён. Проверь действие и повтори.'), 'trace_id': trace_id,
         'retryable': rule['retryable'], 'action': rule['action'],
         'retry_after_seconds': None, 'field_errors': [], 'receipt': None,
     }}, trace_id)
+
+
+@lru_cache(maxsize=1)
+def application():
+    if not os.environ.get('GYM_YANDEX_CLIENT_ID'):
+        return None
+    from api.database import DatabaseSettings, create_engine
+    from api.store import Store
+    return Auth(Store(create_engine(DatabaseSettings.from_env())), AuthSettings.from_env())
+
+
+PROGRAM_OPERATIONS = {'get_profile', 'set_profile', 'get_program', 'propose_change', 'get_change',
+    'replace_change', 'validate_change', 'approve_and_publish', 'publish_approved'}
+
+
+def dispatch(request, route, trace_id):
+    auth = application()
+    operation = route['operation_id']
+    token = cookies(request.headers.get('cookie', '')).get(SESSION_COOKIE)
+    if auth is None:
+        raise RequestError('session_required' if route['auth'] == 'cookie' else 'unavailable')
+    if operation == 'auth_logout':
+        request.check_json()
+        if request.query or request.body and parse_request(request.body) != {}:
+            raise RequestError()
+        result = _response(204, None, trace_id)
+        result['body'] = ''
+        result['multiValueHeaders'] = {'Set-Cookie': auth.logout(token, request.headers)}
+        return result
+    if route['auth'] == 'cookie':
+        # Не доверяй claims/owner из контекста Gateway. Проверяй состояние
+        # аккаунта также внутри транзакции каждой прикладной операции.
+        auth.session(token)
+        if request.method not in {'GET', 'HEAD'}:
+            auth.check_write(token, request.headers)
+    request.check_json()
+    if request.method == 'GET':
+        if request.body:
+            raise RequestError()
+        value = dict(request.query)
+    else:
+        if request.query:
+            raise RequestError()
+        value = parse_request(request.body) if request.body else {}
+        if not isinstance(value, dict):
+            raise RequestError()
+    path_names = re.findall(r'\{([a-z_]+)\}', route['path'])
+    if path_names:
+        pattern = re.sub(r'\{[a-z_]+\}', r'([A-Za-z0-9_-]+)', route['path'])
+        for name, path_value in zip(path_names, re.fullmatch(pattern, request.path).groups()):
+            if name in value and value[name] != path_value:
+                raise RequestError()
+            value[name] = path_value
+    try:
+        validate(route['input'], value)
+    except (ValidationError, ValueError):
+        raise RequestError('invalid_request') from None
+    if operation in {'auth_login', 'auth_callback'}:
+        location, set_cookies = (auth.begin(value, request.headers.get('cookie', '')) if operation == 'auth_login'
+            else auth.callback(value, request.headers.get('cookie', ''), trace_id))
+        response = _response(302, None, trace_id)
+        response['body'] = ''
+        response['headers']['Location'] = location
+        response['multiValueHeaders'] = {'Set-Cookie': set_cookies}
+        return response
+    if operation == 'auth_session':
+        result = auth.session(token)
+    elif operation in PROGRAM_OPERATIONS:
+        try:
+            result = Programs(auth).execute(operation, token, value)
+        except (ValidationError, ValueError):
+            raise RequestError('validation_failed') from None
+    else:
+        raise RequestError('unavailable')
+    validate(route['output'], result)
+    return _response(route['success_status'], result, trace_id)
 
 
 def handler(event, context=None):
@@ -145,15 +246,14 @@ def handler(event, context=None):
         else:
             route = next((route for route, pattern in PATTERNS
                           if route['method'].upper() == request.method and pattern.fullmatch(request.path)), None)
-            if route and route['auth'] == 'cookie':
-                # Настоящий resolver сессий появится в P06. Любые присланные
-                # credentials сейчас отвергаются, пользователь не создаётся.
-                raise RequestError('session_required')
-            if route or request.path == '/mcp' or request.path.startswith(('/oauth/', '/.well-known/')):
+            if route:
+                response = dispatch(request, route, trace_id)
+            elif request.path == '/mcp' or request.path.startswith(('/oauth/', '/.well-known/')):
                 request.check_json()
                 raise RequestError('unavailable')
-            raise RequestError('not_found')
-    except RequestError as error:
+            else:
+                raise RequestError('not_found')
+    except ServiceError as error:
         response = _error(error.code, trace_id)
     except Exception:
         # Не выводи исключение: оно может включать тело/credentials запроса.

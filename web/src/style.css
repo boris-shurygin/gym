@@ -543,6 +543,21 @@ h2 {
 .exercise-screen .storage-status {
   margin-bottom: 16px;
 }
+.account-panel {
+  max-width: 680px;
+  margin: 12px auto;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.account-panel p {
+  width: 100%;
+}
+body:has(.exercise-screen) .account-panel {
+  display: none;
+}
 .exercise-screen .back:first-child {
   margin-bottom: 8px;
 }
