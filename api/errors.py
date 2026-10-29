@@ -2,6 +2,7 @@
 
 
 class ServiceError(Exception):
-    def __init__(self, code):
+    def __init__(self, code, *, reason=None):
         self.code = code
+        self.reason = reason
         super().__init__(code)
