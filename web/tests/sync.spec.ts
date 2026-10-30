@@ -116,9 +116,15 @@ async function record(page: Page, weight: string, reps = '9') {
   await page.getByRole('textbox', { name: 'Повторения' }).fill(reps);
   await page.getByRole('button', { name: 'Записать подход', exact: true }).click();
 }
-async function edit(page: Page, weight: string) {
-  await page.getByRole('button', { name: 'Редактировать подход 1', exact: true }).click();
+async function openEditor(page: Page) {
+  const record = page.getByRole('button', { name: 'Редактировать подход 1', exact: true });
+  // Нижняя навигация перекрывает видимую браузеру область карточки: прокрути её выше, затем кликни обычной мышью.
+  await record.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'nearest' }));
+  await record.click();
   await expect(page.getByRole('heading', { name: 'Исправление подхода', exact: true })).toBeVisible();
+}
+async function edit(page: Page, weight: string) {
+  await openEditor(page);
   await page.getByRole('textbox', { name: 'Вес, кг' }).fill(weight);
   await page.getByRole('button', { name: 'Сохранить изменения', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Редактировать подход 1', exact: true })).toContainText(
@@ -321,9 +327,9 @@ test('удаление на другом устройстве сохраняет
     await second.goto('/');
     await second.getByRole('button', { name: 'Продолжить тренировку' }).click();
     await second.getByRole('button', { name: /Жим лёжа/ }).click();
-    await page.getByRole('button', { name: 'Редактировать подход 1', exact: true }).click();
+    await openEditor(page);
     await page.getByRole('textbox', { name: 'Вес, кг' }).fill('72');
-    await second.getByRole('button', { name: 'Редактировать подход 1', exact: true }).click();
+    await openEditor(second);
     second.once('dialog', (dialog) => void dialog.accept());
     await second.getByRole('button', { name: 'Удалить подход', exact: true }).click();
     await expect(second.getByRole('button', { name: 'Редактировать подход 1', exact: true })).toHaveCount(0);
