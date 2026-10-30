@@ -729,3 +729,47 @@ body:has(.exercise-screen) .account-panel {
   font-size: 10px;
   color: var(--muted);
 }
+.sync-panel {
+  margin-top: 28px;
+}
+.sync-panel .between {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.sync-panel > p {
+  margin: 12px 0;
+}
+.sync-panel summary {
+  cursor: pointer;
+  padding: 12px 0;
+}
+.sync-issue {
+  border-top: 1px solid #e5eaf6;
+  padding: 12px 0;
+}
+.conflict-review {
+  border-top: 1px solid #e5eaf6;
+  margin-top: 20px;
+  padding-top: 16px;
+}
+.conflict-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.conflict-results {
+  overflow-wrap: anywhere;
+}
+.conflict-results p {
+  padding: 8px 0;
+  border-bottom: 1px solid #e5eaf6;
+}
+.update-banner {
+  margin: 12px auto;
+  max-width: 680px;
+}
+@media (max-width: 480px) {
+  .conflict-columns {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,4 +1,5 @@
 import type { Program } from './model';
+import type { Receipt } from './sync-model';
 
 export interface SessionInfo {
   user_id: string;
@@ -49,22 +50,51 @@ export class ApiError extends Error {
   constructor(
     public code: string,
     public trace = '',
+    public status = 0,
+    public receipt?: Receipt,
+    public retryAfter = 0,
   ) {
     super(code);
   }
 }
 
-export async function api<T>(path: string, input?: object, session?: SessionInfo): Promise<T> {
+export async function api<T>(
+  path: string,
+  input?: object,
+  session?: SessionInfo,
+  signal?: AbortSignal,
+): Promise<T> {
   const response = await fetch(path, {
     method: input ? 'POST' : 'GET',
     credentials: 'same-origin',
     cache: 'no-store',
+    signal: signal ?? AbortSignal.timeout(15_000),
     headers: input ? { 'Content-Type': 'application/json', 'X-CSRF-Token': session?.csrf_token ?? '' } : {},
     body: input ? JSON.stringify(input) : undefined,
   });
   if (response.status === 204) return undefined as T;
-  const value = await response.json();
-  if (!response.ok) throw new ApiError(value.error?.code ?? 'unavailable', value.error?.trace_id ?? '');
+  const header = response.headers.get('Retry-After');
+  const retry =
+    header && /^\d+$/.test(header)
+      ? Number(header)
+      : header
+        ? Math.max(0, (Date.parse(header) - Date.now()) / 1000)
+        : 0;
+  let value;
+  try {
+    value = await response.json();
+  } catch {
+    if (response.ok) throw new ApiError('unavailable', '', 502, undefined, retry || 0);
+  }
+  if (!response.ok) {
+    throw new ApiError(
+      value?.error?.code ?? 'unavailable',
+      value?.error?.trace_id ?? '',
+      response.status,
+      value?.error?.receipt ?? undefined,
+      Math.max(retry || 0, value?.error?.retry_after_seconds ?? 0),
+    );
+  }
   return value as T;
 }
 
@@ -79,7 +109,7 @@ export function toProgram(view: ProgramView): Program {
       exercises: t.exercises.map((e) => ({
         id: e.template_exercise_id,
         name: e.name,
-        equipment: e.equipment_id,
+        equipment: weightDescription(e.weight_convention),
         weightStepKg: e.weight_step_g / 1000,
         targets: e.targets.map((target) => ({
           id: target.target_id,
@@ -89,6 +119,16 @@ export function toProgram(view: ProgramView): Program {
       })),
     })),
   };
+}
+
+export function weightDescription(
+  convention: Content['templates'][number]['exercises'][number]['weight_convention'],
+): string {
+  return {
+    total_external_kg: 'Общий внешний вес, кг',
+    machine_marking_kg: 'Вес по маркировке тренажёра, кг',
+    per_implement_kg: 'Вес одного снаряда, кг',
+  }[convention];
 }
 
 // Отдельный DB хранит только привязку владельца/план. Сессии, CSRF и

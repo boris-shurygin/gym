@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { toProgram } from './account';
+import { describe, expect, it, vi } from 'vitest';
+import { api, toProgram } from './account';
 import { readFileSync } from 'node:fs';
 
 const examples = JSON.parse(
@@ -8,6 +8,20 @@ const examples = JSON.parse(
 const view = examples.find((e: { operation: string }) => e.operation === 'get_program').output;
 
 describe('серверный план', () => {
+  it('сохраняет Retry-After не-JSON ответа шлюза и не выдаёт его за окончательную квитанцию', async () => {
+    const fetch = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('gateway busy', { status: 429, headers: { 'Retry-After': '90' } }));
+    try {
+      await expect(api('/api/v1/plans')).rejects.toMatchObject({
+        status: 429,
+        retryAfter: 90,
+        receipt: undefined,
+      });
+    } finally {
+      fetch.mockRestore();
+    }
+  });
   it('сохраняет версию и конкретные цели fixed, переводя граммы в кг', () => {
     const program = toProgram(view);
     expect(program.versionId).toBe(view.version.program_version_id);
