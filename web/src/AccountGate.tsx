@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import App from './App';
+import PwaUpdate from './PwaUpdate';
 import { DEMO_OWNER, demoProgram } from './demo-program';
 import {
   api,
@@ -67,12 +68,14 @@ export default function Account() {
   const account = session ?? candidate;
 
   useEffect(() => {
-    if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-      void navigator.serviceWorker.register('/service-worker.js').catch(() => undefined);
-    }
     let cancelled = false;
     async function load() {
       const previous = localStorage.getItem(ownerKey);
+      let verified: SessionInfo | undefined;
+      if (previous && !localStorage.getItem('gym.hidden')) {
+        const cached = await profileCache(previous).catch(() => undefined);
+        if (!cancelled && cached?.owner === previous) setProfile(cached);
+      }
       try {
         const current = await api<SessionInfo>('/auth/session');
         if (cancelled) return;
@@ -83,6 +86,8 @@ export default function Account() {
           setMessage('Выполнен вход в другой аккаунт. Прежние записи останутся в его отдельном профиле.');
           return;
         }
+        verified = current;
+        setSession(current);
         const program = await api<ProgramView>('/api/v1/program');
         if (program.owner_id !== current.user_id) throw new Error('account_mismatch');
         toProgram(program);
@@ -96,6 +101,7 @@ export default function Account() {
         setProfile(cached);
         setSession(current);
         setMessage('');
+        window.dispatchEvent(new Event('gym-account-ready'));
         const changeId =
           location.hash.match(/change_id=([a-f0-9-]{36})/)?.[1] ??
           (location.hash.includes('/program')
@@ -110,11 +116,13 @@ export default function Account() {
         }
       } catch (error) {
         if (cancelled) return;
-        setSession(undefined);
+        setSession(verified);
         setMessage(
           error instanceof ApiError && error.code === 'account_disabled'
             ? 'Доступ к серверу закрыт. Локальные результаты сохранены.'
-            : 'Войди через Яндекс ID для доступа к своей программе. Локальные записи сохранены.',
+            : error instanceof ApiError && [401, 403].includes(error.status)
+              ? 'Войди через Яндекс ID для отправки записей. Локальные тренировки сохранены.'
+              : 'Нет связи с сервером. Локальные тренировки доступны; вход повторять пока не нужно.',
         );
         if (previous && !localStorage.getItem('gym.hidden')) {
           const cached = await profileCache(previous);
@@ -149,7 +157,16 @@ export default function Account() {
     };
   }, [revision]);
 
-  function hide() {
+  function hide(discardConfirmed = false) {
+    if (
+      !discardConfirmed &&
+      document.querySelector('[data-unsaved="true"]') &&
+      !window.confirm(
+        'Скрыть профиль и сбросить незаписанный ввод? Сохранённые тренировки и очередь останутся.',
+      )
+    )
+      return;
+    window.dispatchEvent(new Event('gym-profile-closing'));
     location.hash = '';
     localStorage.setItem('gym.hidden', 'yes');
     localStorage.removeItem(modeKey);
@@ -167,17 +184,24 @@ export default function Account() {
       !session ||
       busy ||
       !window.confirm(
-        'Выйти и сохранить локальные тренировки на устройстве? Облачная доставка ещё не подключена.',
+        'Выйти? Локальные тренировки и очередь останутся на устройстве; отправка продолжится после входа тем же аккаунтом.',
       )
     )
       return;
+    if (
+      document.querySelector('[data-unsaved="true"]') &&
+      !window.confirm('Незаписанный ввод будет сброшен. Продолжить выход?')
+    )
+      return;
+    window.dispatchEvent(new Event('gym-profile-closing'));
     setBusy(true);
     try {
       await api('/auth/logout', {}, session);
-      hide();
+      hide(true);
       setMessage('Выход выполнен. Записи сохранены на устройстве.');
     } catch {
       setMessage('Серверный выход не подтверждён. Можно скрыть данные на устройстве.');
+      setRevision((r) => r + 1);
     } finally {
       setBusy(false);
     }
@@ -225,6 +249,7 @@ export default function Account() {
 
   return (
     <>
+      <PwaUpdate />
       <section
         className={`account-panel card ${!profile && !demo ? 'account-welcome' : ''}`}
         aria-label="Аккаунт"
@@ -307,7 +332,7 @@ export default function Account() {
           <details className="account-options">
             <summary>Управление аккаунтом</summary>
             <div className="account-actions">
-              <button className="secondary" onClick={hide}>
+              <button className="secondary" onClick={() => hide()}>
                 Скрыть данные на устройстве
               </button>
               {session && (
@@ -347,11 +372,7 @@ export default function Account() {
         </main>
       )}
       {profile && !candidate && (
-        <App
-          key={`${profile.owner}:${profile.program.version?.program_version_id ?? 'empty'}`}
-          ownerId={profile.owner}
-          program={toProgram(profile.program)}
-        />
+        <App key={profile.owner} ownerId={profile.owner} program={toProgram(profile.program)} />
       )}
       {!profile && demo && !candidate && <App key="demo" ownerId={DEMO_OWNER} program={demoProgram} demo />}
     </>

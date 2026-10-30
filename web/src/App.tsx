@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   createSession,
+  grams,
   exerciseSets,
   nextTarget,
   volumeRatio,
@@ -14,6 +15,10 @@ import {
   type Program,
 } from './model';
 import { WorkoutRepository } from './repository';
+import type { LocalData } from './repository';
+import { programFromPlans } from './sync-model';
+import { SyncCoordinator, type SyncNotice } from './sync';
+import SyncPanel from './SyncPanel';
 
 type View =
   | { kind: 'home' }
@@ -28,7 +33,15 @@ interface Draft {
   revision: number;
 }
 const repository = new WorkoutRepository();
-const number = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 10 });
+function announceChange() {
+  try {
+    localStorage.setItem('gym.data-change', crypto.randomUUID());
+  } catch {
+    /* Notification is optional; the IndexedDB commit is authoritative. */
+  }
+}
+const number = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 3 });
+const percentage = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 });
 const date = (value: string) =>
   new Date(value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 const format = (value: number) => number.format(value);
@@ -64,7 +77,7 @@ function Volume({ set }: { set: SetResult }) {
         aria-valuemin={0}
         aria-valuemax={Math.max(130, percent)}
         aria-valuenow={percent}
-        aria-valuetext={`${format(percent)}% от плана`}
+        aria-valuetext={`${percentage.format(percent)}% от плана`}
       >
         <div className="volume-fill" style={{ width: `${Math.min(100, percent / 1.3)}%` }} />
         <span className="plan-marker" />
@@ -74,7 +87,7 @@ function Volume({ set }: { set: SetResult }) {
           {format(set.weightKg * set.reps)} / {format(target.weightKg * target.reps)} кг·повт.
         </span>
         <strong>
-          {format(percent)}%{percent > 130 ? ' ↑' : ''}
+          {percentage.format(percent)}%{percent > 130 ? ' ↑' : ''}
         </strong>
       </div>
       <p className="caption">
@@ -86,7 +99,7 @@ function Volume({ set }: { set: SetResult }) {
 
 export default function App({
   ownerId,
-  program,
+  program: suppliedProgram,
   demo = false,
 }: {
   ownerId: string;
@@ -103,16 +116,35 @@ export default function App({
   const [error, setError] = useState('');
   const [offline, setOffline] = useState(!navigator.onLine);
   const [offlineReady, setOfflineReady] = useState(false);
+  const [data, setData] = useState<LocalData>();
+  const [notice, setNotice] = useState<SyncNotice>({
+    busy: false,
+    message: 'Записи сохраняются на устройстве',
+  });
+  const [coordinator, setCoordinator] = useState<SyncCoordinator>();
+  const [syncEpoch, setSyncEpoch] = useState(0);
+  const program = demo
+    ? suppliedProgram
+    : data?.state.plans.length
+      ? programFromPlans(ownerId, data.state.plans)
+      : { ...suppliedProgram, templates: [] };
   const active = sessions.find((s) => s.status === 'active');
   const session = 'sessionId' in view ? sessions.find((s) => s.id === view.sessionId) : undefined;
 
   async function load(reset = false) {
+    if (
+      reset &&
+      Object.keys(drafts).length &&
+      !window.confirm('Обновить экран и сбросить незаписанный ввод? Сохранённые подходы останутся.')
+    )
+      return;
     try {
       const data = await repository.read(ownerId);
       setSessions(data.sessions);
       setPending(data.pendingCount);
-      setError('');
+      setData(data);
       if (reset) {
+        setError('');
         setView({ kind: 'home' });
         setDrafts({});
       }
@@ -126,14 +158,62 @@ export default function App({
   useEffect(() => {
     void load();
   }, []);
+  const refreshRef = useRef(load);
+  refreshRef.current = load;
+  useEffect(() => {
+    if (demo) return;
+    const changed = () => {
+      void refreshRef.current();
+      announceChange();
+    };
+    const sync = new SyncCoordinator(
+      repository,
+      ownerId,
+      () => localStorage.getItem('gym.active-owner') === ownerId && !localStorage.getItem('gym.hidden'),
+      changed,
+      setNotice,
+    );
+    setCoordinator(sync);
+    const run = () => {
+      if (navigator.onLine && document.visibilityState === 'visible') void sync.run();
+    };
+    const storage = (event: StorageEvent) => {
+      if (event.key === 'gym.data-change') void refreshRef.current();
+      if (event.key === 'gym.hidden' || event.key === 'gym.active-owner') sync.stop();
+    };
+    const stop = () => sync.stop();
+    const ready = () => setSyncEpoch((value) => value + 1);
+    window.addEventListener('online', run);
+    document.addEventListener('visibilitychange', run);
+    window.addEventListener('storage', storage);
+    window.addEventListener('gym-profile-closing', stop);
+    window.addEventListener('gym-account-ready', ready);
+    run();
+    return () => {
+      sync.stop();
+      window.removeEventListener('online', run);
+      document.removeEventListener('visibilitychange', run);
+      window.removeEventListener('storage', storage);
+      window.removeEventListener('gym-profile-closing', stop);
+      window.removeEventListener('gym-account-ready', ready);
+    };
+  }, [ownerId, demo, syncEpoch]);
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      if (Object.keys(drafts).length) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [drafts]);
   useEffect(() => {
     const update = () => setOffline(!navigator.onLine);
     window.addEventListener('online', update);
     window.addEventListener('offline', update);
     if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-      void navigator.serviceWorker
-        .register('/service-worker.js')
-        .then(() => navigator.serviceWorker.ready)
+      void navigator.serviceWorker.ready
         .then(() => setOfflineReady(true))
         .catch(() => setOfflineReady(false));
     }
@@ -177,6 +257,9 @@ export default function App({
         ),
       );
       setView(nextView);
+      void load();
+      announceChange();
+      if (!demo && navigator.onLine) void coordinator?.run();
     } catch (error) {
       setError(
         error instanceof WorkoutError
@@ -224,6 +307,16 @@ export default function App({
           {date(current.startedAt)}
         </p>
         <h1>{current.snapshot.name}</h1>
+        {!demo && (!current.snapshot.planSnapshot || current.localOnly) && (
+          <p className="caption">Старая локальная запись · сохранена только на устройстве</p>
+        )}
+        {current.snapshot.planSnapshot && (
+          <p className="caption">
+            План от {date(current.snapshot.planSnapshot.calculated_at)} · версия{' '}
+            {current.programVersionId.slice(0, 12)}. План этой тренировки не изменится после обновления
+            программы.
+          </p>
+        )}
         <section className="card summary">
           <div className="between">
             <span>Рабочие подходы</span>
@@ -297,6 +390,7 @@ export default function App({
   function exerciseEditor(current: Session, exercise: Exercise, editSetId?: string) {
     const sets = exerciseSets(current, exercise.id);
     const editing = sets.find((s) => s.id === editSetId);
+    const removedWhileEditing = Boolean(editSetId && !editing);
     const next = nextTarget(current, exercise.id);
     const key = `${current.id}:${exercise.id}:${editSetId ?? 'new'}`;
     const draft = drafts[key] ?? {
@@ -310,8 +404,9 @@ export default function App({
     const goBack: View = { kind: 'session', sessionId: current.id };
     const newSetView: View = { kind: 'exercise', sessionId: current.id, exerciseId: exercise.id };
     const workingCount = sets.filter((s) => s.kind === 'working').length;
-    const weightNumber = draft.weight.trim() ? Number(draft.weight.replace(',', '.')) : NaN;
-    const repsNumber = draft.reps.trim() ? Number(draft.reps) : NaN;
+    const weightText = draft.weight.trim().replace(',', '.');
+    const weightNumber = /^(?:\d+(?:\.\d{1,3})?|\.\d{1,3})$/.test(weightText) ? Number(weightText) : NaN;
+    const repsNumber = /^\d+$/.test(draft.reps.trim()) ? Number(draft.reps) : NaN;
     return (
       <>
         <button className="back" onClick={() => setView(goBack)}>
@@ -327,17 +422,41 @@ export default function App({
             Вес в кг · {workingCount} / {exercise.targets.length} рабочих подходов
           </p>
         </section>
+        {removedWhileEditing && (
+          <section className="error" role="alert">
+            <p>
+              Этот подход удалён на другом устройстве. Незаписанный ввод оставлен; исправление не превратится
+              в новый подход автоматически.
+            </p>
+            <button
+              className="secondary"
+              type="button"
+              onClick={() => {
+                if (window.confirm('Сбросить незаписанный ввод удалённого подхода и открыть новую форму?')) {
+                  setDrafts((previous) => {
+                    const copy = { ...previous };
+                    delete copy[key];
+                    return copy;
+                  });
+                  setView(newSetView);
+                }
+              }}
+            >
+              Сбросить ввод удалённого подхода
+            </button>
+          </section>
+        )}
         <form
           className="card editor"
           onSubmit={(event) => {
             event.preventDefault();
             const values = {
               kind: draft.kind,
-              weightKg: draft.weight.trim() ? Number(draft.weight.replace(',', '.')) : NaN,
-              reps: draft.reps.trim() ? Number(draft.reps) : NaN,
+              weightKg: weightNumber,
+              reps: repsNumber,
             };
-            const mutation: Mutation = editing
-              ? { type: 'editSet', setId: editing.id, values }
+            const mutation: Mutation = editSetId
+              ? { type: 'editSet', setId: editSetId, values }
               : { type: 'addSet', exerciseId: exercise.id, setId: crypto.randomUUID(), values };
             void execute(mutation, current.id, draft.revision, newSetView, key);
           }}
@@ -357,6 +476,7 @@ export default function App({
               <button
                 key={kind}
                 type="button"
+                disabled={busy}
                 aria-pressed={draft.kind === kind}
                 onClick={() =>
                   update({
@@ -381,6 +501,7 @@ export default function App({
                 <input
                   inputMode="decimal"
                   aria-label="Вес, кг"
+                  disabled={busy}
                   value={draft.weight}
                   onChange={(e) => update({ weight: e.target.value })}
                 />
@@ -389,9 +510,14 @@ export default function App({
                 <button
                   type="button"
                   aria-label="Уменьшить вес"
-                  disabled={!Number.isFinite(weightNumber) || weightNumber < exercise.weightStepKg}
+                  disabled={
+                    !Number.isFinite(weightNumber) ||
+                    weightNumber > 2000 ||
+                    weightNumber < exercise.weightStepKg ||
+                    !/^\d+(\.\d{1,3})?$/.test(String(weightNumber))
+                  }
                   onClick={() =>
-                    update({ weight: String(Number((weightNumber - exercise.weightStepKg).toFixed(10))) })
+                    update({ weight: String((grams(weightNumber) - grams(exercise.weightStepKg)) / 1000) })
                   }
                 >
                   −
@@ -400,9 +526,13 @@ export default function App({
                 <button
                   type="button"
                   aria-label="Увеличить вес"
-                  disabled={!Number.isFinite(weightNumber)}
+                  disabled={
+                    !Number.isFinite(weightNumber) ||
+                    weightNumber > 2000 - exercise.weightStepKg ||
+                    !/^\d+(\.\d{1,3})?$/.test(String(weightNumber))
+                  }
                   onClick={() =>
-                    update({ weight: String(Number((weightNumber + exercise.weightStepKg).toFixed(10))) })
+                    update({ weight: String((grams(weightNumber) + grams(exercise.weightStepKg)) / 1000) })
                   }
                 >
                   +
@@ -416,6 +546,7 @@ export default function App({
                 <input
                   inputMode="numeric"
                   aria-label="Повторения"
+                  disabled={busy}
                   value={draft.reps}
                   onChange={(e) => update({ reps: e.target.value })}
                 />
@@ -433,7 +564,7 @@ export default function App({
                 <button
                   type="button"
                   aria-label="Увеличить повторения"
-                  disabled={!Number.isSafeInteger(repsNumber)}
+                  disabled={!Number.isSafeInteger(repsNumber) || repsNumber >= 1000}
                   onClick={() => update({ reps: String(repsNumber + 1) })}
                 >
                   +
@@ -441,9 +572,25 @@ export default function App({
               </div>
             </div>
           </div>
-          <button className="primary wide" disabled={busy}>
+          <button className="primary wide" disabled={busy || removedWhileEditing}>
             {busy ? 'Сохраняем…' : editing ? 'Сохранить изменения' : 'Записать подход'}
           </button>
+          {!editing && drafts[key] && (
+            <button
+              type="button"
+              className="back"
+              onClick={() => {
+                if (window.confirm('Сбросить только незаписанный ввод? Сохранённые подходы останутся.'))
+                  setDrafts((previous) => {
+                    const copy = { ...previous };
+                    delete copy[key];
+                    return copy;
+                  });
+              }}
+            >
+              Сбросить ввод
+            </button>
+          )}
           {editing && (
             <div className="between edit-actions">
               <button
@@ -526,7 +673,7 @@ export default function App({
     const exercise = session.snapshot.exercises.find((e) => e.id === view.exerciseId);
     content = exercise ? exerciseEditor(session, exercise, view.editSetId) : <p>Упражнение не найдено.</p>;
   } else if (view.kind === 'session' && session) content = sessionOverview(session);
-  else if (view.kind === 'preview') {
+  else if (view.kind === 'preview' && program.templates.some((t) => t.id === view.templateId)) {
     const template = program.templates.find((t) => t.id === view.templateId)!;
     content = (
       <>
@@ -595,18 +742,21 @@ export default function App({
             ? 'Выбери шаблон или продолжи начатое'
             : 'Здесь будет твой план и история занятий'}
         </p>
-        {active && (
-          <section className="card active-card">
-            <span className="eyebrow">Уже начата</span>
-            <h2>{active.snapshot.name}</h2>
-            <button
-              className="primary wide"
-              onClick={() => setView({ kind: 'session', sessionId: active.id })}
-            >
-              Продолжить тренировку
-            </button>
-          </section>
-        )}
+        {sessions
+          .filter((s) => s.status === 'active')
+          .map((active) => (
+            <section className="card active-card" key={active.id}>
+              <span className="eyebrow">Уже начата</span>
+              <h2>{active.snapshot.name}</h2>
+              <p className="caption">Начата: {new Date(active.startedAt).toLocaleString('ru-RU')}</p>
+              <button
+                className="primary wide"
+                onClick={() => setView({ kind: 'session', sessionId: active.id })}
+              >
+                Продолжить тренировку
+              </button>
+            </section>
+          ))}
         <div className="section-title">
           {demo ? 'Тестовая программа' : 'Твоя программа'}{' '}
           <span>
@@ -615,6 +765,19 @@ export default function App({
               : 'Пока пусто'}
           </span>
         </div>
+        {!demo && !!program.templates.length && (
+          <p className="caption">
+            План от {date(program.templates[0].planSnapshot!.calculated_at)} · версия{' '}
+            {program.versionId.slice(0, 12)}
+            {!data?.state.refreshedAt || Date.now() - Date.parse(data.state.refreshedAt) > 7 * 86400_000
+              ? ' · давно не обновлялся, цели могут быть устаревшими'
+              : ''}
+            {data?.state.program?.version &&
+            data.state.program.version.program_version_id !== program.versionId
+              ? ' · опубликована новая программа, сохранился прежний план'
+              : ''}
+          </p>
+        )}
         {program.templates.map((template, i) => (
           <button
             className="card template-card"
@@ -642,8 +805,16 @@ export default function App({
             <span className="template-icon icon-0" aria-hidden="true">
               ◈
             </span>
-            <h2>Программа ещё не опубликована</h2>
-            <p className="subheading">После публикации здесь появятся твои шаблоны тренировок.</p>
+            <h2>
+              {suppliedProgram.templates.length
+                ? 'Нужно загрузить планы тренировок'
+                : 'Программа ещё не опубликована'}
+            </h2>
+            <p className="subheading">
+              {suppliedProgram.templates.length
+                ? 'Для нового занятия сначала подключись к сети и синхронизируй планы. Уже начатые тренировки можно продолжить.'
+                : 'После публикации здесь появятся твои шаблоны тренировок.'}
+            </p>
             <p className="caption">
               Когда программа будет готова, нажми «Обновить программу» в блоке аккаунта.
             </p>
@@ -653,7 +824,11 @@ export default function App({
     );
 
   return (
-    <div className={`app-shell ${view.kind === 'exercise' ? 'exercise-screen' : ''}`}>
+    <div
+      className={`app-shell ${view.kind === 'exercise' ? 'exercise-screen' : ''}`}
+      data-unsaved={Object.keys(drafts).length > 0}
+      data-saving={busy}
+    >
       <header className="app-header">
         <a href="/" aria-label="Gym — на главную" className="brand">
           gym<span>↗</span>
@@ -675,9 +850,27 @@ export default function App({
           </section>
         )}
         {content}
+        {!demo && (
+          <SyncPanel
+            owner={ownerId}
+            data={data}
+            repository={repository}
+            coordinator={coordinator}
+            notice={notice}
+            changed={() => void load()}
+          />
+        )}
       </main>
       <footer className="app-footer">
-        <p>Облачная синхронизация ещё не подключена</p>
+        <p>
+          {demo
+            ? 'Демо хранится только на устройстве'
+            : pending
+              ? 'Есть записи, ещё не доставленные на сервер'
+              : data
+                ? 'Очередь отправки пуста'
+                : 'Проверяем локальные записи'}
+        </p>
         <p>{offlineReady ? 'Можно открыть без сети' : 'Офлайн-запуск будет готов после загрузки сборки'}</p>
       </footer>
       <nav className="bottom-nav" aria-label="Разделы">

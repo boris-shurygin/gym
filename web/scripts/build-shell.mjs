@@ -24,6 +24,13 @@ const ASSETS = ${JSON.stringify(urls)};
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
 });
+self.addEventListener('message', event => {
+  if (event.data?.type !== 'APPLY_UPDATE') return;
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+    if (clients.length > 1) event.source?.postMessage({ type: 'UPDATE_BLOCKED' });
+    else return self.skipWaiting();
+  }));
+});
 // Do not force activation/reload or delete old assets and IndexedDB during a workout.
 self.addEventListener('activate', event => { event.waitUntil(self.clients.claim()); });
 self.addEventListener('fetch', event => {

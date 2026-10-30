@@ -1,3 +1,5 @@
+import type { PlanSnapshot, Receipt, SyncOperation } from './sync-model';
+
 export type SetKind = 'working' | 'warmup';
 export interface Target {
   id: string;
@@ -12,6 +14,7 @@ export interface Exercise {
   targets: Target[];
 }
 export interface Template {
+  planSnapshot?: PlanSnapshot;
   id: string;
   name: string;
   description: string;
@@ -34,6 +37,8 @@ export interface SetResult extends SetValues {
   deletedAt?: string;
 }
 export interface Session {
+  localOnly?: boolean;
+  serverRevision?: number;
   id: string;
   ownerId: string;
   programVersionId: string;
@@ -61,7 +66,13 @@ export interface Command {
 }
 export interface PendingOperation extends Command {
   fingerprint: string;
-  status: 'pending';
+  status: 'pending' | 'sending' | 'acked' | 'blocked_auth' | 'conflict' | 'rejected' | 'superseded';
+  wire?: SyncOperation;
+  sequence?: number;
+  attempts?: number;
+  nextAttemptAt?: number;
+  receipt?: Receipt;
+  reason?: string;
 }
 
 export class WorkoutError extends Error {}
@@ -71,16 +82,27 @@ export class ConflictError extends WorkoutError {
   }
 }
 
+export function grams(value: number): number {
+  const match = /^(\d+)(?:\.(\d{1,3}))?$/.exec(String(value));
+  if (!match) throw new WorkoutError('Вес: от 0 до 2000 кг, не больше трёх знаков после запятой.');
+  const result = Number(match[1]) * 1000 + Number((match[2] ?? '').padEnd(3, '0'));
+  if (!Number.isSafeInteger(result) || result > 2_000_000)
+    throw new WorkoutError('Вес должен быть от 0 до 2000 кг.');
+  return result;
+}
+
 export function validateValues(values: SetValues): void {
+  grams(values.weightKg);
   if (
     !['working', 'warmup'].includes(values.kind) ||
     !Number.isFinite(values.weightKg) ||
     !Number.isFinite(values.weightKg * values.reps) ||
     values.weightKg < 0 ||
     !Number.isSafeInteger(values.reps) ||
-    values.reps <= 0
+    values.reps <= 0 ||
+    values.reps > 1000
   ) {
-    throw new WorkoutError('Укажи неотрицательный вес в кг и целое положительное число повторений.');
+    throw new WorkoutError('Укажи вес от 0 до 2000 кг и целое число повторений от 1 до 1000.');
   }
 }
 

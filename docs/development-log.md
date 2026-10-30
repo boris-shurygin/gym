@@ -4,23 +4,40 @@
 
 | Поле | Значение |
 | --- | --- |
-| Активный этап | Завершение подписи аккаунта, затем полный P08 по новому запросу пользователя |
-| Локальная доработка | По запросу пользователя добавлена подпись аккаунта логином Яндекса; готова локально, ещё не опубликована |
-| Состояние | P07 выполнен полностью: код/миграция/ACL, 53 native YDB-проверки, PR/main CI, merge и независимая HTTPS-приёмка staging на двух временных аккаунтах с удалением fixtures |
-| Локальная ветка | feat/account-login-label от main b138d10; сохранены итоги P07 и диагностика обновления PWA |
+| Активный этап | Полный P08 по разрешённому автономному циклу; подпись аккаунта #25 слита |
+| Локальная доработка | PWA: подлинные планы, атомарная wire-очередь, повторы/квитанции, bootstrap/дельта, конфликты и управляемое обновление |
+| Состояние | Реализация P08 и локальная приёмка; новый PR/CI и реальный staging ещё предстоят. Деплой #25 остановлен HTTP 429 квоты тегов |
+| Локальная ветка | feat/p08-offline-sync от main 15f899203d631fba939933a260eeede6c3fafd36; подготовка перенесена без потери файлов |
 | Режим и объём | Пользователь: «Завершаем этап, делаем ПР, мержим. После переходим к P08 и делаем полностью… опубликуй на стейджинг и дай ссылку». Разрешены PR/CI/merge подписи аккаунта, затем весь P08 до проверенного staging. P09 и production не входят |
 | Изменение процесса | Правила автономной работы слиты в #16 и проверены полным staging |
-| Локальный базовый main | `b138d10f40ab4b2b98d7a81f5a0ceebc702c9bcd` — merge P07 #24 |
-| Актуальность origin/main | Fetch/fast-forward подтвердил main/origin/main b138d10; постфактум-метаданные сохранены, коммитов в main нет |
-| PR | [P07 #24](https://github.com/boris-shurygin/gym/pull/24) слит с проверенным head 52906ff, merge b138d10. P06 #19–#23 завершён ранее |
-| CI PR | На head 52906ff успешны [Web checks 40948912049](https://github.com/boris-shurygin/gym/actions/runs/40948912049) и [Cloud access 40948912040](https://github.com/boris-shurygin/gym/actions/runs/40948912040). Native YDB: 53 проверки; browser штатно skipped, web/ не менялся |
+| Локальный базовый main | `15f899203d631fba939933a260eeede6c3fafd36` — merge #25 с head 5cfd812 |
+| Актуальность origin/main | Fetch подтвердил main/origin/main 15f8992. Локальный main обновлён только fast-forward проверкой ancestry + compare-and-swap; рабочая ветка P08 отдельная |
+| PR | [#25](https://github.com/boris-shurygin/gym/pull/25) слит с ожидаемым head 5cfd812, merge 15f8992; P08 ещё не опубликован |
+| CI PR | #25: Web checks [41034068518](https://github.com/boris-shurygin/gym/actions/runs/41034068518) и Cloud access [41034068624](https://github.com/boris-shurygin/gym/actions/runs/41034068624) успешны, включая native YDB/browser |
 | CI сборки | P07: Linux-пакеты b138d10…_40949467086_1 проверены на staging. Production сохраняет прежние пакеты 9a16a2f…_40852028322_1 |
-| CI после merge | [Web checks 40949314475](https://github.com/boris-shurygin/gym/actions/runs/40949314475), [Cloud access 40949314838](https://github.com/boris-shurygin/gym/actions/runs/40949314838) и полный [Staging release 40949467086](https://github.com/boris-shurygin/gym/actions/runs/40949467086), attempt 1, успешны на main b138d10 |
+| CI после merge | #25: [Web checks 41041605425](https://github.com/boris-shurygin/gym/actions/runs/41041605425) и [Cloud access 41041605423](https://github.com/boris-shurygin/gym/actions/runs/41041605423) успешны; [Staging release 41041735957](https://github.com/boris-shurygin/gym/actions/runs/41041735957), attempt 1: gate/build/publish/migrations успешны, deploy HTTP 429 |
 | Реальная проверка OIDC | Staging publisher/migrations/deploy и production Environment OIDC в [Production release](https://github.com/boris-shurygin/gym/actions/runs/40863249879) успешны; постоянные облачные ключи не создавались |
 | Выпуск артефактов | `9a16a2f02a77f5227aa96046d5b0fa26f7d525b1_40852028322_1`; manifest SHA-256 `6e1e369063bee94f6c68a4bda3efa307803eb12ef0cf285d57a210818af3cac9` |
 | Престейбл | [HTTPS-приложение](https://d5d734k3s76t42pa5rtn.764nr5vy.apigw.yandexcloud.net/), release b138d10…_40949467086_1, API d4e2gfm5d9bj2o9kgh02, схема 0003, OAuth включён. Квитанция, 8 артефактов, API/Gateway/схема и auth smoke независимо сверены. Настоящая HTTPS/YDB-приёмка P07 и отрицательные проверки ACL успешны, временные строки удалены. PWA пока не отправляет очередь |
 | Стейбл | [HTTPS-приложение](https://d5dhqvda3eo6r4c2mgf6.764nr5vy.apigw.yandexcloud.net/), release `9a16a2f…_40852028322_1`, API `d4e7umbbk4a2t9spfecl`; [workflow](https://github.com/boris-shurygin/gym/actions/runs/40863249879), независимая проверка/HTTP/offline успешны. Пять служебных таблиц, пользовательских данных нет |
-| Следующее действие | Опубликуй/проверь/смёржи подпись аккаунта и устрани квоту тегов перед выкаткой. Затем реализуй весь P08, проверь сохранность старых данных/очереди и обновления установленной PWA, CI/merge и настоящий staging. Не начинай P09/production, не удаляй рабочие теги без сохранения выпусков |
+| Следующее действие | Доведи локальную приёмку P08/PR/CI. Проверь существующую заявку квоты, не создавай дубль и не удаляй обычные r-* теги. После снятия ограничения проверь новый main/staging и независимую приёмку; P09 и production не начинай |
+
+## P08 — реализация и независимая подготовка 2026-10-30
+
+Локальная приёмка кандидата: lint/build/typecheck и 48 web unit успешны; 42 browser (14 сценариев × mobile/desktop Chromium и mobile WebKit) успешны. После последних правок транспорта/подписей новый CI повторит полный набор. Отдельно прошли 3 build и 101 release-проверка, Markdown/ссылки и diff. На синтетических mobile/desktop экранах горизонтального переполнения нет; снимки и отчёт в .local/p08-*. Изменений production, IAM/ACL или схемы YDB нет.
+
+Открыт [PR #26](https://github.com/boris-shurygin/gym/pull/26), исходный head 6aa4b75. Первый [Web checks 41045134629](https://github.com/boris-shurygin/gym/actions/runs/41045134629) подтвердил contracts/web/api/native YDB, но browser остановился до тестов: setup-python успешно нашёл 3.12.15, затем cache:pip вызвал pip из host toolcache с недоступным в контейнере shebang (ENOENT). Для browser убран только cache action; установка зависимостей уже использует python -m pip. Новый head должен пройти свежий CI, падение не объявляй пропущенным тестом.
+
+На head 9b363d1 [Web checks 41045574108](https://github.com/boris-shurygin/gym/actions/runs/41045574108) подтвердил 55 native YDB и остальные небраузерные jobs; browser дошёл до 42 сценариев: 38 успешны, четыре desktop Chromium остановились по timeout. Для различия с локальным установленным Chrome добавлена ограниченная диагностика экрана/ревизий/статусов только синтетического localhost-стенда, без cookies/CSRF/ответов сессии; закреплённый Chromium headless shell ставится один раз в локальный кэш для воспроизведения. Merge P08 пока не выполняй: сначала установи причину и получи зелёный CI.
+
+Последовательность кликов в CI 41047226565 установила причину четырёх desktop-отказов: сохранённые факты/очередь целы, но физический клик после автопрокрутки попадал в NAV закреплённой нижней панели, а не в кнопку записи. Перед обычным кликом тест теперь явно прокручивает карточку к центру viewport и ждёт экран исправления. Force click/dispatchEvent, пропуск сценария и отключение service worker не используются. Локальный закреплённый headless shell также подтвердил пять сценариев синхронизации.
+
+- Пользователь явно разрешил завершить/смёржить подпись аккаунта, затем весь P08 до PR/зелёного CI/merge и проверенного staging. P09/production не включены. Пока внешняя квота ожидалась, выполнялась независимая локальная подготовка P08, без заявления об облачной готовности. После merge #25 все файлы сохранены в отдельной ветке от фактического нового main.
+- #25: head 5cfd8129c956289deba91a303fbc17aed337606a, merge 15f899203d631fba939933a260eeede6c3fafd36. PR/main CI зелёные, замечаний ревью нет. Staging 41041735957 впервые выполнен, deploy остановлен HTTP 429; повтор без изменения причины не запускался. Публикация/проверка миграции прошла, прежнее приложение не объявлялось обновлённым.
+- Создана ровно одна заявка quota-manager `atdso0t05o3ua5gh4mj6`, 2026-10-30 09:30:58 UTC, cloud b1ghmudqihbvpnscd2fq, `serverless.functionTags.count`: 10→100. Последнее чтение: PENDING/PROCESSING, limit/usage 10/10. Новые ресурсы/IAM не созданы, обычные r-* теги/версии и артефакты не удалены. Увеличение квоты само по себе ресурсов/расходов не создаёт.
+- Реализация и точные границы: [клиент P08](pwa-sync-implementation.md). Старые v1-записи не имели подлинного ID серверного плана: они сохранены локально без автоматического импорта или подмены целей. Все новые действия с серверным снимком сохраняют точный DTO/ID и цепочку; решения конфликтов архивируют исходную проекцию и весь непринятый суффикс.
+- Браузерный стенд использует настоящий HTTP handler/сервисы на синтетической SQLite через localhost preview-прокси. В WebKit перехват Playwright после активации worker отдавал fallback вместо auth/API; сетевые моки заменены настоящим HTTP. Также устранены две гонки: порядок ключей JSON не должен менять ревизию одинаковой проекции; время wire-старта совпадает с local startedAt. Поля заблокированы только на время локального commit, чтобы его завершение не стирало следующий ввод.
+- Приёмка выполняется в установленном Chrome (mobile/desktop) и WebKit (iPhone viewport). Это не физические iOS/Android; smoke установки/хранения на реальных устройствах остаётся перед пилотом. Нет локального Docker; native YDB/сборка Linux проверяются CI.
 
 ## P08 — автономный объём 2026-10-30
 
