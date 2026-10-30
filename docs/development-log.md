@@ -915,4 +915,3 @@ CI 41119769954 получил платформенный HTTP 429 после с�
 ## 2026-10-31: читаемая ссылка и разрешение P09
 
 Пользователь разрешил отдельный Object Storage с редиректом, коммит/PR/merge текущих изменений, затем полный автономный P09 до CI/merge/проверенного staging. Production не входит. База — main 665a01e; ветка infra/staging-shortcut. Создан только пустой gym-staging (e3esd8n8sua77la1d555) в Gym staging, лимит 1 MiB, все anonymous flags закрыты, без новых IAM. Конфигурация infra/staging-redirect.json. HTTPS / и /app возвращают 301 на прежний Gateway с тем же путём. sportstats, данные и production не менялись. Документация и git diff --check проверены; приложение не менялось, браузерный прогон не требуется.
-
