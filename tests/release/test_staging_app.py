@@ -139,7 +139,8 @@ class DeploymentOrderTests(unittest.TestCase):
         self.assertNotIn('tags-finish', self.events)
 
     def test_validation_does_not_rotate_release_tags(self):
-        app.execute('unused', RELEASE, 'd' * 64, validation=True)
+        with patch.dict(app.os.environ, {'GITHUB_ACTIONS': ''}):
+            app.execute('unused', RELEASE, 'd' * 64, validation=True)
         self.assertNotIn('tags-prepare', self.events)
         self.assertNotIn('tags-finish', self.events)
 
