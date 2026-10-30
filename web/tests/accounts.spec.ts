@@ -13,6 +13,7 @@ async function server(page: Page, owner: { value: string; signedIn: boolean }) {
       json: owner.signedIn
         ? {
             user_id: owner.value,
+            yandex_login: `${owner.value}.login`,
             csrf_token: 'c'.repeat(64),
             expires_at: '2026-12-01T12:00:00Z',
             analytics_timezone: 'UTC',
@@ -83,6 +84,7 @@ test('смена аккаунта закрывает старый профиль
   const owner = { value: 'alice', signedIn: true };
   await server(page, owner);
   await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'alice.login', exact: true })).toBeVisible();
   await page.getByRole('button', { name: /План alice/ }).click();
   await page.getByRole('button', { name: 'Начать тренировку', exact: true }).click();
   // Дождись фиксации занятия в IndexedDB до смены аккаунта и перезагрузки.
@@ -90,9 +92,11 @@ test('смена аккаунта закрывает старый профиль
   owner.value = 'bob';
   await page.reload();
   await expect(page.getByText('Выполнен вход в другой аккаунт.', { exact: false })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'bob.login', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Продолжить тренировку' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Открыть отдельный профиль' }).click();
   await expect(page.getByRole('button', { name: /План bob/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'bob.login', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Продолжить тренировку' })).toHaveCount(0);
   await page.getByText('Управление аккаунтом', { exact: true }).click();
   await page.getByRole('button', { name: 'Скрыть данные на устройстве' }).click();
@@ -129,4 +133,25 @@ test('service worker не перехватывает auth-навигацию и 
     ).flat();
   });
   expect(keys.some((key) => key.startsWith('/auth/'))).toBe(false);
+});
+
+test('прежняя сессия без логина сохраняет профиль и предлагает подтверждение аккаунта', async ({ page }) => {
+  await server(page, { value: 'alice', signedIn: true });
+  await page.route('**/auth/session', (route) =>
+    route.fulfill({
+      json: {
+        user_id: 'alice',
+        csrf_token: 'c'.repeat(64),
+        expires_at: '2026-12-01T12:00:00Z',
+        analytics_timezone: 'UTC',
+      },
+    }),
+  );
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Твой аккаунт', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /План alice/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Подтвердить аккаунт', exact: true })).toHaveAttribute(
+    'href',
+    '/auth/login?purpose=reauth&return_to=/app',
+  );
 });

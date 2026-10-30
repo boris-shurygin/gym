@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import sqlalchemy as sa
 
-from api.auth import Auth, AuthSettings, YandexProvider, cookies, digest, SESSION_COOKIE, LOGIN_COOKIE, IDLE, ABSOLUTE
+from api.auth import Auth, AuthSettings, YandexProvider, VerifiedIdentity, cookies, digest, SESSION_COOKIE, LOGIN_COOKIE, IDLE, ABSOLUTE
 from api.errors import ServiceError
 from api.handler import handler
 from api.programs import Programs
@@ -22,6 +22,32 @@ CONTENT = next(e['output']['version']['content'] for e in EXAMPLES if e['operati
 
 
 class ApplicationCases:
+    def test_verified_login_is_display_metadata_and_never_selects_owner(self):
+        self.assertEqual(self.auth.session(self.alice)['yandex_login'], 'login-101')
+        state, binder = self.begin()
+        # Совпадающая подпись не объединяет разных подтверждённых subjects.
+        self.provider.identity.return_value = VerifiedIdentity('102', 'login-101')
+        _, headers = self.auth.callback({'state': state, 'code': 'synthetic-code'}, binder, 'same-label')
+        token = headers[-1].split(';')[0].split('=', 1)[1]
+        session = self.auth.session(token)
+        self.assertEqual(session['user_id'], 'bob')
+        self.assertEqual(session['yandex_login'], 'login-101')
+        validate('SessionInfo', session)
+
+    def test_legacy_session_remains_valid_and_reauth_populates_login(self):
+        def legacy(db):
+            value = db.get('sessions', 'session', digest(self.alice))
+            value.pop('yandex_login')
+            db.put('sessions', 'session', digest(self.alice), value)
+        self.store.run(legacy)
+        self.assertIsNone(self.auth.session(self.alice)['yandex_login'])
+        state, binder = self.begin(SESSION_COOKIE + '=' + self.alice, purpose='reauth')
+        self.provider.identity.return_value = VerifiedIdentity('101', 'alice.updated')
+        _, headers = self.auth.callback({'state': state, 'code': 'synthetic-code'}, binder, 'reauth-label')
+        token = headers[-1].split(';')[0].split('=', 1)[1]
+        self.assertEqual(self.auth.session(token)['yandex_login'], 'alice.updated')
+        self.error('session_required', lambda: self.auth.session(self.alice))
+
     def prepare(self):
         self.clock = 1793275200
         self.store = Store(self.engine, self.prefix)
@@ -44,7 +70,7 @@ class ApplicationCases:
 
     def login(self, subject, owner):
         self.allow(subject, owner)
-        self.provider.identity.return_value = subject
+        self.provider.identity.return_value = VerifiedIdentity(subject, 'login-' + subject)
         state, binder = self.begin()
         _, headers = self.auth.callback({'state': state, 'code': 'synthetic-code'}, binder, 'trace')
         return headers[-1].split(';')[0].split('=', 1)[1]
@@ -157,7 +183,7 @@ class ApplicationCases:
         self.error('invalid_request', lambda: self.auth.callback({'state': state, 'code': 'secret-code'}, binder, 't'))
 
     def test_uninvited_is_only_verified_request_and_never_admission(self):
-        self.provider.identity.return_value = '103'
+        self.provider.identity.return_value = VerifiedIdentity('103', 'login-103')
         state, binder = self.begin()
         self.error('not_invited', lambda: self.auth.callback({'state': state, 'code': 'code'}, binder, 'safe-ref'))
         admission, pending = self.store.run(lambda db: (db.get('admissions', 'yandex', digest('yandex:103')),
@@ -176,10 +202,10 @@ class ApplicationCases:
         self.clock += 300
         self.error('invalid_request', lambda: self.auth.callback({'state': state, 'code': 'code'}, binder, 't'))
         state, binder = self.begin(SESSION_COOKIE + '=' + self.alice, purpose='reauth')
-        self.provider.identity.return_value = '102'
+        self.provider.identity.return_value = VerifiedIdentity('102', 'login-102')
         self.error('account_mismatch', lambda: self.auth.callback({'state': state, 'code': 'code'}, binder, 't'))
         state, binder = self.begin(SESSION_COOKIE + '=' + self.alice)
-        self.provider.identity.return_value = '101'
+        self.provider.identity.return_value = VerifiedIdentity('101', 'login-101')
         self.auth.callback({'state': state, 'code': 'code'}, binder, 't')
         self.error('session_required', lambda: self.auth.session(self.alice))
 
@@ -223,7 +249,7 @@ class ApplicationCases:
         self.error('session_required', lambda: cookies(f'{SESSION_COOKIE}={self.alice};{SESSION_COOKIE}={self.bob}'))
 
     def test_http_callback_ignores_provider_metadata_but_checks_security_fields(self):
-        self.provider.identity.return_value = '101'
+        self.provider.identity.return_value = VerifiedIdentity('101', 'login-101')
         def callback(query, binder):
             return handler({'httpMethod': 'GET', 'path': '/auth/callback/yandex',
                 'headers': {'Cookie': binder}, 'multiValueQueryStringParameters': query})
@@ -272,3 +298,13 @@ class AccountsProgramsTests(ApplicationCases, unittest.TestCase):
             self.assertEqual(requests[1].headers['Authorization'], 'OAuth synthetic-token')
             self.assertEqual(parse_qs(requests[0].data.decode())['code_verifier'], ['verifier'])
         self.assertNotIn('synthetic-client-secret', repr(self.auth.settings))
+
+    def test_provider_returns_only_verified_subject_and_safe_login(self):
+        provider = YandexProvider(self.auth.settings)
+        for login, expected in [('alice.example', 'alice.example'), (None, None), ('bad\nlogin', None), ('x' * 257, None)]:
+            with patch.object(provider, '_json', side_effect=[{'access_token': 'synthetic-token'},
+                {'id': '101', 'client_id': self.auth.settings.client_id, 'login': login, 'display_name': 'Ignored'}]):
+                identity = provider.identity('code', 'verifier')
+            self.assertEqual(identity.subject, '101')
+            self.assertEqual(identity.login, expected)
+            self.assertNotIn('alice.example', repr(identity))

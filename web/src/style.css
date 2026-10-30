@@ -569,6 +569,10 @@ h2 {
 .account-heading h2 {
   margin-bottom: 0;
   line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.account-heading > div {
+  min-width: 0;
 }
 .account-status {
   display: flex;

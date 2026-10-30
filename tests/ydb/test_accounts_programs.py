@@ -10,6 +10,7 @@ import sqlalchemy as sa
 
 from api.database import DatabaseSettings, create_engine
 from api.errors import ServiceError
+from api.auth import VerifiedIdentity
 from api.store import Store
 from db.schema import ensure_table
 
@@ -62,7 +63,7 @@ class YdbApplicationTests(cases.ApplicationCases, unittest.TestCase):
 
     def test_concurrent_callback_consumes_state_once(self):
         state, binder = self.begin()
-        self.provider.identity.return_value = '101'
+        self.provider.identity.return_value = VerifiedIdentity('101', 'login-101')
         self.provider.identity.reset_mock()
         def finish(_):
             try:

@@ -2,6 +2,7 @@ import type { Program } from './model';
 
 export interface SessionInfo {
   user_id: string;
+  yandex_login?: string | null;
   csrf_token: string;
   expires_at: string;
   analytics_timezone: string;
