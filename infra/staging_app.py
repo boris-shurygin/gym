@@ -13,6 +13,7 @@ from urllib.request import Request, build_opener
 
 from contracts.canonical import canonical_bytes, parse_request
 from infra.object_store import ImmutableStore, NoRedirect
+from infra.function_tags import TagRetention
 from infra.release_artifacts import MAX_BUNDLE, MAX_OBJECT, validate_payloads
 from infra.release_gate import context_from_github, staging_token
 from infra.staging_migrations import Cloud, active_revision, matches, read_manifest, revision_payload, health, read_ready, InterventionRequired
@@ -305,6 +306,9 @@ def execute(token, release, manifest_digest, *, validation=False, target=target,
                 or schema_manifest['compatibility'] != manifest['compatibility']):
             raise InterventionRequired('Откат приложения несовместим с текущей схемой')
     verify_migrations(cloud, schema_manifest if schema_manifest is not None else manifest, target=target)
+    retention = None if validation else TagRetention(cloud, token, target)
+    if retention is not None:
+        retention.prepare(release)
     version = function_version(cloud, manifest, validation, target=target)
     private_api_smoke(token, version_tag(release, validation), target=target)
     upload_web(token, manifest, files, target=target)
@@ -323,6 +327,8 @@ def execute(token, release, manifest_digest, *, validation=False, target=target,
         'purpose': 'operator-validation' if validation else target.NAME + '-release', 'smoke': 'succeeded', 'origin': target.ORIGIN}
     key = 'deployments/' + release + ('/operator-validation.json' if validation else '/result.json')
     ImmutableStore(token, target.WEB_BUCKET).put(key, canonical_bytes(receipt), content_type='application/json', cache_control='private, no-store')
+    if retention is not None:
+        retention.finish(receipt)
     return receipt
 
 
