@@ -106,16 +106,22 @@ class DeploymentOrderTests(unittest.TestCase):
         store.put.side_effect = action('receipt')
         started = patch.object(app, 'ImmutableStore', return_value=store)
         started.start(); self.addCleanup(started.stop)
+        retention = Mock()
+        retention.prepare.side_effect = action('tags-prepare')
+        retention.finish.side_effect = action('tags-finish')
+        started = patch.object(app, 'TagRetention', return_value=retention)
+        started.start(); self.addCleanup(started.stop)
 
     def test_receipt_is_last_after_all_preparation_and_smoke(self):
         result = app.execute('unused', RELEASE, 'd' * 64)
-        self.assertEqual(self.events, ['manifest','bytes','render','cloud','migrations','api','private-smoke','web','gateway','smoke','receipt'])
+        self.assertEqual(self.events, ['manifest','bytes','render','cloud','migrations','tags-prepare','api','private-smoke','web','gateway','smoke','receipt','tags-finish'])
         self.assertEqual(result['smoke'], 'succeeded')
 
     def test_failed_migration_stops_all_application_changes(self):
         self.mocks['verify_migrations'].side_effect = InterventionRequired('failed')
         with self.assertRaises(InterventionRequired): app.execute('unused', RELEASE, 'd' * 64)
         self.assertNotIn('api', self.events)
+        self.assertNotIn('tags-prepare', self.events)
         self.assertNotIn('gateway', self.events)
         self.assertNotIn('receipt', self.events)
 
@@ -130,6 +136,12 @@ class DeploymentOrderTests(unittest.TestCase):
         with patch.object(app.time, 'sleep'), self.assertRaises(InterventionRequired):
             app.execute('unused', RELEASE, 'd' * 64)
         self.assertNotIn('receipt', self.events)
+        self.assertNotIn('tags-finish', self.events)
+
+    def test_validation_does_not_rotate_release_tags(self):
+        app.execute('unused', RELEASE, 'd' * 64, validation=True)
+        self.assertNotIn('tags-prepare', self.events)
+        self.assertNotIn('tags-finish', self.events)
 
     def test_missing_manifest_prevents_any_cloud_mutation(self):
         self.mocks['read_manifest'].side_effect = ValueError('hash mismatch')
