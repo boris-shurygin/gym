@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import App from './App';
 import PwaUpdate from './PwaUpdate';
+import { publishStagingProgram, stagingProgram } from './staging-program';
 import { DEMO_OWNER, demoProgram } from './demo-program';
 import {
   api,
@@ -65,7 +66,40 @@ export default function Account() {
   const [change, setChange] = useState<Change>();
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
+  const [staging, setStaging] = useState(false);
   const account = session ?? candidate;
+
+  useEffect(() => {
+    let active = true;
+    void api<{ purpose: string }>('/__gym/release')
+      .then((info) => {
+        if (active) setStaging(info.purpose === 'staging-release');
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function addStagingProgram() {
+    if (!staging || !session || !profile || profile.program.version || busy) return;
+    setBusy(true);
+    try {
+      const program = await publishStagingProgram(session);
+      if (localStorage.getItem(ownerKey) !== session.user_id || localStorage.getItem('gym.hidden')) return;
+      const cached = { owner: session.user_id, program };
+      await profileCache(session.user_id, cached);
+      setProfile(cached);
+      setMessage('Программа сохранена в аккаунте. Можно начать тренировку.');
+      window.dispatchEvent(new Event('gym-account-ready'));
+    } catch {
+      setMessage(
+        'Добавление программы не подтверждено. Повтори попытку: существующая программа и тренировки сохранятся.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -332,6 +366,9 @@ export default function Account() {
           <details className="account-options">
             <summary>Управление аккаунтом</summary>
             <div className="account-actions">
+              <a className="secondary" href="/auth/update-app">
+                Обновить приложение и подтвердить аккаунт
+              </a>
               <button className="secondary" onClick={() => hide()}>
                 Скрыть данные на устройстве
               </button>
@@ -372,7 +409,38 @@ export default function Account() {
         </main>
       )}
       {profile && !candidate && (
-        <App key={profile.owner} ownerId={profile.owner} program={toProgram(profile.program)} />
+        <>
+          {staging && session && !profile.program.version && (
+            <section className="card staging-program" aria-label="Тестовые шаблоны staging">
+              <h2>Попробуй две тестовые тренировки</h2>
+              <p>
+                По три упражнения и три подхода по 8 повторений. Плановые веса условные, для проверки
+                интерфейса; фактический вес введёшь сам.
+              </p>
+              <ul>
+                {stagingProgram.templates.map((template) => (
+                  <li key={template.template_id}>
+                    <strong>{template.name}</strong>:{' '}
+                    {template.exercises
+                      .map(
+                        (e) =>
+                          `${e.name} — ${e.targets[0].weight_g / 1000} кг${e.weight_convention === 'per_implement_kg' ? ' на гантель' : ''}`,
+                      )
+                      .join('; ')}
+                    .
+                  </li>
+                ))}
+              </ul>
+              <button className="primary" disabled={busy} onClick={() => void addStagingProgram()}>
+                Добавить тестовую программу
+              </button>
+              <p className="caption">
+                Кнопка опубликует оба шаблона в твоём аккаунте staging. Существующая программа не заменяется.
+              </p>
+            </section>
+          )}
+          <App key={profile.owner} ownerId={profile.owner} program={toProgram(profile.program)} />
+        </>
       )}
       {!profile && demo && !candidate && <App key="demo" ownerId={DEMO_OWNER} program={demoProgram} demo />}
     </>

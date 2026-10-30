@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'"
+    />
+    <title>Обновить Gym</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 24px 16px;
+        background: #f4f5fa;
+        color: #1c263b;
+        font:
+          16px/1.6 system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 600px;
+        margin: 8vh auto;
+        padding: 28px;
+        background: white;
+        border: 1px solid #e4e8f2;
+        border-radius: 24px;
+      }
+      h1 {
+        font-size: 28px;
+        line-height: 1.2;
+      }
+      button {
+        width: 100%;
+        margin-top: 12px;
+        padding: 14px 18px;
+        border: 0;
+        border-radius: 14px;
+        background: #4664ff;
+        color: white;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.55;
+        cursor: wait;
+      }
+      a {
+        color: #3553dc;
+      }
+      #status {
+        min-height: 3em;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Обновить Gym</h1>
+      <p>Эта страница загрузилась с сервера и поможет перейти со старой версии приложения.</p>
+      <p>
+        Сначала сохрани незаписанный ввод в остальных окнах Gym и закрой их. Тренировки, очередь отправки и
+        данные на устройстве сохранятся.
+      </p>
+      <p>После обновления подтвердим аккаунт через Яндекс, чтобы Gym показал его логин.</p>
+      <p id="status" role="status">Проверяем новую версию…</p>
+      <button id="apply" disabled>Обновить и подтвердить аккаунт</button>
+      <p><a href="/">Вернуться в Gym</a></p>
+    </main>
+    <script>
+      const status = document.querySelector('#status');
+      const button = document.querySelector('#apply');
+      let registration,
+        requested = false;
+      const finish = () => location.replace('/auth/login?return_to=/app');
+      function inspect() {
+        if (!registration || ['installing', 'parsed'].includes(registration.installing?.state)) return;
+        button.disabled = false;
+        status.textContent = registration.waiting
+          ? 'Новая версия готова. Можно обновить это окно.'
+          : 'Актуальная версия готова. Можно подтвердить аккаунт.';
+      }
+      if (!('serviceWorker' in navigator)) {
+        status.textContent =
+          'Этот браузер не поддерживает офлайн-приложение. Можно подтвердить аккаунт и открыть веб-версию.';
+        button.disabled = false;
+      } else {
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (requested) finish();
+        });
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data?.type !== 'UPDATE_BLOCKED') return;
+          requested = false;
+          button.disabled = false;
+          status.textContent = 'Закрой остальные вкладки и окна Gym, затем снова нажми кнопку обновления.';
+        });
+        navigator.serviceWorker
+          .register('/service-worker.js', { updateViaCache: 'none' })
+          .then(async (value) => {
+            registration = value;
+            const watch = () =>
+              value.installing?.addEventListener('statechange', () => {
+                inspect();
+                setTimeout(inspect, 0);
+              });
+            value.addEventListener('updatefound', watch);
+            watch();
+            await value.update();
+            inspect();
+          })
+          .catch(() => {
+            status.textContent =
+              'Не удалось проверить обновление. Проверь интернет и открой эту страницу снова. Локальные данные сохранены.';
+          });
+      }
+      button.addEventListener('click', () => {
+        requested = true;
+        button.disabled = true;
+        if (registration?.waiting) {
+          status.textContent = 'Обновляем это окно…';
+          registration.waiting.postMessage({ type: 'APPLY_UPDATE' });
+        } else finish();
+      });
+    </script>
+  </body>
+</html>

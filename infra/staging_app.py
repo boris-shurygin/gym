@@ -112,6 +112,10 @@ def render_gateway(manifest, template_bytes, *, validation=False, target=target)
             'x-yc-apigateway-integration': {'type': 'object_storage', 'bucket': target.WEB_BUCKET,
                 'object': web_key(release, path), 'service_account_id': target.GATEWAY_ACCOUNT}}}
     paths['/'] = copy.deepcopy(paths['/index.html'])
+    if '/update.html' in paths:
+        # Прежние worker исключают /auth/: мост обновления доступен даже из старого shell.
+        # Это публичный статический HTML, без сессий/профиля; auth wildcard остаётся API.
+        paths['/auth/update-app'] = copy.deepcopy(paths['/update.html'])
     info = {'release_id': release, 'main_sha': manifest['main_sha'],
             'purpose': 'operator-validation' if validation else target.NAME + '-release'}
     paths['/__gym/release'] = {'get': {'responses': {'200': {'description': 'Deployment identity'}},
