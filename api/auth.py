@@ -71,6 +71,12 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
+@dataclass(frozen=True)
+class VerifiedIdentity:
+    subject: str = field(repr=False)
+    login: str | None = field(default=None, repr=False)
+
+
 class YandexProvider:
     def __init__(self, settings):
         self.settings = settings
@@ -101,8 +107,13 @@ class YandexProvider:
                     or not isinstance(identity.get('id'), str)
                     or not re.fullmatch(r'[0-9]{1,64}', identity['id'])):
                 raise ServiceError('invalid_request', reason='provider_identity_invalid')
-            # Ни профиль, ни токен провайдера не сохраняются и не логируются.
-            return identity['id']
+            login = identity.get('login')
+            if (not isinstance(login, str) or not 1 <= len(login) <= 256
+                    or login != login.strip() or any(ord(c) < 32 or ord(c) == 127 for c in login)):
+                login = None
+            # Токен и остальной профиль не сохраняй. Логин — только подпись,
+            # проверка владельца всегда опирается на подтверждённый subject.
+            return VerifiedIdentity(identity['id'], login)
         except ServiceError:
             raise
         except Exception:
@@ -164,8 +175,8 @@ class Auth:
         row = self.store.run(claim)
         if 'error' in query:
             raise ServiceError('invalid_request', reason='provider_login_denied')
-        subject = self.provider.identity(query['code'], row['verifier'])
-        subject_key = digest('yandex:' + subject)
+        identity = self.provider.identity(query['code'], row['verifier'])
+        subject_key = digest('yandex:' + identity.subject)
         token = secrets.token_urlsafe(32)
         def finish(db):
             admission = db.get('admissions', 'yandex', subject_key)
@@ -181,7 +192,8 @@ class Auth:
             if row['previous']:
                 db.delete('sessions', 'session', row['previous'])
             db.put('sessions', 'session', digest(token), {'user_id': user,
-                'subject_hash': subject_key, 'created': now, 'last_seen': now, 'auth_at': now})
+                'subject_hash': subject_key, 'created': now, 'last_seen': now, 'auth_at': now,
+                'yandex_login': identity.login})
             return user
         if self.store.run(finish) is None:
             raise ServiceError('not_invited')
@@ -209,6 +221,7 @@ class Auth:
             profile = db.get('program_records', session['user_id'], 'profile') or {'analytics_timezone': 'UTC'}
             return {'user_id': session['user_id'], 'csrf_token': digest('gym:csrf:' + token),
                 'expires_at': timestamp(min(session['created'] + ABSOLUTE, session['last_seen'] + IDLE)),
+                'yandex_login': session.get('yandex_login'),
                 'analytics_timezone': profile['analytics_timezone']}
         return self.store.run(read)
 

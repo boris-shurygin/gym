@@ -64,6 +64,7 @@ export default function Account() {
   const [change, setChange] = useState<Change>();
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
+  const account = session ?? candidate;
 
   useEffect(() => {
     if (import.meta.env.PROD && 'serviceWorker' in navigator) {
@@ -232,8 +233,8 @@ export default function Account() {
           <div>
             {!profile && !demo && <p className="eyebrow">Gym</p>}
             <h2>
-              {session
-                ? 'Твой аккаунт'
+              {account
+                ? account.yandex_login || 'Твой аккаунт'
                 : demo
                   ? 'Демо-режим'
                   : profile
@@ -241,20 +242,28 @@ export default function Account() {
                     : 'Твои тренировки — рядом'}
             </h2>
           </div>
-          {session && (
+          {account && (
             <span className="account-status">
               <span className="status-dot" />
               Яндекс ID
             </span>
           )}
         </div>
+        {account && !account.yandex_login && (
+          <p className="account-message">Подтверди вход, чтобы показать логин аккаунта.</p>
+        )}
         {message && !demo && (
           <p className="account-message" role="status">
             {message}
           </p>
         )}
         <div className="account-actions">
-          {!session && (
+          {account && !account.yandex_login && (
+            <a className="secondary" href="/auth/login?purpose=reauth&return_to=/app">
+              Подтвердить аккаунт
+            </a>
+          )}
+          {!account && (
             <a className="primary" href="/auth/login?return_to=/app">
               Войти через Яндекс ID
             </a>

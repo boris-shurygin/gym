@@ -2754,6 +2754,11 @@
     "SessionInfo": {
       "type": "object",
       "properties": {
+        "yandex_login": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 256
+        },
         "user_id": {
           "$ref": "#/$defs/Id"
         },
