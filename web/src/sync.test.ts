@@ -113,10 +113,10 @@ function transport(extra: (path: string, input?: object) => unknown = () => unde
     throw new Error(`Unexpected test route ${path}`);
   };
 }
-function coordinator(r: WorkoutRepository, t: Transport, active = () => true) {
+function coordinator(r: WorkoutRepository, t: Transport, active = () => true, foreground = () => true) {
   const changed = vi.fn(),
     notice = vi.fn();
-  const c = new SyncCoordinator(r, 'alice', active, changed, notice, t);
+  const c = new SyncCoordinator(r, 'alice', active, changed, notice, t, foreground);
   coordinators.push(c);
   return { c, changed, notice };
 }
@@ -127,6 +127,52 @@ afterEach(async () => {
 });
 
 describe('Надёжная очередь P08', () => {
+  it('скрытая вкладка не запускает сеть, возвращение продолжает доставку', async () => {
+    const r = repository();
+    let visible = false;
+    const requests: string[] = [];
+    const t = transport((path) => {
+      requests.push(path);
+    });
+    const { c } = coordinator(
+      r,
+      t,
+      () => true,
+      () => visible,
+    );
+    await c.run();
+    expect(requests).toHaveLength(0);
+    visible = true;
+    await c.run();
+    expect(requests.length).toBeGreaterThan(0);
+  });
+  it('периодический таймер не продолжает опрос после скрытия вкладки', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      const r = repository();
+      let visible = true;
+      const requests: string[] = [];
+      const t = transport((path) => {
+        requests.push(path);
+      });
+      const { c } = coordinator(
+        r,
+        t,
+        () => true,
+        () => visible,
+      );
+      await c.run();
+      const calls = requests.length;
+      visible = false;
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(requests).toHaveLength(calls);
+      visible = true;
+      await c.run();
+      expect(requests.length).toBeGreaterThan(calls);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it('запоздалый отправитель не возвращает конфликт/окончательный отказ в sending', async () => {
     const r = repository(),
       command = start();

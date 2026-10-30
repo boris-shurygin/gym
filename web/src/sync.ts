@@ -35,6 +35,7 @@ export class SyncCoordinator {
     private changed: () => void,
     private notice: (value: SyncNotice) => void,
     private transport: Transport = api,
+    private foreground: () => boolean = () => true,
   ) {}
 
   stop() {
@@ -61,6 +62,9 @@ export class SyncCoordinator {
   }
   async run(manual = false): Promise<void> {
     if (!this.valid()) return;
+    // Таймер не должен опрашивать сервер из скрытой вкладки. Текущий запрос
+    // завершается обычно; visibilitychange/online запускают следующую попытку.
+    if (!manual && !this.foreground()) return;
     if (this.running) {
       this.again = true;
       return;
