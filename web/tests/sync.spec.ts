@@ -1,6 +1,55 @@
 import { expect, test, type BrowserContext, type Page, type APIRequestContext } from '@playwright/test';
 
 const backend = 'http://127.0.0.1:4174';
+test.afterEach(async ({ page }, info) => {
+  if (info.status === info.expectedStatus) return;
+  // Только синтетический localhost-стенд; не печатай cookies/CSRF или сессионные ответы.
+  const screen = await page
+    .locator('body')
+    .innerText({ timeout: 1000 })
+    .catch(() => 'page unavailable');
+  console.log('P08_FAILURE_SCREEN', JSON.stringify(screen.slice(0, 6000)));
+  const state = await page
+    .evaluate(
+      async () =>
+        await new Promise<object>((resolve) => {
+          const request = indexedDB.open('gym-local-v1');
+          request.onerror = () => resolve({ database: 'unavailable' });
+          request.onsuccess = () => {
+            const db = request.result,
+              tx = db.transaction(['sessions', 'outbox']);
+            const sessions = tx.objectStore('sessions').getAll(),
+              outbox = tx.objectStore('outbox').getAll();
+            tx.oncomplete = () => {
+              resolve({
+                sessions: sessions.result.map((s) => ({
+                  id: s.id,
+                  revision: s.revision,
+                  serverRevision: s.serverRevision,
+                  status: s.status,
+                  sets: s.sets.map((set: { id: string; deletedAt?: string }) => ({
+                    id: set.id,
+                    deleted: Boolean(set.deletedAt),
+                  })),
+                })),
+                queue: outbox.result.map((op) => ({
+                  id: op.id,
+                  status: op.status,
+                  command: op.wire?.command.type,
+                })),
+              });
+              db.close();
+            };
+            tx.onabort = () => {
+              db.close();
+              resolve({ database: 'aborted' });
+            };
+          };
+        }),
+    )
+    .catch(() => ({ database: 'page unavailable' }));
+  console.log('P08_FAILURE_STATE', JSON.stringify(state));
+});
 interface Connection {
   fixture: string;
 }
