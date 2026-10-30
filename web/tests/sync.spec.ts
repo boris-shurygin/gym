@@ -1,6 +1,25 @@
 import { expect, test, type BrowserContext, type Page, type APIRequestContext } from '@playwright/test';
 
 const backend = 'http://127.0.0.1:4174';
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    const clicks: object[] = [];
+    Object.assign(window, { gymTestClicks: clicks });
+    document.addEventListener(
+      'click',
+      (event) => {
+        const target = event.target as Element;
+        const button = target.closest('button');
+        clicks.push({
+          target: target.tagName,
+          button: button?.getAttribute('aria-label') ?? button?.textContent?.trim(),
+          editor: document.querySelector('.editor h2')?.textContent,
+        });
+      },
+      true,
+    );
+  });
+});
 test.afterEach(async ({ page }, info) => {
   if (info.status === info.expectedStatus) return;
   // Только синтетический localhost-стенд; не печатай cookies/CSRF или сессионные ответы.
@@ -9,6 +28,14 @@ test.afterEach(async ({ page }, info) => {
     .innerText({ timeout: 1000 })
     .catch(() => 'page unavailable');
   console.log('P08_FAILURE_SCREEN', JSON.stringify(screen.slice(0, 6000)));
+  console.log(
+    'P08_FAILURE_CLICKS',
+    JSON.stringify(
+      await page
+        .evaluate(() => (window as unknown as { gymTestClicks: object[] }).gymTestClicks)
+        .catch(() => []),
+    ),
+  );
   const state = await page
     .evaluate(
       async () =>
@@ -91,6 +118,7 @@ async function record(page: Page, weight: string, reps = '9') {
 }
 async function edit(page: Page, weight: string) {
   await page.getByRole('button', { name: 'Редактировать подход 1', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Исправление подхода', exact: true })).toBeVisible();
   await page.getByRole('textbox', { name: 'Вес, кг' }).fill(weight);
   await page.getByRole('button', { name: 'Сохранить изменения', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Редактировать подход 1', exact: true })).toContainText(
