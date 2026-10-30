@@ -1,0 +1,6 @@
+{
+  "redirectAllRequests": {
+    "protocol": "PROTOCOL_HTTPS",
+    "hostname": "d5d734k3s76t42pa5rtn.764nr5vy.apigw.yandexcloud.net"
+  }
+}
