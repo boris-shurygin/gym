@@ -768,6 +768,15 @@ body:has(.exercise-screen) .account-panel {
   margin: 12px auto;
   max-width: 680px;
 }
+.staging-program {
+  max-width: 680px;
+  width: calc(100% - 32px);
+  margin: 20px auto;
+  padding: 24px;
+}
+.staging-program li {
+  margin: 12px 0;
+}
 @media (max-width: 480px) {
   .conflict-columns {
     grid-template-columns: 1fr;

@@ -9,6 +9,7 @@ export default defineConfig({
           '/api/': process.env.GYM_E2E_API,
           '/auth/': process.env.GYM_E2E_API,
           '/__test/': process.env.GYM_E2E_API,
+          '/__gym/': process.env.GYM_E2E_API,
         }
       : undefined,
   },

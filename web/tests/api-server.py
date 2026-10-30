@@ -38,6 +38,9 @@ class Fixture(helpers.WorkoutCases):
         self.dropped = 0
         self.posts = []
         self.login_probe = False
+        self.staging = False
+        self.drop_publish = False
+        self.publications = 0
         # Одинаковые прикладные сервисы публикуют по отдельному плану двум владельцам.
         self.publish(self.propose(token=self.bob, owner='bob'), token=self.bob, owner='bob')
 
@@ -57,6 +60,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def perform(self):
         body = self.rfile.read(int(self.headers.get('Content-Length', 0)))
+        if self.path == '/auth/update-app':
+            raw = (ROOT / 'web/dist/update.html').read_bytes()
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Cache-Control', 'no-store')
+            self.send_header('Content-Length', str(len(raw)))
+            self.end_headers(); self.wfile.write(raw); return
         from http.cookies import SimpleCookie
         cookie = SimpleCookie(self.headers.get('Cookie', ''))
         key = self.headers.get('X-Test-Fixture') or (cookie['gym_e2e_fixture'].value if 'gym_e2e_fixture' in cookie else None)
@@ -68,12 +78,20 @@ class Handler(BaseHTTPRequestHandler):
             fixtures[key] = Fixture()
             status, payload = 200, {'fixture': key}
         elif self.path == '/__test/status' and fixture:
-            status, payload = 200, {'posts': fixture.posts, 'dropped': fixture.dropped}
+            status, payload = 200, {'posts': fixture.posts, 'dropped': fixture.dropped, 'publications': fixture.publications}
+        elif self.path == '/__gym/release' and fixture:
+            status, payload = 200, {'purpose': 'staging-release' if fixture.staging else 'development'}
         elif self.path == '/__test/config' and fixture and self.command == 'POST':
             config = json.loads(body)
-            for name in ('signed_in', 'user', 'drop_next', 'login_probe'):
+            for name in ('signed_in', 'user', 'drop_next', 'login_probe', 'staging', 'drop_publish'):
                 if name in config:
                     setattr(fixture, name, config[name])
+            if config.get('empty_program'):
+                def empty(db):
+                    for name in ('program_records', 'workout_records'):
+                        table = db.tables[name]
+                        db.connection.execute(table.delete().where(table.c.owner == fixture.user))
+                fixture.store.run(empty)
             if config.get('legacy'):
                 def legacy(db):
                     session = db.get('sessions', 'session', digest(fixture.alice))
@@ -100,6 +118,11 @@ class Handler(BaseHTTPRequestHandler):
                 with patch('api.handler.application', return_value=fixture.auth):
                     result = handler(event)
                 status, payload = result['statusCode'], json.loads(result['body'])
+                if self.path.endswith('/approve-and-publish') and self.command == 'POST' and status == 200:
+                    fixture.publications += 1
+                    if fixture.drop_publish:
+                        fixture.drop_publish = False
+                        self.close_connection = True; self.connection.close(); return
                 if self.command == 'POST' and self.path == '/api/v1/sync/operations':
                     fixture.posts.append(body.decode('utf-8'))
                     if fixture.drop_next:
@@ -121,6 +144,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    with HTTPServer(('127.0.0.1', 4174), Handler) as server:
+    class FixtureServer(HTTPServer):
+        request_queue_size = 32
+    with FixtureServer(('127.0.0.1', 4174), Handler) as server:
         print('Synthetic Gym API ready on localhost:4174', flush=True)
         server.serve_forever()

@@ -25,6 +25,17 @@ def fixture():
 
 
 class GatewayTests(unittest.TestCase):
+    def test_update_bridge_bypasses_legacy_worker_without_exposing_auth_data(self):
+        manifest, files = fixture()
+        manifest['artifacts'].append({'path': 'web/update.html'})
+        spec = app.render_gateway(manifest, files['gateway.json'])
+        bridge = spec['paths']['/auth/update-app']
+        self.assertEqual(set(bridge), {'get'})
+        integration = bridge['get']['x-yc-apigateway-integration']
+        self.assertEqual(integration['type'], 'object_storage')
+        self.assertEqual(integration['object'], 'releases/' + RELEASE + '/web/update.html')
+        self.assertEqual(spec['paths']['/auth/{path+}']['x-yc-apigateway-any-method']['x-yc-apigateway-integration']['type'], 'cloud_functions')
+
     def test_service_routes_are_never_static_and_api_uses_unique_tag(self):
         manifest, files = fixture()
         spec = app.render_gateway(manifest, files['gateway.json'])

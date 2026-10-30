@@ -18,6 +18,52 @@ async function server(page: Page, owner: { value: string; signedIn: boolean }) {
   return configure;
 }
 
+test('staging: две тестовые тренировки публикуются в пустой аккаунт и не заменяются при повторе', async ({
+  page,
+}) => {
+  const configure = await server(page, { value: 'alice', signedIn: true });
+  await configure({ staging: true, empty_program: true });
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'login-101', exact: true })).toBeVisible();
+  const examples = page.getByRole('region', { name: 'Тестовые шаблоны staging' });
+  await examples.getByRole('button', { name: 'Добавить тестовую программу' }).click();
+  await expect(examples).not.toBeVisible();
+  await expect(page.locator('.template-card')).toHaveCount(2);
+  const first = await (await page.request.get('/api/v1/program')).json();
+  expect(first.version.content.templates).toHaveLength(2);
+  expect(
+    first.version.content.templates.every((t: { exercises: unknown[] }) => t.exercises.length === 3),
+  ).toBe(true);
+  await page.reload();
+  await expect(page.locator('.template-card')).toHaveCount(2);
+  await expect(examples).not.toBeVisible();
+  expect((await (await page.request.get('/api/v1/program')).json()).version.program_version_id).toBe(
+    first.version.program_version_id,
+  );
+});
+
+test('тестовые шаблоны скрыты вне staging; потерянный ответ публикации не создаёт вторую версию', async ({
+  page,
+}) => {
+  const configure = await server(page, { value: 'alice', signedIn: true });
+  await configure({ empty_program: true });
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'login-101', exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Тестовые шаблоны staging' })).not.toBeVisible();
+  await configure({ staging: true, drop_publish: true });
+  await page.reload();
+  const button = page.getByRole('button', { name: 'Добавить тестовую программу' });
+  await button.click();
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Добавление программы не подтверждено' }),
+  ).toBeVisible();
+  const version = (await (await page.request.get('/api/v1/program')).json()).version.program_version_id;
+  await button.click();
+  await expect(button).not.toBeVisible();
+  expect((await (await page.request.get('/api/v1/program')).json()).version.program_version_id).toBe(version);
+  expect((await (await page.request.get('http://127.0.0.1:4174/__test/status')).json()).publications).toBe(1);
+});
+
 test('подтверждённый план и локальная тренировка работают после истечения входа без сети', async ({
   page,
   context,
