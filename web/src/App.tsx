@@ -172,6 +172,8 @@ export default function App({
       () => localStorage.getItem('gym.active-owner') === ownerId && !localStorage.getItem('gym.hidden'),
       changed,
       setNotice,
+      undefined,
+      () => navigator.onLine && document.visibilityState === 'visible',
     );
     setCoordinator(sync);
     const run = () => {
