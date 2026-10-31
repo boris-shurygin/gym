@@ -98,7 +98,7 @@ def validate_payloads(files):
     if not isinstance(gateway, dict) or gateway.get('openapi') not in {'3.0.0', '3.0.1', '3.1.0'} or not isinstance(gateway.get('paths'), dict):
         raise ValueError('Некорректный шаблон Gateway')
     pwa = parse_request(files['web/manifest.webmanifest'])
-    if not isinstance(pwa, dict) or pwa.get('start_url') != '/' or pwa.get('scope') != '/':
+    if not isinstance(pwa, dict) or pwa.get('start_url') not in {'/', '/#/app'} or pwa.get('scope') != '/':
         raise ValueError('Ожидается PWA с относительным корнем текущего origin')
 
 

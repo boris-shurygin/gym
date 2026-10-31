@@ -54,6 +54,18 @@ class ManifestTests(unittest.TestCase):
         index = next(a for a in self.manifest['artifacts'] if a['path'] == 'web/index.html')
         self.assertEqual(index['cache_control'], 'no-cache')
 
+    def test_actual_project_pwa_manifest_preserves_same_origin(self):
+        path = self.root / 'web/manifest.webmanifest'
+        actual = json.loads((Path(__file__).parents[2] / 'web/public/manifest.webmanifest').read_text(encoding='utf-8'))
+        path.write_text(json.dumps(actual), encoding='utf-8')
+        manifest = create_manifest(self.root, 'a' * 40, 123, 1, self.manifest['migration']['image'], '0001')
+        verify_bundle(manifest, self.root)
+        for start in ('https://foreign.example/', '//foreign.example/', '/other', '/#/unknown'):
+            with self.subTest(start=start):
+                path.write_text(json.dumps(actual | {'start_url': start}), encoding='utf-8')
+                with self.assertRaises(ValueError):
+                    create_manifest(self.root, 'a' * 40, 123, 1, self.manifest['migration']['image'], '0001')
+
     def test_tampered_missing_or_extra_file_prevents_every_write(self):
         for change in ['alter', 'remove', 'extra']:
             with self.subTest(change=change):
