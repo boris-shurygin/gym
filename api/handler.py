@@ -17,6 +17,7 @@ from api.errors import ServiceError
 from api.auth import Auth, AuthSettings, cookies, SESSION_COOKIE
 from api.programs import Programs
 from api.workouts import Workouts, OPERATIONS as WORKOUT_OPERATIONS
+from api.analytics import Analytics, OPERATIONS as ANALYTICS_OPERATIONS
 
 from contracts.canonical import MAX_BYTES, canonical_bytes, parse_request
 
@@ -227,6 +228,10 @@ def dispatch(request, route, trace_id):
             if not re.fullmatch(r'[0-9]{1,3}', value['limit']):
                 raise RequestError()
             value['limit'] = int(value['limit'])
+        if operation in ANALYTICS_OPERATIONS and 'period_days' in value and request.method == 'GET':
+            if value['period_days'] not in {'7', '30', '90'}:
+                raise RequestError()
+            value['period_days'] = int(value['period_days'])
         validate(route['input'], value)
     except (ValidationError, ValueError):
         raise RequestError('invalid_request') from None
@@ -240,9 +245,10 @@ def dispatch(request, route, trace_id):
         return response
     if operation == 'auth_session':
         result = auth.session(token)
-    elif operation in PROGRAM_OPERATIONS or operation in WORKOUT_OPERATIONS:
+    elif operation in PROGRAM_OPERATIONS or operation in WORKOUT_OPERATIONS or operation in ANALYTICS_OPERATIONS:
         try:
-            service = Programs(auth) if operation in PROGRAM_OPERATIONS else Workouts(auth)
+            service = (Programs(auth) if operation in PROGRAM_OPERATIONS else
+                Analytics(auth) if operation in ANALYTICS_OPERATIONS else Workouts(auth))
             result = service.execute(operation, token, value)
         except (ValidationError, ValueError):
             raise RequestError('validation_failed') from None

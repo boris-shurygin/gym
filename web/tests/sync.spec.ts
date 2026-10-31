@@ -150,6 +150,52 @@ async function allWorkouts(request: APIRequestContext, connection: Connection) {
   }[];
 }
 
+test('P09: объяснение fixed и пересчёт серверных показателей после исправления истории', async ({
+  page,
+  context,
+  request,
+}) => {
+  const connection = await fixture(request);
+  const headers = { 'X-Test-Fixture': connection.fixture };
+  await page.clock.setFixedTime(new Date('2026-10-29T12:00:00Z'));
+  await connect(context, connection);
+  await enter(page);
+  await expect(page.getByText(/Нагрузка задана в одобренной программе без округления/)).toBeVisible();
+  const initial = await (await request.get(`${backend}/api/v1/plans`, { headers })).json();
+  const exercise = initial.items[0].template.exercises[0];
+  const seriesUrl = `${backend}/api/v1/stats/exercises/${exercise.exercise_id}?equipment_id=${exercise.equipment_id}&weight_convention=${exercise.weight_convention}`;
+  await start(page);
+  await record(page, '60,001', '8');
+  await expect(page.getByRole('button', { name: 'Редактировать подход 1', exact: true })).toContainText(
+    '60,001 кг × 8',
+  );
+  await page.getByRole('button', { name: 'К упражнениям', exact: false }).click();
+  await expect(page.getByText(/Исправление результатов обновит показатели/)).toBeVisible();
+  page.once('dialog', (dialog) => void dialog.accept());
+  await page.getByRole('button', { name: 'Завершить тренировку', exact: true }).click();
+  await synced(page);
+  await expect
+    .poll(async () => (await (await request.get(seriesUrl, { headers })).json()).points[0]?.volume_g_reps)
+    .toBe(480008);
+  const before = await (await request.get(seriesUrl, { headers })).json();
+  expect(before.points[0].volume_g_reps).toBe(480008);
+  await page.locator('.history-card').first().click();
+  await page.getByRole('button', { name: /Жим лёжа/ }).click();
+  await edit(page, '65,125');
+  await synced(page);
+  await expect
+    .poll(async () => (await (await request.get(seriesUrl, { headers })).json()).points[0]?.volume_g_reps)
+    .toBe(521000);
+  const after = await (await request.get(seriesUrl, { headers })).json();
+  expect(after.points[0].volume_g_reps).toBe(521000);
+  expect(after.history_revision).toBeGreaterThan(before.history_revision);
+  expect(after.freshness).toBe('fresh');
+  const next = await (await request.get(`${backend}/api/v1/plans`, { headers })).json();
+  expect(next.items[0].template).toEqual(initial.items[0].template);
+  const history = await (await request.get(`${backend}/api/v1/workouts`, { headers })).json();
+  expect(history.items[0].plan).toEqual(initial.items[0]);
+});
+
 test('настоящий API: офлайн старт, исправление, завершение, потерянный ответ и второе устройство', async ({
   page,
   context,
