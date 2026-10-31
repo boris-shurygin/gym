@@ -67,7 +67,10 @@ button[value=yes]{{background:#3e63ed;color:white;border-color:#3e63ed}}small{{c
 <button name="allow" value="yes" type="submit">Разрешить доступ</button><button name="allow" value="no" type="submit">Отказать</button></form>
 <p><a href="/auth/login?purpose=switch&amp;return_to=/agent">Войти другим аккаунтом</a></p></main></html>'''
     response = _response(200, None, trace)
+    # HTML POST с no-referrer получает Origin: null; same-origin сохраняет
+    # Origin своей формы и не отправляет Referer внешнему callback.
     response['headers'].update({'Content-Type': 'text/html; charset=utf-8', 'X-Frame-Options': 'DENY',
+        'Referrer-Policy': 'same-origin',
         'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'self' http://127.0.0.1:8765/callback https://chatgpt.com/connector_platform_oauth_redirect"})
     response['body'] = body
     return response

@@ -150,12 +150,13 @@ class DelegationCases:
             self.assertTrue(page['headers']['Content-Type'].startswith('text/html'))
             self.assertEqual(page['headers']['Cache-Control'], 'no-store')
             self.assertNotIn('<script', page['body'])
-            response = handler({'httpMethod': 'POST', 'path': '/oauth/consent',
-                'headers': {'Content-Type': 'application/x-www-form-urlencoded',
-                    'Cookie': SESSION_COOKIE + '=' + self.h.alice + '; ' + AGENT_COOKIE + '=' + request_id,
-                    'Origin': 'https://evil.example'}, 'body': urlencode({'request_id': request_id, 'allow': 'yes',
-                        'csrf_token': self.auth.session(self.h.alice)['csrf_token']})})
-            self.assertEqual(response['statusCode'], 403)
+            for origin in ('https://evil.example', 'null'):
+                response = handler({'httpMethod': 'POST', 'path': '/oauth/consent',
+                    'headers': {'Content-Type': 'application/x-www-form-urlencoded',
+                        'Cookie': SESSION_COOKIE + '=' + self.h.alice + '; ' + AGENT_COOKIE + '=' + request_id,
+                        'Origin': origin}, 'body': urlencode({'request_id': request_id, 'allow': 'yes',
+                            'csrf_token': self.auth.session(self.h.alice)['csrf_token']})})
+                self.assertEqual(response['statusCode'], 403)
             response = handler({'httpMethod': 'GET', 'path': '/api/v1/stats/summary',
                 'headers': {'Cookie': SESSION_COOKIE + '=' + self.h.bob, 'X-Gym-Expected-Owner': 'alice'}})
             self.assertEqual(response['statusCode'], 403)

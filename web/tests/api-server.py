@@ -124,7 +124,9 @@ class Handler(BaseHTTPRequestHandler):
                     'multiValueQueryStringParameters': parse_qs(urlsplit(self.path).query),
                     'headers': {'Cookie': SESSION_COOKIE + '=' + token + (
                         '; ' + AGENT_COOKIE + '=' + fixture.oauth_request if getattr(fixture, 'oauth_request', None) else ''),
-                        'Origin': 'https://gym.example',
+                        'Origin': (('https://gym.example' if self.headers.get('Origin') == 'http://127.0.0.1:4173'
+                            else self.headers.get('Origin', '')) if urlsplit(self.path).path == '/oauth/consent'
+                            else 'https://gym.example'),
                         'Content-Type': self.headers.get('Content-Type', ''),
                         'X-Gym-Expected-Owner': self.headers.get('X-Gym-Expected-Owner', user),
                         'X-CSRF-Token': self.headers.get('X-CSRF-Token', '')},

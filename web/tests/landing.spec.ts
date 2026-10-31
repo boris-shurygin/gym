@@ -29,8 +29,10 @@ test('согласие Python-агента отдельно от публика�
     .context()
     .addCookies([{ name: 'gym_e2e_fixture', value: fixture, url: 'http://127.0.0.1:4173' }]);
   const authorization = await (await request.post(backend + '/__test/oauth-request', { headers })).json();
+  const postedOrigins: (string | undefined)[] = [];
   await page.route('**/oauth/consent', async (route) => {
     if (route.request().method() !== 'POST') return route.continue();
+    postedOrigins.push(route.request().headers().origin);
     const response = await route.fetch({ maxRedirects: 0 });
     expect(response.status()).toBe(302);
     const callback = new URL(response.headers().location);
@@ -52,4 +54,5 @@ test('согласие Python-агента отдельно от публика�
   await expect(page.getByRole('button', { name: 'Доступ отозван', exact: true })).toBeDisabled();
   const status = await (await request.get(backend + '/__test/status', { headers })).json();
   expect(status.publications).toBe(0);
+  expect(postedOrigins).toEqual(['http://127.0.0.1:4173']);
 });
