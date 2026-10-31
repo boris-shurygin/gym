@@ -688,6 +688,9 @@ export default function App({
             </button>
           </article>
         ))}
+        <button type="button" className="primary wide finish" disabled={busy} onClick={() => setView(goBack)}>
+          Завершить упражнение
+        </button>
       </>
     );
   }
