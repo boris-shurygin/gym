@@ -17,6 +17,7 @@ from api.errors import ServiceError
 
 SESSION_COOKIE = '__Host-gym_session'
 LOGIN_COOKIE = '__Host-gym_login'
+AGENT_COOKIE = '__Host-gym_agent_request'
 IDLE = 7 * 86400
 ABSOLUTE = 30 * 86400
 
@@ -37,7 +38,7 @@ def cookies(header):
     result = {}
     for part in header.split(';'):
         name, separator, value = part.strip().partition('=')
-        if separator and name in {SESSION_COOKIE, LOGIN_COOKIE}:
+        if separator and name in {SESSION_COOKIE, LOGIN_COOKIE, AGENT_COOKIE}:
             if name in result or not re.fullmatch(r'[A-Za-z0-9_-]{32,128}', value):
                 raise ServiceError('session_required')
             result[name] = value
@@ -127,7 +128,7 @@ class Auth:
 
     def begin(self, query, header):
         purpose, return_to = query.get('purpose', 'login'), query.get('return_to', '/app')
-        if purpose not in {'login', 'reauth', 'switch'} or return_to not in {'/app', '/history', '/program', '/settings'}:
+        if purpose not in {'login', 'reauth', 'switch'} or return_to not in {'/app', '/history', '/program', '/settings', '/agent'}:
             raise ServiceError('invalid_request')
         previous = cookies(header).get(SESSION_COOKIE)
         # Всегда новый binder: конкурирующий вход в том же браузере требует
@@ -198,7 +199,7 @@ class Auth:
         if self.store.run(finish) is None:
             raise ServiceError('not_invited')
         # Используй корневой shell: Gateway не превращает неизвестные пути в SPA.
-        return '/#' + row['return_to'], [cookie(LOGIN_COOKIE), cookie(SESSION_COOKIE, token, ABSOLUTE)]
+        return ('/oauth/consent' if row['return_to'] == '/agent' else '/#' + row['return_to']), [cookie(LOGIN_COOKIE), cookie(SESSION_COOKIE, token, ABSOLUTE)]
 
     def principal(self, db, token, *, touch=True):
         if not token:

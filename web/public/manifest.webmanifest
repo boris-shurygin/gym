@@ -3,7 +3,7 @@
   "name": "Gym — тренировки",
   "short_name": "Gym",
   "lang": "ru",
-  "start_url": "/",
+  "start_url": "/#/app",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f5f6fa",

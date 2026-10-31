@@ -194,7 +194,9 @@ def dispatch(request, route, trace_id):
     if route['auth'] == 'cookie':
         # Не доверяй claims/owner из контекста Gateway. Проверяй состояние
         # аккаунта также внутри транзакции каждой прикладной операции.
-        auth.session(token)
+        identity = auth.session(token)
+        if request.headers.get('x-gym-expected-owner', identity['user_id']) != identity['user_id']:
+            raise RequestError('account_mismatch')
         if request.method not in {'GET', 'HEAD'}:
             auth.check_write(token, request.headers)
     request.check_json()
@@ -224,7 +226,7 @@ def dispatch(request, route, trace_id):
     try:
         if operation == 'submit_operation' and type(value.get('schema_version')) is int and value['schema_version'] != 1:
             raise RequestError('upgrade_required')
-        if operation in {'list_workouts', 'get_changes'} and 'limit' in value and request.method == 'GET':
+        if operation in {'list_workouts', 'get_changes', 'list_exercises'} and 'limit' in value and request.method == 'GET':
             if not re.fullmatch(r'[0-9]{1,3}', value['limit']):
                 raise RequestError()
             value['limit'] = int(value['limit'])
@@ -252,6 +254,9 @@ def dispatch(request, route, trace_id):
             result = service.execute(operation, token, value)
         except (ValidationError, ValueError):
             raise RequestError('validation_failed') from None
+    elif operation in {'list_grants', 'revoke_grant'}:
+        from api.delegation import Delegation
+        result = Delegation(auth).grants(token, value, operation == 'revoke_grant')
     else:
         raise RequestError('unavailable')
     validate(route['output'], result)
@@ -270,6 +275,14 @@ def handler(event, context=None):
                 raise RequestError()
             response = _response(200, {'status': 'ok'}, trace_id)
         else:
+            if request.path == '/mcp' or request.path.startswith(('/oauth/', '/.well-known/')):
+                if request.path == '/mcp' and request.method == 'POST':
+                    request.check_json()
+                from api.mcp import handle
+                response = handle(request, application(), trace_id)
+                LOGGER.info(json.dumps({'event': 'request_completed', 'trace_id': trace_id,
+                    'method': method, 'status': response['statusCode']}))
+                return response
             route = next((route for route, pattern in PATTERNS
                           if route['method'].upper() == request.method and pattern.fullmatch(request.path)), None)
             if route:

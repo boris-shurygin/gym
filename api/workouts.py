@@ -11,7 +11,7 @@ from api.sync_state import MAX_INTEGER, append_event, metadata
 from contracts.canonical import canonical_bytes, fingerprint
 from contracts.validation import validate
 
-OPERATIONS = {'list_plans', 'get_plan', 'list_workouts', 'get_workout',
+OPERATIONS = {'list_exercises', 'list_plans', 'get_plan', 'list_workouts', 'get_workout',
     'submit_operation', 'get_receipt', 'get_changes', 'bootstrap'}
 MANIFEST_TTL = 15 * 60
 DELTA_TTL = 30 * 24 * 60 * 60
@@ -44,7 +44,27 @@ class Workouts:
             if value.get('expected_owner_id', owner) != owner:
                 raise ServiceError('account_mismatch')
             now = int(self.auth.now())
-            if operation == 'submit_operation':
+            if operation == 'list_exercises':
+                limit = value.get('limit', 100)
+                if value.get('cursor'):
+                    manifest, offset = self._read_manifest(db, owner, value['cursor'], 'catalog', now)
+                    if manifest['options']['limit'] != limit:
+                        raise ServiceError('cursor_expired')
+                    items = manifest['refs']
+                else:
+                    head = db.get('program_records', owner, 'head')
+                    version = db.get('program_records', owner, 'version:' + head['id']) if head else None
+                    catalog = {}
+                    for template in version['content']['templates'] if version else []:
+                        for exercise in template['exercises']:
+                            entry = {key: exercise[key] for key in ('exercise_id', 'equipment_id', 'name',
+                                'weight_convention', 'weight_step_g')}
+                            catalog[tuple(entry[key] for key in ('exercise_id', 'equipment_id', 'weight_convention'))] = entry
+                    items, offset = list(catalog.values()), 0
+                    manifest = self._manifest(db, owner, 'catalog', items, now, options={'limit': limit}) if len(items) > limit else None
+                end = min(len(items), offset + limit)
+                result = {'items': items[offset:end], 'next_cursor': f"{manifest['id']}.{end}" if end < len(items) else None}
+            elif operation == 'submit_operation':
                 result = self._submit(db, owner, value, now)
             elif operation == 'list_plans':
                 result = self._plans(db, owner, now)

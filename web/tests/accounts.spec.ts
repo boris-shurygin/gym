@@ -23,7 +23,7 @@ test('staging: две тестовые тренировки публикуютс
 }) => {
   const configure = await server(page, { value: 'alice', signedIn: true });
   await configure({ staging: true, empty_program: true });
-  await page.goto('/');
+  await page.goto('/#/app');
   await expect(page.getByRole('heading', { name: 'login-101', exact: true })).toBeVisible();
   const examples = page.getByRole('region', { name: 'Тестовые шаблоны staging' });
   await examples.getByRole('button', { name: 'Добавить тестовую программу' }).click();
@@ -47,7 +47,7 @@ test('тестовые шаблоны скрыты вне staging; потеря�
 }) => {
   const configure = await server(page, { value: 'alice', signedIn: true });
   await configure({ empty_program: true });
-  await page.goto('/');
+  await page.goto('/#/app');
   await expect(page.getByRole('heading', { name: 'login-101', exact: true })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Тестовые шаблоны staging' })).not.toBeVisible();
   await configure({ staging: true, drop_publish: true });
@@ -70,7 +70,7 @@ test('подтверждённый план и локальная трениро
 }) => {
   const owner = { value: 'alice', signedIn: true };
   const configure = await server(page, owner);
-  await page.goto('/');
+  await page.goto('/#/app');
   await page.locator('.template-card').first().click();
   await page.getByRole('button', { name: 'Начать тренировку', exact: true }).click();
   await page.getByRole('button', { name: /Жим лёжа/ }).click();
@@ -113,7 +113,7 @@ test('подтверждённый план и локальная трениро
 test('смена аккаунта закрывает старый профиль, а скрытие сохраняет его очередь', async ({ page }) => {
   const owner = { value: 'alice', signedIn: true };
   const configure = await server(page, owner);
-  await page.goto('/');
+  await page.goto('/#/app');
   await expect(page.getByRole('heading', { name: 'login-101', exact: true })).toBeVisible();
   await page.locator('.template-card').first().click();
   await page.getByRole('button', { name: 'Начать тренировку', exact: true }).click();
@@ -139,19 +139,19 @@ test('смена аккаунта закрывает старый профиль
   });
   owner.value = 'alice';
   await configure();
-  await page.reload();
+  await page.goto('/#/app');
   await expect(page.getByRole('button', { name: 'Продолжить тренировку' })).toBeVisible();
 });
 
 test('service worker не перехватывает auth-навигацию и не кэширует session', async ({ page }) => {
   const owner = { value: 'alice', signedIn: true };
   const configure = await server(page, owner);
-  await page.goto('/');
+  await page.goto('/#/app');
   await expect(page.getByText('Можно открыть без сети', { exact: true })).toBeVisible();
   await configure({ login_probe: true });
   await page.goto('/auth/login?return_to=/app');
   await expect(page.locator('body')).toContainText('provider-redirect-probe');
-  await page.goto('/');
+  await page.goto('/#/app');
   const keys = await page.evaluate(async () => {
     const names = await caches.keys();
     return (
@@ -168,7 +168,7 @@ test('service worker не перехватывает auth-навигацию и 
 test('прежняя сессия без логина сохраняет профиль и предлагает подтверждение аккаунта', async ({ page }) => {
   const configure = await server(page, { value: 'alice', signedIn: true });
   await configure({ legacy: true });
-  await page.goto('/');
+  await page.goto('/#/app');
   await expect(page.getByRole('heading', { name: 'Твой аккаунт', exact: true })).toBeVisible();
   await expect(page.locator('.template-card').first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Подтвердить аккаунт', exact: true })).toHaveAttribute(

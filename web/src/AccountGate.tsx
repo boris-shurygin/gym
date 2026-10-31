@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import App from './App';
 import PwaUpdate from './PwaUpdate';
+import Landing from './Landing';
+import Statistics from './Statistics';
+import { AgentAccess } from './AgentAccess';
 import { publishStagingProgram, stagingProgram } from './staging-program';
 import { DEMO_OWNER, demoProgram } from './demo-program';
 import {
@@ -68,6 +71,14 @@ export default function Account() {
   const [revision, setRevision] = useState(0);
   const [staging, setStaging] = useState(false);
   const account = session ?? candidate;
+  const [route, setRoute] = useState(location.hash);
+  const authRoute = route.startsWith('#/') ? route : '';
+  const landing = (!route || route === '#installation') && !demo;
+  useEffect(() => {
+    const update = () => setRoute(location.hash);
+    window.addEventListener('hashchange', update);
+    return () => window.removeEventListener('hashchange', update);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -189,7 +200,7 @@ export default function Account() {
       cancelled = true;
       window.removeEventListener('storage', hide);
     };
-  }, [revision]);
+  }, [revision, authRoute]);
 
   function hide(discardConfirmed = false) {
     if (
@@ -284,6 +295,7 @@ export default function Account() {
   return (
     <>
       <PwaUpdate />
+      {landing && <Landing />}
       <section
         className={`account-panel card ${!profile && !demo ? 'account-welcome' : ''}`}
         aria-label="Аккаунт"
@@ -350,6 +362,7 @@ export default function Account() {
               className="secondary"
               onClick={() => {
                 localStorage.setItem(modeKey, 'demo');
+                location.hash = '/app';
                 setDemo(true);
               }}
             >
@@ -366,6 +379,21 @@ export default function Account() {
           <details className="account-options">
             <summary>Управление аккаунтом</summary>
             <div className="account-actions">
+              <a
+                className="secondary"
+                href="/"
+                onClick={(event) => {
+                  if (
+                    document.querySelector('[data-unsaved="true"]') &&
+                    !window.confirm(
+                      'Открыть страницу Gym и сбросить незаписанный ввод? Записанные подходы сохранятся.',
+                    )
+                  )
+                    event.preventDefault();
+                }}
+              >
+                Статистика и подключения
+              </a>
               <a className="secondary" href="/auth/update-app">
                 Обновить приложение и подтвердить аккаунт
               </a>
@@ -381,6 +409,17 @@ export default function Account() {
           </details>
         )}
       </section>
+      {session && landing && (
+        <main className="landing-dashboard">
+          <Statistics
+            key={session.user_id}
+            owner={session.user_id}
+            session={session}
+            program={profile?.program}
+          />
+          <AgentAccess session={session} />
+        </main>
+      )}
       {change && session && (
         <main className="program-review">
           <p className="eyebrow">Проверка перед публикацией</p>
@@ -439,7 +478,14 @@ export default function Account() {
               </p>
             </section>
           )}
-          <App key={profile.owner} ownerId={profile.owner} program={toProgram(profile.program)} />
+          {!landing && (
+            <App
+              key={profile.owner}
+              ownerId={profile.owner}
+              program={toProgram(profile.program)}
+              programView={profile.program}
+            />
+          )}
         </>
       )}
       {!profile && demo && !candidate && <App key="demo" ownerId={DEMO_OWNER} program={demoProgram} demo />}
