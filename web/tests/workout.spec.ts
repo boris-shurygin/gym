@@ -19,7 +19,7 @@ async function openSavedSet(page: Page, index: number) {
   await expect(page.getByRole('button', { name: 'Сохранить изменения', exact: true })).toBeVisible();
 }
 
-test('запись, плановые значения, исправление, удаление и история переживают перезапуск без сети', async ({
+test('запись, плановые значения, исправление, удаление и история переживают перезапуск без сети @smoke', async ({
   page,
   context,
 }) => {
@@ -50,7 +50,7 @@ test('запись, плановые значения, исправление, �
   page.once('dialog', (dialog) => void dialog.accept());
   await page.getByRole('button', { name: 'Удалить подход', exact: true }).click();
   await expect(page.getByRole('button', { name: /Редактировать подход/ })).toHaveCount(1);
-  await page.getByRole('button', { name: 'К упражнениям', exact: false }).click();
+  await page.getByRole('button', { name: 'Завершить упражнение', exact: true }).click();
   page.once('dialog', (dialog) => void dialog.accept());
   await page.getByRole('button', { name: 'Завершить тренировку', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'История тренировок' })).toBeVisible();
@@ -150,7 +150,7 @@ test('две вкладки не перезаписывают подход по 
   await expect(page.getByRole('button', { name: 'Редактировать подход 1' })).toContainText('65 кг');
 });
 
-test('кнопки меняют только ввод, разминка не закрывает план, повтор отправки формы не дублирует подход', async ({
+test('кнопки меняют только ввод, разминка не закрывает план, повтор отправки формы не дублирует подход @smoke', async ({
   page,
 }) => {
   await start(page);

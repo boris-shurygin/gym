@@ -14,7 +14,8 @@ export default defineConfig({
       use: { ...devices['Pixel 7'], defaultBrowserType: 'chromium', channel: process.env.PLAYWRIGHT_CHANNEL },
     },
     {
-      name: 'desktop-chromium',
+      name: 'desktop-smoke',
+      grep: /@smoke/,
       use: {
         viewport: { width: 1280, height: 900 },
         browserName: 'chromium',

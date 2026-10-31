@@ -63,9 +63,13 @@ def validate_context(env, event, source, current, workflow, jobs, main_sha):
             or current.get('path') != WORKFLOW or workflow.get('path') != WORKFLOW
             or current.get('workflow_id') != workflow.get('id') or workflow.get('state') != 'active'):
         raise ValueError('Текущий run не соответствует процессу публикации')
-    required = {'contracts', 'api', 'ydb', 'web', 'changes'}
-    successful = {job['name'] for job in jobs if job.get('status') == 'completed' and job.get('conclusion') == 'success'}
-    if not required <= successful:
+    required = {'contracts', 'api', 'ydb', 'infra', 'web', 'browser', 'changes', 'checks'}
+    results = {job['name']: job for job in jobs}
+    if (not required <= results.keys()
+            or any(results[name].get('status') != 'completed' or results[name].get('conclusion') != 'success'
+                for name in ('changes', 'checks'))
+            or any(results[name].get('status') != 'completed' or results[name].get('conclusion') not in {'success', 'skipped'}
+                for name in required)):
         raise ValueError('Обязательные проверки CI не подтверждены')
     run_id, attempt = int(env['GITHUB_RUN_ID']), int(env['GITHUB_RUN_ATTEMPT'])
     if not (0 < run_id <= 9_007_199_254_740_991 and 0 < attempt <= 10000):
@@ -139,11 +143,24 @@ def staging_token(context):
     return _workload_token(context, staging=True)
 
 
+def deployment_needed(record, source_sha):
+    if (record.get('format') != 1 or record.get('source_sha') != source_sha
+            or type(record.get('plan', {}).get('deploy')) is not bool):
+        raise ValueError('План проверок принадлежит другому source SHA')
+    return record['plan']['deploy']
+
+
 def main():
     context = context_from_github()
+    record = json.loads((Path(__file__).resolve().parents[1] / '.local/check-plan/check-plan.json').read_text(encoding='utf-8'))
+    context['deploy'] = deployment_needed(record, context['source_sha'])
     with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
         for key in ('source_sha', 'release_id'):
             output.write(key + '=' + context[key] + '\n')
+        output.write('deploy=' + str(context['deploy']).lower() + '\n')
+    if not context['deploy'] and os.environ.get('GITHUB_STEP_SUMMARY'):
+        with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+            summary.write('Прикладных изменений нет: сборка, миграции и публикация пропущены.\n')
     print(json.dumps(context))
 
 
