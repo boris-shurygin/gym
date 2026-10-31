@@ -319,6 +319,12 @@ export default function App({
             программы.
           </p>
         )}
+        {current.snapshot.planSnapshot?.calculator_version === 'fixed-v1' && (
+          <p className="caption">
+            Цели взяты из одобренной программы. Исправление результатов обновит показатели, сохранив исходный
+            план. Вес и повторения изменятся только после одобрения новой программы.
+          </p>
+        )}
         <section className="card summary">
           <div className="between">
             <span>Рабочие подходы</span>
@@ -778,6 +784,12 @@ export default function App({
             data.state.program.version.program_version_id !== program.versionId
               ? ' · опубликована новая программа, сохранился прежний план'
               : ''}
+          </p>
+        )}
+        {!demo && program.templates[0]?.planSnapshot?.calculator_version === 'fixed-v1' && (
+          <p className="caption">
+            Нагрузка задана в одобренной программе без округления. Выполнение, пропуск или перерыв сами не
+            меняют цели. Для изменения веса и повторений одобри новую программу.
           </p>
         )}
         {program.templates.map((template, i) => (
