@@ -155,6 +155,26 @@ export function nextTarget(
   };
 }
 
+export function newSetDefaults(session: Session, exerciseId: string, kind: SetKind): SetValues {
+  const { target } = nextTarget(session, exerciseId);
+  const previous = exerciseSets(session, exerciseId)
+    .filter((set) => set.kind === 'working')
+    .at(-1);
+  const changed =
+    previous?.comparisonTarget &&
+    (grams(previous.weightKg) !== grams(previous.comparisonTarget.weightKg) ||
+      previous.reps !== previous.comparisonTarget.reps);
+  const weightKg = changed ? previous.weightKg : target.weightKg;
+  const reps = changed ? previous.reps : target.reps;
+  return kind === 'warmup'
+    ? {
+        kind,
+        weightKg: Math.round((grams(weightKg) * 7) / 10) / 1000,
+        reps: Math.min(1000, Math.ceil((reps * 3) / 2)),
+      }
+    : { kind, weightKg, reps };
+}
+
 export function volumeRatio(result: SetResult): number | null {
   const target = result.comparisonTarget;
   if (result.kind !== 'working' || !target || target.weightKg * target.reps <= 0) return null;

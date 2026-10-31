@@ -4,6 +4,7 @@ import {
   grams,
   exerciseSets,
   nextTarget,
+  newSetDefaults,
   volumeRatio,
   WorkoutError,
   type Command,
@@ -400,10 +401,11 @@ export default function App({
     const editing = sets.find((s) => s.id === editSetId);
     const removedWhileEditing = Boolean(editSetId && !editing);
     const next = nextTarget(current, exercise.id);
+    const defaults = newSetDefaults(current, exercise.id, 'working');
     const key = `${current.id}:${exercise.id}:${editSetId ?? 'new'}`;
     const draft = drafts[key] ?? {
-      weight: String(editing?.weightKg ?? next.target.weightKg),
-      reps: String(editing?.reps ?? next.target.reps),
+      weight: String(editing?.weightKg ?? defaults.weightKg),
+      reps: String(editing?.reps ?? defaults.reps),
       kind: editing?.kind ?? 'working',
       revision: current.revision,
     };
@@ -486,22 +488,37 @@ export default function App({
                 type="button"
                 disabled={busy}
                 aria-pressed={draft.kind === kind}
-                onClick={() =>
+                onClick={() => {
+                  if (kind === draft.kind) return;
+                  const values = newSetDefaults(current, exercise.id, kind);
                   update({
                     kind,
-                    ...(!editing
+                    ...(!editSetId
                       ? {
-                          weight: kind === 'working' ? String(next.target.weightKg) : '',
-                          reps: kind === 'working' ? String(next.target.reps) : '',
+                          weight: String(values.weightKg),
+                          reps: String(values.reps),
                         }
                       : {}),
-                  })
-                }
+                  });
+                }}
               >
                 {kind === 'working' ? 'Рабочий' : 'Разминка'}
               </button>
             ))}
           </div>
+          {!editSetId && draft.kind === 'warmup' && (
+            <p className="caption">
+              По умолчанию: 70% рабочего веса и повторения × 1,5, округлённые вверх (до 1000). Значения можно
+              изменить.
+            </p>
+          )}
+          {!editSetId &&
+            draft.kind === 'working' &&
+            (defaults.weightKg !== next.target.weightKg || defaults.reps !== next.target.reps) && (
+              <p className="caption">
+                Ввод перенесён из предыдущего рабочего подхода. Сравнение с планом остаётся прежним.
+              </p>
+            )}
           <div className="input-row">
             <div className="input-column">
               <label>

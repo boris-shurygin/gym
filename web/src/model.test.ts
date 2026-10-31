@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { demoProgram } from './demo-program';
-import { applyMutation, createSession, nextTarget, volumeRatio } from './model';
+import { applyMutation, createSession, newSetDefaults, nextTarget, volumeRatio } from './model';
 
 const now = '2026-10-25T12:00:00Z';
 const fresh = () => createSession(demoProgram, 'upper', 'alice', 'session', now);
@@ -9,6 +9,81 @@ const add = (id: string, weightKg = 60, reps = 10, kind: 'working' | 'warmup' = 
   exerciseId: 'bench',
   setId: id,
   values: { weightKg, reps, kind },
+});
+
+describe('Предзаполнение новых подходов', () => {
+  function varied() {
+    const program = structuredClone(demoProgram);
+    program.templates[0].exercises[0].targets[1] = { id: 'bench-2', weightKg: 65, reps: 8 };
+    return createSession(program, 'upper', 'alice', 'varied', now);
+  }
+
+  it('берёт собственную цель следующей позиции, когда предыдущая выполнена по плану', () => {
+    const session = applyMutation(varied(), add('one'), now);
+    expect(newSetDefaults(session, 'bench', 'working')).toEqual({ kind: 'working', weightKg: 65, reps: 8 });
+  });
+
+  it.each([
+    [62.5, 10],
+    [60, 9],
+    [62.501, 9],
+  ])('переносит оба фактических значения при изменении веса или повторений: %s × %s', (weightKg, reps) => {
+    const session = applyMutation(varied(), add('one', weightKg, reps), now);
+    expect(newSetDefaults(session, 'bench', 'working')).toEqual({ kind: 'working', weightKg, reps });
+    expect(nextTarget(session, 'bench').target).toEqual({ id: 'bench-2', weightKg: 65, reps: 8 });
+    expect(session.snapshot.exercises[0].targets[0].weightKg).toBe(60);
+  });
+
+  it('повторяет последнее отклонение до возвращения к плановым значениям', () => {
+    let session = applyMutation(varied(), add('one', 62.5, 9), now);
+    session = applyMutation(session, add('two', 62.5, 9), now);
+    expect(newSetDefaults(session, 'bench', 'working').weightKg).toBe(62.5);
+    session = applyMutation(
+      session,
+      {
+        type: 'editSet',
+        setId: 'two',
+        values: { kind: 'working', weightKg: 65, reps: 8 },
+      },
+      now,
+    );
+    expect(newSetDefaults(session, 'bench', 'working')).toEqual({ kind: 'working', weightKg: 60, reps: 10 });
+  });
+
+  it('игнорирует разминку, удалённые результаты и рабочие подходы другого упражнения', () => {
+    let session = applyMutation(fresh(), add('one', 65, 9), now);
+    session = applyMutation(session, add('warmup', 20, 15, 'warmup'), now);
+    session = applyMutation(session, add('deleted', 90, 3), now);
+    session = applyMutation(session, { type: 'deleteSet', setId: 'deleted' }, now);
+    session = applyMutation(session, { ...add('other', 100, 5), exerciseId: 'row' }, now);
+    expect(newSetDefaults(session, 'bench', 'working')).toEqual({ kind: 'working', weightKg: 65, reps: 9 });
+  });
+
+  it('для дополнительного подхода переносит отклонение, сохраняя сравнение с последней целью', () => {
+    let session = fresh();
+    for (let i = 0; i < 3; i++) session = applyMutation(session, add(String(i), 65, 9), now);
+    expect(newSetDefaults(session, 'bench', 'working')).toEqual({ kind: 'working', weightKg: 65, reps: 9 });
+    expect(nextTarget(session, 'bench').plannedTargetId).toBeNull();
+    expect(nextTarget(session, 'bench').target.weightKg).toBe(60);
+  });
+
+  it('разминка использует 70% веса следующего рабочего и полтора числа повторений', () => {
+    expect(newSetDefaults(fresh(), 'bench', 'warmup')).toEqual({ kind: 'warmup', weightKg: 42, reps: 15 });
+    const session = applyMutation(fresh(), add('one', 65, 9), now);
+    expect(newSetDefaults(session, 'bench', 'warmup')).toEqual({ kind: 'warmup', weightKg: 45.5, reps: 14 });
+    expect(newSetDefaults(session, 'bench', 'working')).toEqual({ kind: 'working', weightKg: 65, reps: 9 });
+  });
+
+  it('разминка поддерживает точные граммы, нулевой вес и допустимый предел повторений', () => {
+    let session = applyMutation(fresh(), add('one', 60.001, 7), now);
+    expect(newSetDefaults(session, 'bench', 'warmup')).toEqual({
+      kind: 'warmup',
+      weightKg: 42.001,
+      reps: 11,
+    });
+    session = applyMutation(session, add('two', 0, 1000), now);
+    expect(newSetDefaults(session, 'bench', 'warmup')).toEqual({ kind: 'warmup', weightKg: 0, reps: 1000 });
+  });
 });
 
 describe('Снимок и фактические подходы', () => {

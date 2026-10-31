@@ -11,6 +11,14 @@ async function start(page: Page) {
   await page.getByRole('button', { name: /Жим лёжа/ }).click();
 }
 
+async function openSavedSet(page: Page, index: number) {
+  const record = page.getByRole('button', { name: `Редактировать подход ${index}`, exact: true });
+  await record.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'nearest' }));
+  await record.click();
+  await expect(page.getByRole('heading', { name: 'Исправление подхода', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Сохранить изменения', exact: true })).toBeVisible();
+}
+
 test('запись, плановые значения, исправление, удаление и история переживают перезапуск без сети', async ({
   page,
   context,
@@ -20,7 +28,11 @@ test('запись, плановые значения, исправление, �
   await page.getByRole('textbox', { name: 'Вес, кг' }).fill('70');
   await page.getByRole('textbox', { name: 'Повторения' }).fill('9');
   await page.getByRole('button', { name: 'Записать подход', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: 'Вес, кг' })).toHaveValue('60');
+  await expect(page.getByRole('button', { name: 'Редактировать подход 1', exact: true })).toContainText(
+    '70 кг × 9',
+  );
+  await expect(page.getByRole('textbox', { name: 'Вес, кг' })).toHaveValue('70');
+  await expect(page.getByRole('textbox', { name: 'Повторения' })).toHaveValue('9');
   await expect(page.getByText('105%', { exact: true })).toBeVisible();
   await context.setOffline(true);
   await page.reload();
@@ -29,12 +41,12 @@ test('запись, плановые значения, исправление, �
   await expect(page.getByRole('button', { name: 'Редактировать подход 1', exact: true })).toContainText(
     '70 кг × 9',
   );
-  await page.getByRole('button', { name: 'Редактировать подход 1', exact: true }).click();
+  await openSavedSet(page, 1);
   await page.getByRole('textbox', { name: 'Вес, кг' }).fill('65');
   await page.getByRole('button', { name: 'Сохранить изменения' }).click();
   await expect(page.getByText('97,5%', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Записать подход', exact: true }).click();
-  await page.getByRole('button', { name: 'Редактировать подход 2', exact: true }).click();
+  await openSavedSet(page, 2);
   page.once('dialog', (dialog) => void dialog.accept());
   await page.getByRole('button', { name: 'Удалить подход', exact: true }).click();
   await expect(page.getByRole('button', { name: /Редактировать подход/ })).toHaveCount(1);
@@ -50,6 +62,52 @@ test('запись, плановые значения, исправление, �
     '65 кг × 9',
   );
   await expect(page.getByRole('status')).toContainText('6 изменений');
+});
+
+test('разминка предзаполнена, рабочие изменения переносятся и восстанавливаются без сети', async ({
+  page,
+  context,
+}) => {
+  await start(page);
+  const weight = page.getByRole('textbox', { name: 'Вес, кг' });
+  const reps = page.getByRole('textbox', { name: 'Повторения' });
+  await page.getByRole('button', { name: 'Разминка', exact: true }).click();
+  await expect(weight).toHaveValue('42');
+  await expect(reps).toHaveValue('15');
+  await page.getByRole('button', { name: 'Записать подход', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Редактировать подход 1', exact: true })).toContainText(
+    '42 кг × 15',
+  );
+  await expect(page.getByText('Вес в кг · 0 / 3 рабочих подходов')).toBeVisible();
+  await expect(weight).toHaveValue('60');
+  await expect(reps).toHaveValue('10');
+  await weight.fill('65');
+  await reps.fill('9');
+  await page.getByRole('button', { name: 'Рабочий', exact: true }).click();
+  await expect(weight).toHaveValue('65');
+  await expect(reps).toHaveValue('9');
+  await page.getByRole('button', { name: 'Записать подход', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Редактировать подход 2', exact: true })).toContainText(
+    '65 кг × 9',
+  );
+  await expect(weight).toHaveValue('65');
+  await expect(reps).toHaveValue('9');
+  await expect(page.getByText('97,5%', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Разминка', exact: true }).click();
+  await expect(weight).toHaveValue('45.5');
+  await expect(reps).toHaveValue('14');
+  await page.getByRole('button', { name: 'Рабочий', exact: true }).click();
+  await expect(weight).toHaveValue('65');
+  await expect(reps).toHaveValue('9');
+  await context.setOffline(true);
+  await page.reload();
+  await page.getByRole('button', { name: 'Продолжить тренировку' }).click();
+  await page.getByRole('button', { name: /Жим лёжа/ }).click();
+  await expect(weight).toHaveValue('65');
+  await expect(reps).toHaveValue('9');
+  await openSavedSet(page, 1);
+  await expect(weight).toHaveValue('42');
+  await expect(reps).toHaveValue('15');
 });
 
 test('ошибка записи очереди не сохраняет подход и оставляет ввод', async ({ page }) => {
@@ -111,6 +169,8 @@ test('кнопки меняют только ввод, разминка не з�
   await page.getByRole('button', { name: /Жим лёжа/ }).click();
   await expect(page.getByRole('textbox', { name: 'Вес, кг' })).toHaveValue('62.5');
   await page.getByRole('button', { name: 'Разминка', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Вес, кг' })).toHaveValue('42');
+  await expect(page.getByRole('textbox', { name: 'Повторения' })).toHaveValue('15');
   await page.getByRole('textbox', { name: 'Вес, кг' }).fill('20');
   await page.getByRole('textbox', { name: 'Повторения' }).fill('8');
   await page.getByRole('button', { name: 'Записать подход', exact: true }).click();
