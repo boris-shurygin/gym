@@ -28,7 +28,9 @@ CALLBACK = 'http://127.0.0.1:8765/callback'
 
 
 class ClientError(Exception):
-    pass
+    def __init__(self, code, trace_id=None):
+        super().__init__(code)
+        self.code, self.trace_id = code, trace_id
 
 
 def protect(raw, decrypt=False):
@@ -117,7 +119,17 @@ def request_json(url, value, *, token=None, form=False):
                 raise ClientError('response_too_large')
             return json.loads(raw) if raw else None
     except HTTPError as error:
-        raise ClientError('server_http_' + str(error.code)) from None
+        code, trace = 'server_http_' + str(error.code), None
+        try:
+            value = json.loads(error.read(16384)).get('error')
+            candidate = value.get('code') if isinstance(value, dict) else value
+            if isinstance(candidate, str) and re.fullmatch(r'[a-z_]{1,50}', candidate):
+                code = candidate
+            if isinstance(value, dict) and re.fullmatch(r'[a-f0-9]{32}', value.get('trace_id', '')):
+                trace = value['trace_id']
+        except (OSError, ValueError, AttributeError, TypeError):
+            pass
+        raise ClientError(code, trace) from None
     except (OSError, ValueError):
         raise ClientError('server_unavailable') from None
 
@@ -125,6 +137,7 @@ def request_json(url, value, *, token=None, form=False):
 class GymClient:
     def __init__(self, vault=None):
         self.resource, self.vault = ORIGIN + '/mcp', vault or Vault()
+        self.request_id = 0
 
     def save_tokens(self, value):
         if (not isinstance(value, dict) or value.get('token_type') != 'Bearer'
@@ -148,8 +161,9 @@ class GymClient:
             return saved['access_token']
 
     def rpc(self, method, params, access):
-        value = request_json(self.resource, {'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': params}, token=access)
-        if not isinstance(value, dict) or value.get('jsonrpc') != '2.0' or value.get('id') != 1 or 'error' in value or not isinstance(value.get('result'), dict):
+        self.request_id += 1
+        value = request_json(self.resource, {'jsonrpc': '2.0', 'id': self.request_id, 'method': method, 'params': params}, token=access)
+        if not isinstance(value, dict) or value.get('jsonrpc') != '2.0' or value.get('id') != self.request_id or 'error' in value or not isinstance(value.get('result'), dict):
             raise ClientError('mcp_request_failed')
         return value['result']
 
@@ -253,7 +267,7 @@ def main():
         print(json.dumps(result, ensure_ascii=False), flush=True)
         return 0 if result.get('ok', True) else 1
     except ClientError as error:
-        print(json.dumps({'ok': False, 'error': str(error)}), flush=True)
+        print(json.dumps({'ok': False, 'error': error.code, **({'trace_id': error.trace_id} if error.trace_id else {})}), flush=True)
         return 1
     except (OSError, ValueError, KeyError):
         print(json.dumps({'ok': False, 'error': 'invalid_input_or_local_state'}), flush=True)
