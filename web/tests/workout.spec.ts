@@ -11,6 +11,14 @@ async function start(page: Page) {
   await page.getByRole('button', { name: /Жим лёжа/ }).click();
 }
 
+async function openSavedSet(page: Page, index: number) {
+  const record = page.getByRole('button', { name: `Редактировать подход ${index}`, exact: true });
+  await record.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'nearest' }));
+  await record.click();
+  await expect(page.getByRole('heading', { name: 'Исправление подхода', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Сохранить изменения', exact: true })).toBeVisible();
+}
+
 test('запись, плановые значения, исправление, удаление и история переживают перезапуск без сети', async ({
   page,
   context,
@@ -33,12 +41,12 @@ test('запись, плановые значения, исправление, �
   await expect(page.getByRole('button', { name: 'Редактировать подход 1', exact: true })).toContainText(
     '70 кг × 9',
   );
-  await page.getByRole('button', { name: 'Редактировать подход 1', exact: true }).click();
+  await openSavedSet(page, 1);
   await page.getByRole('textbox', { name: 'Вес, кг' }).fill('65');
   await page.getByRole('button', { name: 'Сохранить изменения' }).click();
   await expect(page.getByText('97,5%', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Записать подход', exact: true }).click();
-  await page.getByRole('button', { name: 'Редактировать подход 2', exact: true }).click();
+  await openSavedSet(page, 2);
   page.once('dialog', (dialog) => void dialog.accept());
   await page.getByRole('button', { name: 'Удалить подход', exact: true }).click();
   await expect(page.getByRole('button', { name: /Редактировать подход/ })).toHaveCount(1);
@@ -97,7 +105,7 @@ test('разминка предзаполнена, рабочие изменен
   await page.getByRole('button', { name: /Жим лёжа/ }).click();
   await expect(weight).toHaveValue('65');
   await expect(reps).toHaveValue('9');
-  await page.getByRole('button', { name: 'Редактировать подход 1', exact: true }).click();
+  await openSavedSet(page, 1);
   await expect(weight).toHaveValue('42');
   await expect(reps).toHaveValue('15');
 });
