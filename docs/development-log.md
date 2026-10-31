@@ -5,24 +5,30 @@
 | Поле | Значение |
 | --- | --- |
 | Активный этап | P10 целиком: P10.1 история/графики, P10.2 MCP/Skill, P10.3 лендинг |
-| Локальная доработка | Графики/кэш/пояс, лендинг/установка, OAuth/11 MCP-инструментов/отзыв, Windows Python-прокладка и отдельный Skill тренера |
-| Состояние | Реализация и локальные проверки; полный CI/native YDB и staging ещё впереди |
-| Локальная ветка | feat/p10-history-agent-landing от 0ee1652 |
+| Локальная доработка | Только постфактум-метаданные #36/#37 и приёмки для следующего содержательного PR |
+| Состояние | P10 опубликован; исправляется csrf_failed формы согласия. Доступность с iPhone подтверждена после устранения Wi-Fi-проблемы; установка/офлайн ещё не подтверждены |
+| Локальная ветка | fix/p10-consent-origin от 12eb41b |
 | Режим и объём | Прямой запрос «полностью делаем P10 с подпунктами» разрешает реализацию, PR/CI/merge/staging и необходимую приёмку P10.1–P10.3. P11 и production не входят |
 | Изменение процесса | Правила автономной работы слиты в #16 и проверены полным staging |
-| Локальный базовый main | `0ee165204d400f8790d50f4c133b3255e922a86b` — merge #35 |
-| Актуальность origin/main | Fetch и fast-forward подтвердили main/origin/main 0ee1652 |
-| PR | [#35](https://github.com/boris-shurygin/gym/pull/35) слит с проверенным head 4def8eb |
-| CI PR | #35: Web checks 41191993215 и Cloud access 41191993179 успешны, включая native YDB, Linux ZIP smoke и полную браузерную матрицу |
-| CI сборки | `0ee165204d400f8790d50f4c133b3255e922a86b_41192384540_1`; штатная выкатка без операторского продолжения |
-| CI после merge | Main CI и [Staging release 41192384540](https://github.com/boris-shurygin/gym/actions/runs/41192384540) успешны |
+| Локальный базовый main | `12eb41b2b6f4d6fa15c553084353b9c084c95e01` — merge #37; основная реализация #36 в 0daf087 |
+| Актуальность origin/main | Fetch и fast-forward подтвердили main/origin/main 12eb41b |
+| PR | [#36](https://github.com/boris-shurygin/gym/pull/36), [#37](https://github.com/boris-shurygin/gym/pull/37) слиты с проверенными heads b92fd9a и 4da7de6 |
+| CI PR | #36 Web checks 41199623323 и Cloud access 41199623313 успешны: native YDB, Linux ZIP smoke, 44 browser. #37 Web checks 41200431093 и Cloud access 41200431100 успешны, только инфраструктурный профиль |
+| CI сборки | `12eb41b2b6f4d6fa15c553084353b9c084c95e01_41200658167_1`; manifest 6341ab18926e8e57c00c64e934c58d50d2ee743ab8c791bc6f0c729972314d20 |
+| CI после merge | Main CI обоих PR успешен. [Staging release 41200658167](https://github.com/boris-shurygin/gym/actions/runs/41200658167) остался failure из-за HTTP 429 на миграциях; тот же опубликованный выпуск доведён штатными операторскими командами |
 | Реальная проверка OIDC | Staging publisher/migrations/deploy и production Environment OIDC в [Production release](https://github.com/boris-shurygin/gym/actions/runs/40863249879) успешны; постоянные облачные ключи не создавались |
-| Выпуск артефактов | `9a16a2f02a77f5227aa96046d5b0fa26f7d525b1_40852028322_1`; manifest SHA-256 `6e1e369063bee94f6c68a4bda3efa307803eb12ef0cf285d57a210818af3cac9` |
-| Престейбл | [Gym](https://gym-staging.website.yandexcloud.net/), выпуск `0ee165204d400f8790d50f4c133b3255e922a86b_41192384540_1`. CI deploy успешен; публичные main_sha/purpose/release_id совпали. Повторная ручная сверка облака/браузера не выполнялась по ADR-0020 |
+| Выпуск артефактов | P10: `12eb41b…_41200658167_1`; опубликован CI, хеш манифеста подтверждён при операторском продолжении |
+| Престейбл | [Gym](https://gym-staging.website.yandexcloud.net/), P10 `12eb41b…_41200658167_1`, схема 0003, API d4eca16pblihj9jt87e2, тег r-bed25ce261c30e862eb7adb3aada6229. Штатный smoke и публичные main_sha/purpose/release_id совпали; отдельная повторная сверка всего облака не выполнялась |
 | Стейбл | [HTTPS-приложение](https://d5dhqvda3eo6r4c2mgf6.764nr5vy.apigw.yandexcloud.net/), release `9a16a2f…_40852028322_1`, API `d4e7umbbk4a2t9spfecl`; [workflow](https://github.com/boris-shurygin/gym/actions/runs/40863249879), независимая проверка/HTTP/offline успешны. Пять служебных таблиц, пользовательских данных нет |
-| Следующее действие | Доведи P10 до CI/merge/staging. Проверь реальный Python-клиент с браузерным согласием и доступный пользователю iPhone; Android остаётся неподтверждённым, эмуляция не заменяет физическое устройство |
+| Следующее действие | Пользователь выполняет python -m gym_agent login в удобный момент и подтверждает доступ в браузере. Затем проверь реальные чтение/черновик/валидацию через Python и результаты проверки iPhone. Android не подтверждён. P10 не объявляй полностью принятым и P11 не начинай автоматически |
 
 ## 2026-10-31: P10 целиком
+
+Приёмка: пользователь получил csrf_failed, trace_id 65082f4332e44e679abe98e9fa16c31c. Браузерная регрессия воспроизвела Origin: null: HTML наследовал no-referrer от общего JSON-response helper, а fixture подменял Origin ожидаемым. Исправление ограничено страницей согласия: Referrer-Policy same-origin; проверка Origin/CSRF прежняя. Fixture теперь сохраняет null/неизвестный Origin и переводит только реальный localhost origin теста; Chromium/WebKit сценарии прошли, native проверки отвергают чужой/null Origin. Пользователь подтвердил, что ссылка на iPhone открывается после решения Wi-Fi-проблемы; редирект и Gateway на компьютере возвращают 301/200. Установка и офлайн ещё не подтверждены. Продолжи PR/CI/merge/staging и свежий Python login в пределах P10.
+
+Финальная точка продолжения: живые discovery issuer/resource/PKCE и отказ /mcp без credentials (401 с challenge) проверены. Первый реальный Python login завершился login_timeout: корректный callback не поступил за 300 секунд, локальные токены не сохранены. Старая страница согласия уже не завершит этот запрос; нужен свежий login, когда пользователь готов к браузерному шагу. Ожидается также ответ о доступном iPhone; физического Android у пользователя нет. Реализация/PR/CI/staging выполнены, ручная приёмка остаётся открытой. Дополнительные тесты, повторная сверка облака и production после успешной установки не запускались.
+
+Итог выкатки: после HTTP 429 оператор прочитал health ожидаемой ревизии и durable status — not_found, задания ещё не было. `infra.staging_migrations --as-staging-ci` того же release/digest завершил job generation 2, schema 0003, worker bbaqfj650igqfdv06eb8. Затем `infra.staging_app` выпустил API/PWA/Gateway из тех же байтов, штатный smoke и immutable receipt успешны. Gateway SHA 9877b00b6dee3b3316913cc80472ac72f8f47b8ebbcc2f484e014b9b64625eba; ротация сняла только доказанно принадлежащий Gym старый тег r-54b158136e68db352938e9e8fbd48273. Публичная идентичность P10 проверена один раз. GitHub run не объявляется зелёным; повтор чтения readiness/status после 429 остаётся эксплуатационной доработкой, повтор step вслепую не выполнялся. Запущен первый реальный `gym_agent login`, ожидается браузерное согласие пользователя; токены не выводятся.
 
 PR #36 слит в 0daf087 после успешного финального CI b92fd9a (Web checks 41199623323, Cloud access 41199623313). Main CI прошёл. Staging 41200005495 остановился до публикации на build: старый validate_payloads разрешал только manifest.start_url="/", новая PWA использует "/#/app". Publish/migrations/deploy skipped, прежний staging сохранён. Подготовлен точечный fix/p10-manifest-validation: два разрешённых start_url, остальные проверки прежние; регрессия читает настоящий manifest проекта и отклоняет внешние/неизвестные адреса.
 
