@@ -99,7 +99,7 @@ async function status(
   ).json();
 }
 async function enter(page: Page) {
-  await page.goto('/');
+  await page.goto('/#/app');
   await expect(page.getByText('Можно открыть без сети', { exact: true })).toBeVisible();
   await expect(page.locator('.template-card').first()).toBeVisible();
   await expect(
@@ -194,6 +194,31 @@ test('P09: объяснение fixed и пересчёт серверных п�
   expect(next.items[0].template).toEqual(initial.items[0].template);
   const history = await (await request.get(`${backend}/api/v1/workouts`, { headers })).json();
   expect(history.items[0].plan).toEqual(initial.items[0]);
+  await page.getByRole('button', { name: 'К упражнениям', exact: false }).click();
+  await page.getByRole('button', { name: 'История', exact: false }).click();
+  await page.getByRole('button', { name: 'Серверная история и графики', exact: true }).click();
+  const stats = page.getByRole('region', { name: 'Личная статистика' });
+  await expect(stats.getByText(/Серверные данные.*обновлено/)).toBeVisible();
+  await stats.getByText('Часовой пояс статистики', { exact: true }).click();
+  await stats.getByRole('textbox', { name: 'Часовой пояс IANA', exact: true }).fill('Europe/Moscow');
+  await stats.getByRole('button', { name: 'Сохранить часовой пояс', exact: true }).click();
+  await expect(stats.getByText('Часовой пояс: Europe/Moscow', { exact: true })).toBeVisible();
+  await expect(stats.getByRole('button', { name: 'Обновить статистику', exact: true })).toBeEnabled();
+  await stats.getByRole('button', { name: 'Показать графики', exact: true }).click();
+  await expect(
+    stats.getByRole('img', { name: 'Наибольший рабочий вес, кг', exact: true }).locator('circle title'),
+  ).toContainText('65,125');
+  await expect(
+    stats
+      .getByRole('img', { name: 'Рабочий объём упражнения, кг·повт.', exact: true })
+      .locator('circle title'),
+  ).toContainText('521');
+  await context.setOffline(true);
+  await stats.getByRole('button', { name: 'Обновить статистику', exact: true }).click();
+  await expect(stats.getByText(/Нет свежего серверного отчёта/)).toBeVisible();
+  await expect(stats.getByText(/Сохранённый отчёт · может быть устаревшим/)).toBeVisible();
+  await stats.getByRole('button', { name: 'Показать графики', exact: true }).click();
+  await expect(stats.getByRole('img', { name: 'Наибольший рабочий вес, кг', exact: true })).toBeVisible();
 });
 
 test('настоящий API: офлайн старт, исправление, завершение, потерянный ответ и второе устройство', async ({
@@ -244,7 +269,7 @@ test('настоящий API: офлайн старт, исправление, �
   try {
     await connect(other, connection);
     const second = await other.newPage();
-    await second.goto('/');
+    await second.goto('/#/app');
     await second.getByRole('button', { name: 'История', exact: false }).click();
     await second.locator('.history-card').first().click();
     await second.getByRole('button', { name: /Жим лёжа/ }).click();
@@ -284,7 +309,7 @@ for (const choice of ['local', 'server'] as const)
       const secondConnection = connection;
       await connect(other, secondConnection);
       const second = await other.newPage();
-      await second.goto('/');
+      await second.goto('/#/app');
       await second.getByRole('button', { name: 'Продолжить тренировку' }).click();
       await second.getByRole('button', { name: /Жим лёжа/ }).click();
       await context.setOffline(true);
@@ -370,7 +395,7 @@ test('удаление на другом устройстве сохраняет
   try {
     await connect(other, connection);
     const second = await other.newPage();
-    await second.goto('/');
+    await second.goto('/#/app');
     await second.getByRole('button', { name: 'Продолжить тренировку' }).click();
     await second.getByRole('button', { name: /Жим лёжа/ }).click();
     await openEditor(page);

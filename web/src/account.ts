@@ -63,13 +63,17 @@ export async function api<T>(
   input?: object,
   session?: SessionInfo,
   signal?: AbortSignal,
+  method: 'POST' | 'PUT' = 'POST',
 ): Promise<T> {
   const response = await fetch(path, {
-    method: input ? 'POST' : 'GET',
+    method: input ? method : 'GET',
     credentials: 'same-origin',
     cache: 'no-store',
     signal: signal ?? AbortSignal.timeout(15_000),
-    headers: input ? { 'Content-Type': 'application/json', 'X-CSRF-Token': session?.csrf_token ?? '' } : {},
+    headers: {
+      ...(input ? { 'Content-Type': 'application/json', 'X-CSRF-Token': session?.csrf_token ?? '' } : {}),
+      ...(session ? { 'X-Gym-Expected-Owner': session.user_id } : {}),
+    },
     body: input ? JSON.stringify(input) : undefined,
   });
   if (response.status === 204) return undefined as T;

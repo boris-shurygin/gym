@@ -42,7 +42,8 @@ class Programs:
             # Все request_id глобальны в аккаунте: иной endpoint/тело не
             # становится допустимым повтором той же команды.
             request_id = value.get('request_id')
-            request_digest = fingerprint('request', {'operation': operation, 'input': value})
+            request_digest = fingerprint('request', {'operation': operation, 'input': value,
+                **({'actor_grant_id': principal['grant_id']} if principal.get('grant_id') else {})})
             if request_id:
                 saved = db.get('program_records', owner, 'request:' + request_id)
                 if saved:
@@ -61,13 +62,15 @@ class Programs:
                 validate('Proposal', value['proposal'])
                 result = {'change_id': str(uuid4()), 'owner_id': owner, 'change_revision': 1,
                     'proposal': value['proposal'], 'content_digest': fingerprint('proposal', value['proposal']),
-                    'status': 'draft', 'created_at': timestamp(now), 'creator_grant_id': None}
+                    'status': 'draft', 'created_at': timestamp(now), 'creator_grant_id': principal.get('grant_id')}
                 db.put('program_records', owner, 'change:' + result['change_id'], result)
             else:
                 change = self._change(db, owner, value['change_id'])
                 if value.get('expected_revision') != change['change_revision']:
                     raise ServiceError('revision_conflict')
                 if operation == 'replace_change':
+                    if principal.get('grant_id') and change['creator_grant_id'] != principal['grant_id']:
+                        raise ServiceError('approval_invalid')
                     if change['status'] == 'published':
                         raise ServiceError('program_conflict')
                     validate('Proposal', value['proposal'])
@@ -118,14 +121,21 @@ class Programs:
                 or value['content_digest'] != change['content_digest']):
             raise ServiceError('approval_invalid')
         previous = db.get('program_records', owner, 'publication:' + change['change_id'])
+        if principal.get('grant_id') and principal['grant_id'] != change['creator_grant_id']:
+            raise ServiceError('approval_invalid')
         if previous:
             if operation == 'publish_approved' and value['approval_id'] != previous['approval_id']:
                 raise ServiceError('approval_invalid')
             return previous
         if operation == 'publish_approved':
-            # В P06 одобрение и применение атомарны по кнопке Gym. Отдельной
-            # выдачи одобрения агенту здесь нет; её grant-проверки — P10.2.
+            # Кнопка Gym атомарно одобряет и публикует. Агент может только
+            # получить результат уже одобренной публикации своего grant.
             raise ServiceError('approval_required')
+        if change['creator_grant_id']:
+            grant = db.get('program_records', owner, 'grant:' + change['creator_grant_id'])
+            if (not grant or grant['revoked_at'] or now >= grant['created'] + 90 * 86400
+                    or now >= grant['last_refresh'] + 30 * 86400 or 'program:publish' not in grant['scopes']):
+                raise ServiceError('approval_invalid')
         if now - principal['auth_at'] >= 600:
             raise ServiceError('session_required')
         if change['status'] != 'validated':

@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function start(page: Page) {
-  await page.goto('/');
+  await page.goto('/#/app');
   await page.getByRole('button', { name: /Верх тела.*Грудь/ }).click();
   await page.getByRole('button', { name: 'Начать тренировку', exact: true }).click();
   await page.getByRole('button', { name: /Жим лёжа/ }).click();

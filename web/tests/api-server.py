@@ -58,6 +58,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         self.perform()
 
+    def do_PUT(self):
+        self.perform()
+
     def perform(self):
         body = self.rfile.read(int(self.headers.get('Content-Length', 0)))
         if self.path == '/auth/update-app':
@@ -81,6 +84,14 @@ class Handler(BaseHTTPRequestHandler):
             status, payload = 200, {'posts': fixture.posts, 'dropped': fixture.dropped, 'publications': fixture.publications}
         elif self.path == '/__gym/release' and fixture:
             status, payload = 200, {'purpose': 'staging-release' if fixture.staging else 'development'}
+        elif self.path == '/__test/oauth-request' and fixture and self.command == 'POST':
+            from api.delegation import Delegation, challenge
+            location = Delegation(fixture.auth).begin({'client_id': 'gym-chatgpt',
+                'redirect_uri': 'https://chatgpt.com/connector_platform_oauth_redirect',
+                'response_type': 'code', 'state': 'synthetic-client-state',
+                'resource': 'https://gym.example/mcp', 'code_challenge_method': 'S256',
+                'code_challenge': challenge('v' * 43)})
+            status, payload = 200, {'location': location}
         elif self.path == '/__test/config' and fixture and self.command == 'POST':
             config = json.loads(body)
             for name in ('signed_in', 'user', 'drop_next', 'login_probe', 'staging', 'drop_publish'):
@@ -113,6 +124,7 @@ class Handler(BaseHTTPRequestHandler):
                     'headers': {'Cookie': SESSION_COOKIE + '=' + token,
                         'Origin': 'https://gym.example',
                         'Content-Type': self.headers.get('Content-Type', ''),
+                        'X-Gym-Expected-Owner': self.headers.get('X-Gym-Expected-Owner', user),
                         'X-CSRF-Token': self.headers.get('X-CSRF-Token', '')},
                     'body': body.decode('utf-8')}
                 with patch('api.handler.application', return_value=fixture.auth):

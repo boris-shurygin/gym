@@ -21,10 +21,13 @@ import { programFromPlans } from './sync-model';
 import { SyncCoordinator, type SyncNotice } from './sync';
 import SyncPanel from './SyncPanel';
 import FinishExerciseButton from './ui/FinishExerciseButton';
+import Statistics from './Statistics';
+import type { ProgramView } from './account';
 
 type View =
   | { kind: 'home' }
   | { kind: 'history' }
+  | { kind: 'statistics' }
   | { kind: 'preview'; templateId: string }
   | { kind: 'session'; sessionId: string }
   | { kind: 'exercise'; sessionId: string; exerciseId: string; editSetId?: string };
@@ -103,10 +106,12 @@ export default function App({
   ownerId,
   program: suppliedProgram,
   demo = false,
+  programView,
 }: {
   ownerId: string;
   program: Program;
   demo?: boolean;
+  programView?: ProgramView;
 }) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [pending, setPending] = useState(0);
@@ -730,12 +735,26 @@ export default function App({
         </button>
       </>
     );
+  } else if (view.kind === 'statistics') {
+    content = (
+      <>
+        <button className="back" onClick={() => setView({ kind: 'history' })}>
+          ← К истории
+        </button>
+        <Statistics owner={ownerId} pending={pending} program={programView} />
+      </>
+    );
   } else if (view.kind === 'history') {
     const history = sessions.filter((s) => s.status === 'completed');
     content = (
       <>
         <p className="eyebrow">Твои записи на этом устройстве</p>
         <h1>История тренировок</h1>
+        {!demo && (
+          <button className="secondary wide" onClick={() => setView({ kind: 'statistics' })}>
+            Серверная история и графики
+          </button>
+        )}
         {!history.length && <div className="card empty">Завершённые тренировки появятся здесь</div>}
         {history.map((current) => (
           <button
@@ -908,13 +927,13 @@ export default function App({
       </footer>
       <nav className="bottom-nav" aria-label="Разделы">
         <button
-          aria-current={view.kind !== 'history' ? 'page' : undefined}
+          aria-current={!['history', 'statistics'].includes(view.kind) ? 'page' : undefined}
           onClick={() => setView({ kind: 'home' })}
         >
           ◈ <span>Тренировка</span>
         </button>
         <button
-          aria-current={view.kind === 'history' ? 'page' : undefined}
+          aria-current={['history', 'statistics'].includes(view.kind) ? 'page' : undefined}
           onClick={() => setView({ kind: 'history' })}
         >
           ◷ <span>История</span>
