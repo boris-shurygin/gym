@@ -18,7 +18,7 @@ test('публичный лендинг не загружает историю, 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('согласие ChatGPT отдельно от публикации и после входа; доступ можно отозвать', async ({
+test('согласие Python-агента отдельно от публикации и после входа; доступ можно отозвать', async ({
   page,
   request,
 }) => {
@@ -29,9 +29,16 @@ test('согласие ChatGPT отдельно от публикации и п�
     .context()
     .addCookies([{ name: 'gym_e2e_fixture', value: fixture, url: 'http://127.0.0.1:4173' }]);
   const authorization = await (await request.post(backend + '/__test/oauth-request', { headers })).json();
-  await page.route('https://chatgpt.com/connector_platform_oauth_redirect?**', (route) =>
-    route.fulfill({ contentType: 'text/html', body: '<h1>OAuth callback received</h1>' }),
-  );
+  await page.route('**/oauth/consent', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    const response = await route.fetch({ maxRedirects: 0 });
+    expect(response.status()).toBe(302);
+    const callback = new URL(response.headers().location);
+    expect(callback.origin + callback.pathname).toBe('http://127.0.0.1:8765/callback');
+    // WebKit не перехватывает следующий URL redirect-цепочки: подмени только
+    // конечную страницу callback, оставив отправку формы и проверку Location настоящими.
+    await route.fulfill({ contentType: 'text/html', body: '<h1>OAuth callback received</h1>' });
+  });
   await page.goto(authorization.location);
   await expect(page.getByRole('heading', { name: 'Подключить агента к Gym', exact: true })).toBeVisible();
   await expect(page.getByText('Читать историю тренировок', { exact: true })).toBeVisible();

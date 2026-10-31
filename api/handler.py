@@ -275,8 +275,7 @@ def handler(event, context=None):
                 raise RequestError()
             response = _response(200, {'status': 'ok'}, trace_id)
         else:
-            if (request.path == '/mcp' or request.path.startswith(('/oauth/', '/.well-known/'))
-                    or request.path == '/api/v1/oauth/consent'):
+            if request.path == '/mcp' or request.path.startswith(('/oauth/', '/.well-known/')):
                 if request.path == '/mcp' and request.method == 'POST':
                     request.check_json()
                 from api.mcp import handle

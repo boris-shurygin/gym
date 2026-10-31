@@ -5,11 +5,11 @@ import json
 from pathlib import Path
 import unittest
 from unittest.mock import patch
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urlsplit, urlencode
 from uuid import uuid4
 
 import sqlalchemy as sa
-from api.auth import SESSION_COOKIE
+from api.auth import SESSION_COOKIE, AGENT_COOKIE
 from api.delegation import Delegation, DelegatedAuth, OAuthError, SCOPES, challenge
 from api.errors import ServiceError
 from api.handler import handler
@@ -141,9 +141,20 @@ class DelegationCases:
                 self.begin(**changes)
         request_id = self.begin()
         with patch('api.handler.application', return_value=self.auth):
-            response = handler({'httpMethod': 'POST', 'path': '/api/v1/oauth/consent',
-                'headers': {'Content-Type': 'application/json', 'Cookie': SESSION_COOKIE + '=' + self.h.alice,
-                    'Origin': 'https://evil.example'}, 'body': json.dumps({'request_id': request_id, 'allow': True})})
+            nonce_cookie = AGENT_COOKIE + '=' + request_id
+            anonymous = handler({'httpMethod': 'GET', 'path': '/oauth/consent', 'headers': {'Cookie': nonce_cookie}})
+            self.assertEqual(anonymous['headers']['Location'], '/auth/login?return_to=/agent')
+            page = handler({'httpMethod': 'GET', 'path': '/oauth/consent',
+                'headers': {'Cookie': SESSION_COOKIE + '=' + self.h.alice + '; ' + nonce_cookie}})
+            self.assertEqual(page['statusCode'], 200)
+            self.assertTrue(page['headers']['Content-Type'].startswith('text/html'))
+            self.assertEqual(page['headers']['Cache-Control'], 'no-store')
+            self.assertNotIn('<script', page['body'])
+            response = handler({'httpMethod': 'POST', 'path': '/oauth/consent',
+                'headers': {'Content-Type': 'application/x-www-form-urlencoded',
+                    'Cookie': SESSION_COOKIE + '=' + self.h.alice + '; ' + AGENT_COOKIE + '=' + request_id,
+                    'Origin': 'https://evil.example'}, 'body': urlencode({'request_id': request_id, 'allow': 'yes',
+                        'csrf_token': self.auth.session(self.h.alice)['csrf_token']})})
             self.assertEqual(response['statusCode'], 403)
             response = handler({'httpMethod': 'GET', 'path': '/api/v1/stats/summary',
                 'headers': {'Cookie': SESSION_COOKIE + '=' + self.h.bob, 'X-Gym-Expected-Owner': 'alice'}})

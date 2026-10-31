@@ -41,7 +41,7 @@ export function AgentAccess({ session }: { session: SessionInfo }) {
         </a>
       </p>
       <p className="caption">
-        Выход из PWA не отзывает доступ ChatGPT. Отозвать его можно здесь; история останется.
+        Выход из PWA не отзывает доступ агента. Отозвать его можно здесь; история останется.
       </p>
       {!grants.length && <p>Подключённых агентов пока нет.</p>}
       {grants.map((grant) => (
@@ -57,7 +57,7 @@ export function AgentAccess({ session }: { session: SessionInfo }) {
             className="secondary"
             disabled={busy || !!grant.revoked_at}
             onClick={() => {
-              if (!window.confirm('Отозвать доступ этого подключения ChatGPT?')) return;
+              if (!window.confirm('Отозвать доступ этого подключения агента?')) return;
               setBusy(true);
               void api<Grant>(
                 `/api/v1/agent-grants/${grant.grant_id}/revoke`,
@@ -82,81 +82,5 @@ export function AgentAccess({ session }: { session: SessionInfo }) {
       ))}
       {message && <p role="status">{message}</p>}
     </details>
-  );
-}
-
-export function OAuthConsent({ session, requestId }: { session?: SessionInfo; requestId: string }) {
-  const [details, setDetails] = useState<{ client_name: string; scopes: string[]; resource: string }>();
-  const [message, setMessage] = useState('');
-  const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    if (!session) return;
-    const controller = new AbortController();
-    void api<{ client_name: string; scopes: string[]; resource: string }>(
-      `/api/v1/oauth/consent?request_id=${requestId}`,
-      undefined,
-      session,
-      controller.signal,
-    )
-      .then(setDetails)
-      .catch(() => {
-        if (!controller.signal.aborted)
-          setMessage(
-            'Запрос подключения устарел или вход не подтверждён. Начни подключение заново в ChatGPT.',
-          );
-      });
-    return () => controller.abort();
-  }, [session, requestId]);
-  async function decide(allow: boolean) {
-    if (!session || busy) return;
-    setBusy(true);
-    try {
-      const result = await api<{ redirect_uri: string }>(
-        '/api/v1/oauth/consent',
-        { request_id: requestId, allow },
-        session,
-      );
-      sessionStorage.removeItem('gym.oauth.request');
-      location.assign(result.redirect_uri);
-    } catch {
-      setMessage('Подключение не подтверждено. Подтверди вход и повтори действие.');
-      setBusy(false);
-    }
-  }
-  return (
-    <main className="oauth-consent card">
-      <p className="eyebrow">Отдельное разрешение</p>
-      <h1>Подключить агента к Gym</h1>
-      {session && <p>Аккаунт: {session.yandex_login ?? 'Твой аккаунт Gym'}</p>}
-      {details && (
-        <>
-          <h3>{details.client_name} запрашивает:</h3>
-          <ul>
-            {details.scopes.map((scope) => (
-              <li key={scope}>{labels[scope]}</li>
-            ))}
-          </ul>
-          <p className="caption">
-            Доступ можно отозвать в Gym. Он действует до 90 дней, при отсутствии использования — до 30 дней.
-            Изменять тренировочные факты агент не сможет. Каждую новую программу ты отдельно одобряешь в Gym.
-          </p>
-          <div className="account-actions">
-            <button className="primary" disabled={busy} onClick={() => void decide(true)}>
-              Разрешить доступ
-            </button>
-            <button className="secondary" disabled={busy} onClick={() => void decide(false)}>
-              Отказать
-            </button>
-          </div>
-        </>
-      )}
-      {message && <p role="status">{message}</p>}
-      <a className="secondary" href="/auth/login?purpose=reauth&return_to=/settings">
-        Подтвердить вход
-      </a>
-      <a className="secondary" href="#/app" onClick={() => sessionStorage.removeItem('gym.oauth.request')}>
-        Вернуться к тренировкам
-      </a>
-    </main>
   );
 }

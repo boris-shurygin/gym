@@ -9,7 +9,7 @@ from jsonschema import ValidationError
 from contracts.canonical import parse_request
 from contracts.validation import validate
 from api.analytics import Analytics, OPERATIONS as ANALYTICS
-from api.auth import SESSION_COOKIE, cookies
+from api.auth import AGENT_COOKIE, cookie
 from api.delegation import Delegation, DelegatedAuth, OAuthError
 from api.errors import ServiceError
 from api.programs import Programs, RULES
@@ -26,7 +26,6 @@ def handle(request, auth, trace):
         raise ServiceError('unavailable')
     delegation = Delegation(auth)
     path = request.path
-    token = cookies(request.headers.get('cookie', '')).get(SESSION_COOKIE) if path == '/api/v1/oauth/consent' else None
     try:
         if path in ('/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/mcp',
                 '/.well-known/oauth-authorization-server') and request.method == 'GET':
@@ -38,8 +37,13 @@ def handle(request, auth, trace):
                 raise OAuthError()
             response = _response(302, None, trace)
             response['body'] = ''
-            response['headers']['Location'] = delegation.begin(request.query)
+            identifier = delegation.begin(request.query).split('request_id=', 1)[1]
+            response['headers']['Location'] = '/oauth/consent'
+            response['multiValueHeaders'] = {'Set-Cookie': [cookie(AGENT_COOKIE, identifier, 600)]}
             return response
+        if path == '/oauth/consent':
+            from api.oauth_page import handle as consent_page
+            return consent_page(request, auth, trace)
         if path in ('/oauth/token', '/oauth/revoke') and request.method == 'POST':
             if request.query or request.headers.get('content-type', '').split(';')[0] != 'application/x-www-form-urlencoded':
                 raise OAuthError()
@@ -55,21 +59,6 @@ def handle(request, auth, trace):
             if result is None:
                 response['body'] = ''
             return response
-        if path == '/api/v1/oauth/consent' and request.method in ('GET', 'POST'):
-            identity = auth.session(token)
-            if request.headers.get('x-gym-expected-owner', identity['user_id']) != identity['user_id']:
-                raise ServiceError('account_mismatch')
-            if request.method == 'POST':
-                auth.check_write(token, request.headers)
-                request.check_json()
-                if request.query:
-                    raise OAuthError()
-                value = parse_request(request.body)
-            else:
-                if request.body:
-                    raise OAuthError()
-                value = request.query
-            return _response(200, delegation.consent(token, value, request.method == 'POST'), trace)
     except OAuthError as error:
         return _response(400, {'error': error.code}, trace)
     if path != '/mcp':

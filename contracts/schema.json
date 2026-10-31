@@ -2797,7 +2797,8 @@
             "/app",
             "/history",
             "/program",
-            "/settings"
+            "/settings",
+            "/agent"
           ]
         }
       },

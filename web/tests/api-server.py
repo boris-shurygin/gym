@@ -16,7 +16,7 @@ import sqlalchemy as sa
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from api.handler import handler
-from api.auth import SESSION_COOKIE
+from api.auth import SESSION_COOKIE, AGENT_COOKIE
 from api.auth import digest
 from api.store import Store
 
@@ -86,12 +86,13 @@ class Handler(BaseHTTPRequestHandler):
             status, payload = 200, {'purpose': 'staging-release' if fixture.staging else 'development'}
         elif self.path == '/__test/oauth-request' and fixture and self.command == 'POST':
             from api.delegation import Delegation, challenge
-            location = Delegation(fixture.auth).begin({'client_id': 'gym-chatgpt',
-                'redirect_uri': 'https://chatgpt.com/connector_platform_oauth_redirect',
+            location = Delegation(fixture.auth).begin({'client_id': 'gym-python',
+                'redirect_uri': 'http://127.0.0.1:8765/callback',
                 'response_type': 'code', 'state': 'synthetic-client-state',
                 'resource': 'https://gym.example/mcp', 'code_challenge_method': 'S256',
                 'code_challenge': challenge('v' * 43)})
-            status, payload = 200, {'location': location}
+            fixture.oauth_request = location.split('request_id=', 1)[1]
+            status, payload = 200, {'location': '/oauth/consent'}
         elif self.path == '/__test/config' and fixture and self.command == 'POST':
             config = json.loads(body)
             for name in ('signed_in', 'user', 'drop_next', 'login_probe', 'staging', 'drop_publish'):
@@ -121,7 +122,8 @@ class Handler(BaseHTTPRequestHandler):
                 token = fixture.alice if user == 'alice' else fixture.bob
                 event = {'httpMethod': self.command, 'path': urlsplit(self.path).path,
                     'multiValueQueryStringParameters': parse_qs(urlsplit(self.path).query),
-                    'headers': {'Cookie': SESSION_COOKIE + '=' + token,
+                    'headers': {'Cookie': SESSION_COOKIE + '=' + token + (
+                        '; ' + AGENT_COOKIE + '=' + fixture.oauth_request if getattr(fixture, 'oauth_request', None) else ''),
                         'Origin': 'https://gym.example',
                         'Content-Type': self.headers.get('Content-Type', ''),
                         'X-Gym-Expected-Owner': self.headers.get('X-Gym-Expected-Owner', user),
@@ -129,6 +131,13 @@ class Handler(BaseHTTPRequestHandler):
                     'body': body.decode('utf-8')}
                 with patch('api.handler.application', return_value=fixture.auth):
                     result = handler(event)
+                if result['headers'].get('Content-Type', '').startswith('text/html') or result['statusCode'] == 302:
+                    raw = result['body'].encode('utf-8')
+                    self.send_response(result['statusCode'])
+                    for name, value in result['headers'].items():
+                        self.send_header(name, value)
+                    self.send_header('Content-Length', str(len(raw)))
+                    self.end_headers(); self.wfile.write(raw); return
                 status, payload = result['statusCode'], json.loads(result['body'])
                 if self.path.endswith('/approve-and-publish') and self.command == 'POST' and status == 200:
                     fixture.publications += 1

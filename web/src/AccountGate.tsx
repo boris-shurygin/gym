@@ -3,7 +3,7 @@ import App from './App';
 import PwaUpdate from './PwaUpdate';
 import Landing from './Landing';
 import Statistics from './Statistics';
-import { AgentAccess, OAuthConsent } from './AgentAccess';
+import { AgentAccess } from './AgentAccess';
 import { publishStagingProgram, stagingProgram } from './staging-program';
 import { DEMO_OWNER, demoProgram } from './demo-program';
 import {
@@ -73,9 +73,6 @@ export default function Account() {
   const account = session ?? candidate;
   const [route, setRoute] = useState(location.hash);
   const authRoute = route.startsWith('#/') ? route : '';
-  const oauthRequest =
-    route.match(/request_id=([A-Za-z0-9_-]{43})(?:&|$)/)?.[1] ?? sessionStorage.getItem('gym.oauth.request');
-  if (oauthRequest) sessionStorage.setItem('gym.oauth.request', oauthRequest);
   const landing = (!route || route === '#installation') && !demo;
   useEffect(() => {
     const update = () => setRoute(location.hash);
@@ -298,7 +295,7 @@ export default function Account() {
   return (
     <>
       <PwaUpdate />
-      {landing && !oauthRequest && <Landing />}
+      {landing && <Landing />}
       <section
         className={`account-panel card ${!profile && !demo ? 'account-welcome' : ''}`}
         aria-label="Аккаунт"
@@ -412,8 +409,7 @@ export default function Account() {
           </details>
         )}
       </section>
-      {oauthRequest && <OAuthConsent session={session} requestId={oauthRequest} />}
-      {session && !oauthRequest && landing && (
+      {session && landing && (
         <main className="landing-dashboard">
           <Statistics
             key={session.user_id}
@@ -482,7 +478,7 @@ export default function Account() {
               </p>
             </section>
           )}
-          {!landing && !oauthRequest && (
+          {!landing && (
             <App
               key={profile.owner}
               ownerId={profile.owner}
@@ -492,9 +488,7 @@ export default function Account() {
           )}
         </>
       )}
-      {!profile && demo && !candidate && !oauthRequest && (
-        <App key="demo" ownerId={DEMO_OWNER} program={demoProgram} demo />
-      )}
+      {!profile && demo && !candidate && <App key="demo" ownerId={DEMO_OWNER} program={demoProgram} demo />}
     </>
   );
 }
