@@ -20,6 +20,7 @@ import type { LocalData } from './repository';
 import { programFromPlans } from './sync-model';
 import { SyncCoordinator, type SyncNotice } from './sync';
 import SyncPanel from './SyncPanel';
+import FinishExerciseButton from './ui/FinishExerciseButton';
 
 type View =
   | { kind: 'home' }
@@ -688,9 +689,7 @@ export default function App({
             </button>
           </article>
         ))}
-        <button type="button" className="primary wide finish" disabled={busy} onClick={() => setView(goBack)}>
-          Завершить упражнение
-        </button>
+        <FinishExerciseButton disabled={busy} onFinish={() => setView(goBack)} />
       </>
     );
   }

@@ -29,14 +29,29 @@ def context_fixture():
     current = base | {'id': 123, 'run_attempt': 2, 'workflow_id': 200, 'event': 'workflow_run', 'path': gate.WORKFLOW}
     event = {'action': 'completed', 'repository': repo, 'workflow_run': copy.deepcopy(source)}
     jobs = [{'name': name, 'status': 'completed', 'conclusion': 'success'}
-            for name in ['contracts', 'api', 'ydb', 'web', 'changes']]
+            for name in ['contracts', 'api', 'ydb', 'infra', 'web', 'browser', 'changes', 'checks']]
     return [env, event, source, current, {'id': 200, 'path': gate.WORKFLOW, 'state': 'active'}, jobs, SHA]
 
 
 class GateTests(unittest.TestCase):
+    def test_no_deployment_requires_exact_source_plan_and_boolean(self):
+        record = {'format': 1, 'source_sha': SHA, 'plan': {'deploy': False}}
+        self.assertFalse(gate.deployment_needed(record, SHA))
+        for changed in (record | {'source_sha': 'b' * 40}, record | {'plan': {'deploy': 'false'}}, {}):
+            with self.assertRaises(ValueError):
+                gate.deployment_needed(changed, SHA)
+
     def test_successful_exact_main_push(self):
         result = gate.validate_context(*context_fixture())
         self.assertEqual(result['release_id'], SHA + '_123_2')
+
+    def test_selective_checks_require_successful_aggregate_and_no_failed_jobs(self):
+        args = context_fixture()
+        args[5][1]['conclusion'] = 'skipped'
+        gate.validate_context(*args)
+        args[5][-1]['conclusion'] = 'skipped'
+        with self.assertRaises(ValueError):
+            gate.validate_context(*args)
 
     def test_rejects_pr_fork_stale_sha_failed_or_other_workflow(self):
         for case in ['pr', 'fork', 'owner', 'sha', 'workflow-code', 'current-main', 'attempt', 'path', 'checks', 'job', 'event']:

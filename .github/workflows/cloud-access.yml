@@ -27,18 +27,24 @@ jobs:
   bootstrap-tests:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    outputs:
+      infra: ${{ steps.scope.outputs.infra }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - name: Проверить bootstrap без облачного доступа
-        run: |
-          command -v pwsh
-          python3 -m unittest discover -s tests/infra -p 'test_*.py' -v
+          fetch-depth: 0
+      - name: Select infrastructure checks
+        id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 scripts/check_scope.py detect --base "$BASE_SHA" --head "$HEAD_SHA"
+      # Bootstrap/OIDC unit проверяются в Web checks / infra; здесь только выбор облачной проверки.
 
   oidc:
     needs: bootstrap-tests
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name == 'workflow_dispatch' || needs.bootstrap-tests.outputs.infra == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}

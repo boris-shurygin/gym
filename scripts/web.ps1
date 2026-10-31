@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidateSet('install', 'dev', 'build', 'check', 'preview')][string]$Task = 'dev')
+param([ValidateSet('install', 'dev', 'build', 'check', 'check-full', 'preview')][string]$Task = 'dev')
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path $PSScriptRoot -Parent
@@ -30,7 +30,15 @@ try {
             $testBrowsers = if ($env:PLAYWRIGHT_CHANNEL -eq 'chrome') { @('webkit') } else { @('chromium', 'webkit') }
             Invoke-Npm -Arguments (@('exec', '--', 'playwright', 'install') + $testBrowsers)
         }
-        'check' { foreach ($step in @('lint', 'build', 'test', 'test:e2e')) { Invoke-Npm -Arguments @('run', $step) } }
+        { $_ -in @('check', 'check-full') } {
+            $browserTask = 'test:e2e'
+            if ($Task -eq 'check' -and (Test-Path -LiteralPath $backendPython)) {
+                $checkScope = & $backendPython (Join-Path $repositoryRoot 'scripts/check_scope.py') detect --base origin/main --head HEAD --worktree
+                if ($LASTEXITCODE -ne 0) { throw 'Could not select checks.' }
+                if (-not ($checkScope | ConvertFrom-Json).browser) { $browserTask = 'test:smoke' }
+            }
+            foreach ($step in @('lint', 'build', 'test', $browserTask)) { Invoke-Npm -Arguments @('run', $step) }
+        }
         default { Invoke-Npm -Arguments @('run', $Task) }
     }
 } finally { Pop-Location }

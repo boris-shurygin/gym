@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "prettier --check .",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:smoke": "playwright test --config playwright.smoke.config.ts"
   },
   "dependencies": {
     "react": "19.3.1",
