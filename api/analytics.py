@@ -25,7 +25,10 @@ def analytics_zone(name):
     # Используй закреплённую базу из пакета, а не разные базы времени ОС.
     if not re.fullmatch(r'[A-Za-z0-9_+-]+(?:/[A-Za-z0-9_+-]+)*', name):
         raise ValueError('Некорректный часовой пояс')
-    with resources.files('tzdata.zoneinfo').joinpath(*name.split('/')).open('rb') as source:
+    location = resources.files('tzdata.zoneinfo').joinpath(*name.split('/'))
+    if not location.is_file():
+        raise ZoneInfoNotFoundError(name)
+    with location.open('rb') as source:
         return ZoneInfo.from_file(source, key=name)
 
 

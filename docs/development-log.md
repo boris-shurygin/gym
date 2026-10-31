@@ -6,14 +6,14 @@
 | --- | --- |
 | Активный этап | P09 полностью, автономно; читаемая ссылка завершена в #30 |
 | Локальная доработка | Серверные показатели по принятой истории, пересчёт после исправлений, объяснение fixed-назначений |
-| Состояние | #30 слит с успешным PR/main CI и автоматическим staging; P09 реализован локально, проверки/PR выполняются |
-| Локальная ветка | feat/p09-progression от актуального main 5cee610 |
+| Состояние | #30 и P09 #31 слиты после успешного CI. P09 ожидает CI main/автоматического staging и адресной облачной приёмки |
+| Локальная ветка | main, обновлён fast-forward после #31; постфактум-записи сохранены локально |
 | Режим и объём | Запрос 2026-10-31 разрешает редирект/коммит/PR/merge и затем полный P09 до проверенного staging без промежуточных подтверждений. P10/production не входят |
 | Изменение процесса | Правила автономной работы слиты в #16 и проверены полным staging |
-| Локальный базовый main | `5cee610bdb1cc1eee994f12ab6a248ce0dfd10b7` — merge #30 |
-| Актуальность origin/main | Fetch и fast-forward подтвердили main/origin/main 5cee610 |
-| PR | [#30](https://github.com/boris-shurygin/gym/pull/30) слит с проверенным head 7520963; P09 готовится отдельно |
-| CI PR | #30: Web checks 41130128067 и Cloud access 41130127905 успешны; browser корректно пропущен для документации/JSON |
+| Локальный базовый main | `7d0b81274998d4e7ec9877233b1597b1d8beaea8` — merge #31 |
+| Актуальность origin/main | Fetch и fast-forward подтвердили main/origin/main 7d0b812 |
+| PR | [#30](https://github.com/boris-shurygin/gym/pull/30) и [#31](https://github.com/boris-shurygin/gym/pull/31) слиты с проверенными head; #31 — a422d57 |
+| CI PR | #31: Web checks 41174047421 и Cloud access 41174047369 успешны; 54 browser, 65 native YDB, 94 API, Linux ZIP smoke |
 | CI сборки | #30: 5cee610…_41130473854_1, manifest 2fa11c1f0dc0c5e84963c1d7cffb41a4855e4cc39d084742ff7a575dc7017464; P09 пакет ещё не собран, production сохраняет прежний P05 |
 | CI после merge | #30: Web checks 41130344853, Cloud access 41130344900 и [Staging release 41130473854](https://github.com/boris-shurygin/gym/actions/runs/41130473854) успешны; 9 артефактов, API/Gateway/схема/auth smoke независимо сверены |
 | Реальная проверка OIDC | Staging publisher/migrations/deploy и production Environment OIDC в [Production release](https://github.com/boris-shurygin/gym/actions/runs/40863249879) успешны; постоянные облачные ключи не создавались |

@@ -189,9 +189,10 @@ class ProgressionCases:
         self.assertEqual([row['date'] for row in report['activity']], ['2026-10-19', '2026-10-25'])
         self.assertEqual(self.summary(period_days=7, timezone='UTC')['workout_count'], 2)
         self.assertNotEqual(self.summary(period_days=7, timezone='UTC')['activity'], report['activity'])
-        with self.assertRaises(ServiceError) as error:
-            self.summary(timezone='Unknown/Timezone')
-        self.assertEqual(error.exception.code, 'validation_failed')
+        for name in ('Unknown/Timezone', 'Europe'):
+            with self.assertRaises(ServiceError) as error:
+                self.summary(timezone=name)
+            self.assertEqual(error.exception.code, 'validation_failed')
 
     def test_paged_series_is_owner_bound_and_never_calls_old_revision_fresh(self):
         for _ in range(101):
