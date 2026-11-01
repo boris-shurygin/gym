@@ -10,22 +10,22 @@ from infra.auth_config import configure_api
 from infra.ydb_access import Yc, load_config, connect, reconcile, apply_acl
 
 
-def secret_plan(yc):
+def secret_plan(yc, *, target=target):
     configured = configure_api({'environment': {}}, {'migration': {'revision': '0002_accounts_programs'}}, target)
     if not configured.get('secrets'):
         raise ValueError('Сначала укажи точные метаданные OAuth staging')
     reference = configured['secrets'][0]
     resource = yc.run('lockbox', 'secret', 'get', '--id', reference['id'])
     version = resource.get('current_version', {})
-    if (resource.get('folder_id') != target.FOLDER or resource.get('name') != 'gym-staging-yandex-id'
+    if (resource.get('folder_id') != target.FOLDER or resource.get('name') != 'gym-' + target.NAME + '-yandex-id'
             or resource.get('status') != 'ACTIVE'
-            or resource.get('labels', {}) != {'gym-project': 'gym', 'gym-environment': 'staging',
+            or resource.get('labels', {}) != {'gym-project': 'gym', 'gym-environment': target.NAME,
                 'gym-client-id': configured['environment']['GYM_YANDEX_CLIENT_ID']}
             or version.get('id') != reference['versionId'] or version.get('status') != 'ACTIVE'
             or version.get('payload_entry_keys') != ['client_secret']):
         raise ValueError('Секрет/версия/клиент не соответствуют staging')
     account = yc.run('iam', 'service-account', 'get', '--id', target.API_ACCOUNT)
-    if account.get('folder_id') != target.FOLDER or account.get('name') != 'gym-staging-api':
+    if account.get('folder_id') != target.FOLDER or account.get('name') != 'gym-' + target.NAME + '-api':
         raise ValueError('Чужой сервисный аккаунт')
     bindings = yc.run('lockbox', 'secret', 'list-access-bindings', '--id', reference['id']) or []
     for binding in bindings:

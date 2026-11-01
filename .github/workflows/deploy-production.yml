@@ -8,11 +8,11 @@ on:
         required: true
         type: string
       operation:
-        description: "Продвижение или откат только API/PWA без downgrade БД"
+        description: "Подготовка схемы, продвижение или совместимый откат API/PWA"
         required: true
         default: promote
         type: choice
-        options: [promote, rollback]
+        options: [promote, rollback, prepare]
 
 permissions:
   contents: read
