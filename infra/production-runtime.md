@@ -2,7 +2,12 @@
 
 Объём разрешён пользователем 2026-11-01: выпустить проверенную staging-версию в production
 и создать читаемую ссылку, если имя свободно. Бакет `gym` уже занят
-(`e3e92ptu3j66185h2c85`, другой каталог); не изменяй его. Выбор альтернативы ожидается.
+(`e3e92ptu3j66185h2c85`, другой каталог); не изменяй его. Пользователь выбрал `gym-stats`.
+Пустой бакет `gym-stats` создан: `e3erk4hqmc57npsgo7qg`, только production-каталог,
+лимит 1 MiB, чтение/список/config_read закрыты, теги project=gym,purpose=production-shortcut.
+После успешного выпуска
+примени [production-redirect.json](production-redirect.json) и проверь HTTPS 301/Location.
+Сайт приложения остаётся на Gateway; в бакет ссылки не загружай файлы или личные данные.
 Production origin: `https://d5dhqvda3eo6r4c2mgf6.764nr5vy.apigw.yandexcloud.net`.
 
 ## Кандидат и схема
@@ -26,7 +31,7 @@ Production на P05 (`0001_runtime_metadata`), кандидат использу
 
 ## Отдельный OAuth
 
-Production-приложение Яндекс ID: только `login:info`, callback `/auth/callback/yandex`
+Production-приложение Яндекс ID `5fc1d13a73e24328ab4e603f9f288636`: только `login:info`, callback `/auth/callback/yandex`
 на указанном production origin. Метаданные хранятся в `production-auth.json`;
 staging-конфигурация не наследуется. Promote 0003 с выключенным OAuth останавливается до
 первой записи намерения/изменения ресурсов. Секрет вводит пользователь локально:
@@ -37,6 +42,8 @@ staging-конфигурация не наследуется. Promote 0003 с в
 
 Скрипт проверяет отсутствие дубликата, использует скрытый ввод и передаёт значение прямо
 в Lockbox `gym-production-yandex-id`, каталог `b1gt4o1311mhe57522j8`, с защитой удаления.
+Созданный секрет — `e6qotfhl6b475l4qi4qs`, версия `e6q3s9rbt51r1kvj9034`; статус ACTIVE,
+единственный payload-ключ `client_secret`. Конфигурация ссылается на эту точную версию.
 В Git/выводе только Client ID и ID секрета/версии. При неопределённом результате сначала
 перечитай метаданные операции/ресурса; не создавай второй секрет вслепую.
 
