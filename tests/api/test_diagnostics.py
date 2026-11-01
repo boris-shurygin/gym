@@ -71,6 +71,15 @@ class DiagnosticsTests(unittest.TestCase):
             self.assertNotIn('secret-token', json.dumps(record))
             self.assertEqual(record['status'], response['statusCode'])
 
+    def test_client_build_version_is_format_checked_and_logged_without_identity(self):
+        with patch('api.diagnostics.export', return_value=True) as sink:
+            self.assertEqual(self.send(self.payload | {'app_version': 'a' * 40})['statusCode'], 200)
+            records = [record for call in sink.call_args_list for record in call.args[0]
+                if record.get('event') == 'local_save_failed']
+            self.assertEqual(records[0]['app_version'], 'a' * 40)
+            self.assertNotIn('expected_owner_id', records[0])
+        self.assertEqual(self.send(self.payload | {'app_version': 'token-or-personal-text'})['statusCode'], 400)
+
     def test_readiness_checks_database_and_liveness_survives_its_failure(self):
         event = {'httpMethod': 'GET', 'path': '/api/v1/health/ready'}
         with patch('api.handler.application', return_value=self.h.auth):

@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 
 import ydb
+import grpc
 
 from infra.ydb_access import Yc, connect, load_config
 
@@ -14,6 +15,20 @@ RECEIPT = ROOT / '.local/p11-restore.json'
 TABLES = {'gym_admissions', 'gym_alembic_version', 'gym_login_requests', 'gym_login_transactions',
     'gym_migration_jobs', 'gym_migration_lock', 'gym_migration_requests', 'gym_program_records',
     'gym_runtime_metadata', 'gym_schema_version', 'gym_sessions', 'gym_workout_records'}
+
+
+def access_denied(error):
+    pending, seen = [error], set()
+    while pending:
+        item = pending.pop()
+        if id(item) in seen:
+            continue
+        seen.add(id(item))
+        if isinstance(item, ydb.Unauthorized) or isinstance(item, grpc.RpcError) and item.code() == grpc.StatusCode.PERMISSION_DENIED:
+            return True
+        pending.extend(e for e in [getattr(item, '__cause__', None), getattr(item, '__context__', None),
+            *getattr(item, 'args', ())] if isinstance(e, BaseException))
+    return False
 
 
 def target_path(config, name):
@@ -27,17 +42,18 @@ def backup_status(yc, config):
     backups = yc.run('ydb', 'backup', 'list', '--folder-id', config['folder_id'])
     ready = [b for b in backups if b.get('database_id') == config['database_id'] and b.get('status') == 'READY'
         and b.get('description') != 'SYSTEM_SHADOW']
-    latest = max(ready, key=lambda b: b['created_at']) if ready else None
-    age = (datetime.now(timezone.utc) - datetime.fromisoformat(latest['created_at'].replace('Z', '+00:00'))).total_seconds() if latest else None
+    latest = max(ready, key=lambda b: b.get('completed_at', '')) if ready else None
+    completed = latest.get('completed_at') if latest else None
+    age = (datetime.now(timezone.utc) - datetime.fromisoformat(completed.replace('Z', '+00:00'))).total_seconds() if completed else None
     settings = database.get('backup_config', {}).get('backup_settings', [])
     return {'database_id': config['database_id'], 'backup_id': latest['id'] if latest else None,
-        'snapshot_at': latest['created_at'] if latest else None, 'snapshot_age_seconds': round(age) if age is not None else None,
+        'backup_created_at': latest['created_at'] if latest else None, 'last_success_age_seconds': round(age) if age is not None else None,
         'completed_at': latest.get('completed_at') if latest else None,
-        'freshness_basis': 'backup_created_at_conservative',
+        'freshness_basis': 'completed_at_not_rpo',
         'running_backup_ids': [b['id'] for b in backups if b.get('database_id') == config['database_id'] and b.get('status') == 'CREATING'],
         'daily_7_days': any('daily_backup_schedule' in s.get('backup_schedule', {})
             and s.get('backup_time_to_live') == '604800s' for s in settings),
-        'fresh': age is not None and age <= 86400, 'deletion_protection': database.get('deletion_protection', False)}
+        'fresh': age is not None and 0 <= age <= 86400, 'deletion_protection': database.get('deletion_protection', False)}
 
 
 def main():
@@ -63,7 +79,7 @@ def main():
                 raise ValueError('Целевой путь уже существует; перезапись запрещена')
         # Намерение сохраняется до запроса: при неопределённом исходе не запускай второй restore.
         record = {'target': args.target, 'database_id': config['database_id'], 'backup_id': status['backup_id'],
-            'snapshot_at': status['snapshot_at'], 'started_at': datetime.now(timezone.utc).isoformat(), 'state': 'starting'}
+            'backup_created_at': status['backup_created_at'], 'started_at': datetime.now(timezone.utc).isoformat(), 'state': 'starting'}
         RECEIPT.parent.mkdir(exist_ok=True)
         RECEIPT.write_text(json.dumps(record), encoding='utf-8')
         operation = yc.run('ydb', 'database', 'restore', config['database_id'], '--backup-id', status['backup_id'],
@@ -95,14 +111,20 @@ def main():
                     counts[name] = pool.retry_operation_sync(read)
             # Проверяй отрицательный доступ API к восстановленным сессиям/истории.
             with connect(config, yc.token(config['accounts']['api'])) as api_driver:
-                with ydb.SessionPool(api_driver, size=1) as pool:
-                    try:
-                        pool.retry_operation_sync(lambda session: session.transaction().execute(
-                            f'SELECT COUNT(*) FROM `{path}/gym_sessions`;', commit_tx=True))
-                    except (ydb.Unauthorized, ydb.SchemeError):
-                        pass
-                    else:
-                        raise ValueError('Runtime не должен читать восстановленные таблицы')
+                created = None
+                try:
+                    # SessionPool скрывает PERMISSION_DENIED за ожиданием новой сессии.
+                    created = api_driver.table_client.session().create(settings=ydb.BaseRequestSettings().with_timeout(5))
+                    created.transaction().execute(f'SELECT COUNT(*) FROM `{path}/gym_sessions`;',
+                        commit_tx=True, settings=ydb.BaseRequestSettings().with_timeout(5))
+                except Exception as error:
+                    if not access_denied(error) and not (created is not None and isinstance(error, ydb.SchemeError)):
+                        raise
+                else:
+                    raise ValueError('Runtime не должен читать восстановленные таблицы')
+                finally:
+                    if created is not None:
+                        created.delete()
             elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(record['started_at'])).total_seconds()
             record.update(state='verified', tables=counts, isolation_verified=True, elapsed_seconds=round(elapsed), rto_met=elapsed <= 14400)
         else:

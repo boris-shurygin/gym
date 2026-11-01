@@ -2,10 +2,18 @@ from datetime import datetime, timezone, timedelta
 import unittest
 from unittest.mock import Mock
 
-from infra.backup_check import backup_status, target_path
+from infra.backup_check import backup_status, target_path, access_denied
+import grpc
 
 
 class BackupCheckTests(unittest.TestCase):
+    def test_timeout_is_not_proof_of_isolation_but_wrapped_permission_denied_is(self):
+        class Denied(grpc.RpcError):
+            def code(self):
+                return grpc.StatusCode.PERMISSION_DENIED
+        self.assertFalse(access_denied(TimeoutError()))
+        self.assertTrue(access_denied(RuntimeError(Denied())))
+
     def test_restore_target_cannot_be_root_existing_application_or_another_path(self):
         config = {'database': '/ru-central1/cloud/staging'}
         for name in ['', '/', '../gym_sessions', 'gym_sessions', 'gym_p11_restore_20261031_194500/other']:

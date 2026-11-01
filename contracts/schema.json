@@ -2938,6 +2938,10 @@
           },
           "minItems": 1,
           "maxItems": 20
+        },
+        "app_version": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
         }
       },
       "required": [

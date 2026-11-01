@@ -161,7 +161,13 @@ export class TelemetryClient {
           'X-CSRF-Token': this.session.csrf_token,
           'X-Gym-Expected-Owner': this.owner,
         },
-        body: JSON.stringify({ expected_owner_id: this.owner, events: batch }),
+        body: JSON.stringify({
+          expected_owner_id: this.owner,
+          events: batch,
+          ...(import.meta.env.VITE_GYM_SOURCE_SHA
+            ? { app_version: import.meta.env.VITE_GYM_SOURCE_SHA }
+            : {}),
+        }),
       });
       if (!response.ok) throw new Error('diagnostics_unavailable');
       const ids = new Set(batch.map((e) => e.event_id));

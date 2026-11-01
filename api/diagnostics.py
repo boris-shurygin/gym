@@ -85,5 +85,7 @@ def receive(auth, token, value):
     records = [{'event': event['name'], 'code': event['code'], 'duration_ms': event['duration_ms'],
                 'count': event['count']} for event in value['events']
                if 0 <= now - datetime.fromisoformat(event['at'].replace('Z', '+00:00')).timestamp() <= 86400]
+    if value.get('app_version'):
+        records = [record | {'app_version': value['app_version']} for record in records]
     accepted = len(records) if export(records) else 0
     return {'accepted': accepted, 'dropped': len(value['events']) - accepted}
