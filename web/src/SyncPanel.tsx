@@ -164,7 +164,7 @@ export default function SyncPanel({
     }
   }
   return (
-    <section className="sync-panel card" aria-label="Синхронизация">
+    <section className="sync-panel card" aria-label="Синхронизация" data-syncing={notice.busy}>
       <div className="between">
         <strong>Синхронизация</strong>
         <button
@@ -183,6 +183,25 @@ export default function SyncPanel({
       {data?.state.refreshedAt && (
         <p className="caption">Планы проверены: {new Date(data.state.refreshedAt).toLocaleString('ru-RU')}</p>
       )}
+      <details>
+        <summary>Состояние локальной очереди</summary>
+        <p className="caption">
+          Ожидают подтверждения: {data?.operations.filter(unresolved).length ?? 0}. Самая ранняя запись:{' '}
+          {data?.operations
+            .filter(unresolved)
+            .map((op) => op.createdAt)
+            .sort()[0] ?? 'нет'}
+          .
+        </p>
+        <p className="caption">
+          Последнее подтверждение сервера:{' '}
+          {data?.operations
+            .flatMap((op) => (op.receipt?.outcome === 'applied' ? [op.receipt.accepted_at] : []))
+            .sort()
+            .at(-1) ?? 'ещё нет'}
+          .
+        </p>
+      </details>
       {notice.needsLogin && (
         <a className="secondary" href="/auth/login?return_to=/app">
           Подтвердить вход

@@ -19,6 +19,7 @@ from infra.release_gate import context_from_github, staging_token
 from infra.staging_migrations import Cloud, active_revision, matches, read_manifest, revision_payload, health, read_ready, InterventionRequired
 from infra import staging_target as target
 from infra.auth_config import configure_api
+from infra.diagnostics_config import configure_diagnostics
 
 
 FUNCTIONS = 'https://serverless-functions.api.cloud.yandex.net'
@@ -141,7 +142,7 @@ def verify_migrations(cloud, manifest, *, target=target):
 
 def api_payload(manifest, validation=False, *, target=target):
     artifact = next(item for item in manifest['artifacts'] if item['path'] == 'api.zip')
-    return configure_api({'functionId': target.FUNCTION, 'runtime': 'python312', 'entrypoint': 'index.handler',
+    return configure_diagnostics(configure_api({'functionId': target.FUNCTION, 'runtime': 'python312', 'entrypoint': 'index.handler',
         'description': 'Gym ' + manifest['release_id'] + ' api-sha256=' + artifact['sha256'],
         'resources': {'memory': '268435456'}, 'executionTimeout': '30s', 'concurrency': '1',
         'serviceAccountId': target.API_ACCOUNT,
@@ -151,7 +152,7 @@ def api_payload(manifest, validation=False, *, target=target):
         'package': {'bucketName': target.DELIVERY, 'objectName': 'blobs/sha256/' + artifact['sha256'], 'sha256': artifact['sha256']},
         'tag': [version_tag(manifest['release_id'], validation)],
         'logOptions': {'disabled': True, 'folderId': target.FOLDER},
-        'metadataOptions': {'gceHttpEndpoint': 'ENABLED', 'awsV1HttpEndpoint': 'DISABLED'}}, manifest, target)
+        'metadataOptions': {'gceHttpEndpoint': 'ENABLED', 'awsV1HttpEndpoint': 'DISABLED'}}, manifest, target), manifest, target)
 
 
 def api_matches(version, expected):

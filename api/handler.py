@@ -10,6 +10,7 @@ import re
 from uuid import uuid4
 from functools import lru_cache
 import os
+import time
 
 from jsonschema import ValidationError
 from contracts.validation import validate
@@ -257,22 +258,31 @@ def dispatch(request, route, trace_id):
     elif operation in {'list_grants', 'revoke_grant'}:
         from api.delegation import Delegation
         result = Delegation(auth).grants(token, value, operation == 'revoke_grant')
+    elif operation == 'telemetry':
+        from api.diagnostics import receive
+        result = receive(auth, token, value)
     else:
         raise RequestError('unavailable')
     validate(route['output'], result)
     return _response(route['success_status'], result, trace_id)
 
 
-def handler(event, context=None):
+def _handle(event, context=None):
     """Не принимай owner/claims из тела, заголовков или контекста за личность Gym."""
     trace_id = uuid4().hex
     method = 'UNKNOWN'
     try:
         request = Request.from_event(event)
         method = request.method
-        if request.method == 'GET' and request.path == '/api/v1/health':
+        if request.method == 'GET' and request.path in {'/api/v1/health', '/api/v1/health/ready'}:
             if request.body:
                 raise RequestError()
+            if request.path.endswith('/ready'):
+                import sqlalchemy as sa
+                auth = application()
+                if auth is None:
+                    raise RequestError('unavailable')
+                auth.store.run(lambda db: db.connection.execute(sa.select(sa.literal(1))).scalar_one())
             response = _response(200, {'status': 'ok'}, trace_id)
         else:
             if request.path == '/mcp' or request.path.startswith(('/oauth/', '/.well-known/')):
@@ -299,4 +309,29 @@ def handler(event, context=None):
         response = _error('unavailable', trace_id)
     LOGGER.info(json.dumps({'event': 'request_completed', 'trace_id': trace_id,
                             'method': method, 'status': response['statusCode']}))
+    return response
+
+
+def handler(event, context=None):
+    started = time.perf_counter()
+    response = _handle(event, context)
+    try:
+        from api.diagnostics import request_completed
+        path = event.get('path') if isinstance(event, dict) else None
+        method = event.get('httpMethod') if isinstance(event, dict) else None
+        route = next((r['path'] for r, pattern in PATTERNS
+            if isinstance(path, str) and pattern.fullmatch(path)), 'unknown')
+        if path in {'/mcp', '/oauth/authorize', '/oauth/consent', '/oauth/token', '/oauth/revoke',
+                    '/.well-known/oauth-authorization-server', '/.well-known/oauth-protected-resource',
+                    '/api/v1/health/ready'}:
+            route = path
+        error = None
+        if response['statusCode'] >= 400:
+            candidate = json.loads(response['body']).get('error', {}).get('code')
+            error = candidate if candidate in ERRORS else 'unavailable'
+        request_completed(route, method if method in {'GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'} else 'UNKNOWN',
+            response['statusCode'], round((time.perf_counter() - started) * 1000),
+            response['headers']['X-Request-ID'], error)
+    except Exception:
+        pass
     return response

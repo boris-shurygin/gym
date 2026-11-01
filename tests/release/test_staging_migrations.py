@@ -50,6 +50,16 @@ class WorkerCloud:
 
 
 class StepTests(unittest.TestCase):
+    def test_read_only_throttling_respects_bounded_retry_after(self):
+        from unittest.mock import Mock, patch
+        error = lambda: HTTPError(target.URL, 429, 'throttled', {'Retry-After': '900'}, io.BytesIO(b'{}'))
+        read = Mock(side_effect=[error(), {'state': 'ready'}])
+        with patch.object(migration.time, 'sleep') as sleep:
+            self.assertEqual(migration.read_ready(read), {'state': 'ready'})
+            sleep.assert_called_once_with(15)
+        with patch.object(migration.time, 'sleep'), self.assertRaises(HTTPError):
+            migration.read_ready(Mock(side_effect=[error() for _ in range(4)]))
+
     def test_bounded_steps_and_final_actual_schema_status(self):
         cloud = WorkerCloud([status('not_found'), status('succeeded')], [status('needs_resume'), status('succeeded')])
         result = migration.run_steps(cloud, manifest_fixture())

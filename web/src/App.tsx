@@ -23,6 +23,7 @@ import SyncPanel from './SyncPanel';
 import FinishExerciseButton from './ui/FinishExerciseButton';
 import Statistics from './Statistics';
 import type { ProgramView } from './account';
+import { recordDiagnostic } from './telemetry';
 
 type View =
   | { kind: 'home' }
@@ -270,6 +271,7 @@ export default function App({
       announceChange();
       if (!demo && navigator.onLine) void coordinator?.run();
     } catch (error) {
+      if (!(error instanceof WorkoutError)) recordDiagnostic('local_save_failed', 'storage');
       setError(
         error instanceof WorkoutError
           ? error.message

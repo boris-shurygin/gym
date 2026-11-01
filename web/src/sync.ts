@@ -2,6 +2,7 @@ import { api, ApiError, type SessionInfo, type ProgramView } from './account';
 import { WorkoutRepository, unresolved } from './repository';
 import type { BootstrapPage, ChangePage, PlanSnapshot, Receipt, Workout } from './sync-model';
 import type { PendingOperation } from './model';
+import { recordDiagnostic } from './telemetry';
 
 export type Transport = <T>(
   path: string,
@@ -72,6 +73,7 @@ export class SyncCoordinator {
     this.running = true;
     clearTimeout(this.timer);
     this.notice({ busy: true, message: 'Синхронизируем…' });
+    const started = performance.now();
     try {
       const session = await this.request<SessionInfo>('/auth/session');
       if (session.user_id !== this.owner) throw new ApiError('account_mismatch', '', 403);
@@ -80,10 +82,13 @@ export class SyncCoordinator {
       if (this.valid()) {
         await this.pull();
         this.notice({ busy: false, message: 'Связь с сервером проверена' });
+        recordDiagnostic('sync_completed', null, performance.now() - started);
         this.changed();
       }
     } catch (error) {
       if (!this.valid()) return;
+      if (!authError(error))
+        recordDiagnostic('sync_failed', error instanceof ApiError ? 'server' : 'network');
       if (authError(error)) {
         const data = await this.repository.read(this.owner);
         for (const op of data.operations.filter(
@@ -251,6 +256,7 @@ export class SyncCoordinator {
       ) {
         await this.repository.updateOperation(this.owner, op.id, { status: 'rejected', reason: error.code });
       } else {
+        recordDiagnostic('sync_failed', error instanceof ApiError ? 'server' : 'network');
         const attempts = (op.attempts ?? 0) + 1;
         await this.repository.updateOperation(this.owner, op.id, {
           status: 'sending',

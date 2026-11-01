@@ -111,6 +111,52 @@ async function start(page: Page) {
   await page.getByRole('button', { name: 'Начать тренировку', exact: true }).click();
   await page.getByRole('button', { name: /Жим лёжа/ }).click();
 }
+
+test('добровольная диагностика: отказ отправки не мешает записи и синхронизации', async ({
+  page,
+  context,
+  request,
+}) => {
+  const connection = await fixture(request);
+  await connect(context, connection);
+  const telemetry = async () =>
+    (
+      await (
+        await request.get(`${backend}/__test/status`, {
+          headers: { 'X-Test-Fixture': connection.fixture },
+        })
+      ).json()
+    ).telemetry_posts as {
+      input: { events: object[] };
+      status: number;
+      result: { accepted: number; dropped: number };
+    }[];
+  await enter(page);
+  const diagnostics = page.locator('details[aria-label="Диагностика и данные"]');
+  await diagnostics.locator('summary').click();
+  const consent = diagnostics.getByRole('checkbox');
+  await expect(consent).not.toBeChecked();
+  await consent.check();
+  await expect.poll(async () => (await telemetry()).length).toBe(1);
+  const first = (await telemetry())[0];
+  expect(Object.keys(first.input)).toEqual(['expected_owner_id', 'events']);
+  expect(
+    first.input.events.every(
+      (e) => Object.keys(e).sort().join(',') === 'at,code,count,duration_ms,event_id,name',
+    ),
+  ).toBe(true);
+  expect(first.result.accepted).toBe(0);
+  expect(first.result.dropped).toBeGreaterThan(0);
+  await start(page);
+  await record(page, '67', '8');
+  await synced(page);
+  await expect.poll(async () => (await allWorkouts(request, connection))[0]?.sets[0]?.weight_g).toBe(67000);
+  await consent.uncheck();
+  await page.reload();
+  await diagnostics.locator('summary').click();
+  await expect(consent).not.toBeChecked();
+  expect(await telemetry()).toHaveLength(1);
+});
 async function record(page: Page, weight: string, reps = '9') {
   await page.getByRole('textbox', { name: 'Вес, кг' }).fill(weight);
   await page.getByRole('textbox', { name: 'Повторения' }).fill(reps);

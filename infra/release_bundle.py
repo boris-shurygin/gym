@@ -92,7 +92,8 @@ def build_bundle(output, *, purpose='validation-only', source_sha=None):
     payload.mkdir(parents=True)
     shutil.copyfile(api, payload / 'api.zip')
     subprocess.run(['npm', 'ci'], cwd=ROOT / 'web', check=True)
-    subprocess.run(['npm', 'run', 'build'], cwd=ROOT / 'web', check=True)
+    subprocess.run(['npm', 'run', 'build'], cwd=ROOT / 'web', check=True,
+                   env=os.environ | {'VITE_GYM_SOURCE_SHA': sha})
     shutil.copytree(ROOT / 'web/dist', payload / 'web')
     shutil.copyfile(ROOT / 'infra/gateway-release.json', payload / 'gateway.json')
     worker = build_worker(output / 'worker-build', purpose=purpose)

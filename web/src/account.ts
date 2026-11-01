@@ -1,5 +1,6 @@
 import type { Program } from './model';
 import type { Receipt } from './sync-model';
+import { recordDiagnostic } from './telemetry';
 
 export interface SessionInfo {
   user_id: string;
@@ -65,6 +66,7 @@ export async function api<T>(
   signal?: AbortSignal,
   method: 'POST' | 'PUT' = 'POST',
 ): Promise<T> {
+  const started = performance.now();
   const response = await fetch(path, {
     method: input ? method : 'GET',
     credentials: 'same-origin',
@@ -76,6 +78,8 @@ export async function api<T>(
     },
     body: input ? JSON.stringify(input) : undefined,
   });
+  if (performance.now() - started > 3000)
+    recordDiagnostic('api_request_slow', 'server', performance.now() - started);
   if (response.status === 204) return undefined as T;
   const header = response.headers.get('Retry-After');
   const retry =

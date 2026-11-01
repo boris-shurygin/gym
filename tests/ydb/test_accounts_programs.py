@@ -61,6 +61,24 @@ class YdbApplicationTests(cases.ApplicationCases, unittest.TestCase):
         self.assertIn('program_conflict', results)
         self.assertEqual(self.execute('get_program')['version']['version'], 1)
 
+    def test_telemetry_rate_limit_is_atomic_and_export_runs_after_commit(self):
+        from unittest.mock import patch
+        from api.auth import timestamp
+        from api.diagnostics import receive
+        payload = {'expected_owner_id': 'alice', 'events': [{'event_id': str(uuid4()),
+            'at': timestamp(self.clock), 'name': 'sync_failed', 'code': 'network', 'duration_ms': None, 'count': 1}]}
+        def send(_):
+            try:
+                return receive(self.auth, self.alice, payload)
+            except ServiceError as error:
+                return error.code
+        with patch('api.diagnostics.export', return_value=True) as sink:
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                results = list(executor.map(send, range(3)))
+            self.assertEqual(sum(isinstance(r, dict) for r in results), 2)
+            self.assertEqual(results.count('rate_limited'), 1)
+            self.assertEqual(sink.call_count, 2)
+
     def test_concurrent_callback_consumes_state_once(self):
         state, binder = self.begin()
         self.provider.identity.return_value = VerifiedIdentity('101', 'login-101')
