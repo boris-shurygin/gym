@@ -100,7 +100,7 @@ def validate_dispatch(env, event, run, workflow, main_sha):
     release = event.get('inputs', {}).get('release_id', '')
     operation = event.get('inputs', {}).get('operation', '')
     identity(release)
-    if operation not in {'promote', 'rollback'}:
+    if operation not in {'prepare', 'promote', 'rollback'}:
         raise ValueError('Неизвестная операция production')
     return {'source_sha': sha, 'run_id': run_id, 'attempt': attempt,
         'release_id': release, 'operation': operation}

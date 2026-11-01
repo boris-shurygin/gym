@@ -11,6 +11,7 @@ from contracts.canonical import canonical_bytes, parse_request
 from infra import production_gate as gate, production_target as production, staging_app as app
 from infra import staging_migrations as migrations
 from infra.object_store import ImmutableStore
+from infra.auth_config import configure_api
 
 
 BOOTSTRAP = parse_request((Path(__file__).parent / 'gateway-bootstrap.json').read_bytes())
@@ -81,7 +82,7 @@ def worker_state(token, cloud, target, *, verified=None):
 
 
 def execute(token, release, operation, operation_id, *, target=production):
-    if operation not in {'promote', 'rollback'} or not re.fullmatch(r'[A-Za-z0-9_-]{1,100}', operation_id):
+    if operation not in {'prepare', 'promote', 'rollback'} or not re.fullmatch(r'[A-Za-z0-9_-]{1,100}', operation_id):
         raise ValueError('Некорректная операция/идентификатор')
     checked = {}
     def verified(identifier):
@@ -90,8 +91,12 @@ def execute(token, release, operation, operation_id, *, target=production):
         return checked[identifier]
     manifest, staging_receipt = verified(release)
     progress('candidate-verified',target,release)
-    if manifest['migration']['revision'] != '0001_runtime_metadata':
-        raise ValueError('Этот процесс пока поддерживает только проверенную короткую ревизию схемы')
+    revision = manifest['migration']['revision']
+    if revision not in {'0001_runtime_metadata', '0003_workouts_sync'}:
+        raise ValueError('Неизвестная ревизия production: сначала согласуй и проверь переход')
+    if operation == 'promote' and revision == '0003_workouts_sync':
+        if not configure_api({'environment': {}}, manifest, target).get('secrets'):
+            raise ValueError('Сначала настрой отдельный OAuth production')
     cloud = app.AppCloud(token, target=target)
     previous, previous_digest = installed(cloud, target)
     store = ImmutableStore(token, target.WEB_BUCKET)
@@ -101,9 +106,16 @@ def execute(token, release, operation, operation_id, *, target=production):
         if hashlib.sha256(canonical_bytes(previous_spec)).hexdigest() != previous_digest:
             raise ValueError('Установленный Gateway отличается от своего проверенного выпуска')
     schema_manifest, state = worker_state(token, cloud, target, verified=verified)
-    if schema_manifest and (schema_manifest['migration']['revision'] != manifest['migration']['revision']
-            or schema_manifest['compatibility'] != manifest['compatibility']):
-        raise migrations.InterventionRequired('Сначала согласуй переход от фактической схемы')
+    if revision == '0003_workouts_sync' and schema_manifest is None:
+        raise migrations.InterventionRequired('Сначала подтверди исходную схему production и служебный bootstrap')
+    if schema_manifest:
+        same_schema = schema_manifest['migration']['revision'] == revision
+        known_prepare = (operation == 'prepare'
+            and schema_manifest['migration']['revision'] == '0001_runtime_metadata'
+            and revision == '0003_workouts_sync')
+        if (not (same_schema or known_prepare)
+                or schema_manifest['compatibility'] != manifest['compatibility']):
+            raise migrations.InterventionRequired('Переход допускается только через prepare 0001 → 0003; откат требует той же схемы')
     if schema_manifest and schema_manifest['release_id'] != release and state != 'succeeded':
         raise migrations.InterventionRequired('Сначала заверши прежний migration job тем же выпуском')
     if operation == 'rollback':
@@ -127,10 +139,17 @@ def execute(token, release, operation, operation_id, *, target=production):
     if os.environ.get('GITHUB_ACTIONS'):
         Path('.local').mkdir(exist_ok=True)
         Path('.local/production-plan.json').write_text(json.dumps(intent, indent=2) + '\n', encoding='utf-8')
-    if operation == 'promote':
+    if operation in {'prepare', 'promote'}:
         progress('migrations',target,release)
         migrations.execute(token, release, staging_receipt['manifest_sha256'], target=target)
         schema_manifest = manifest
+    if operation == 'prepare':
+        audit = {'format': 1, 'environment': target.NAME, 'operation_id': operation_id,
+            'operation': operation, 'release_id': release, 'previous_release_id': intent['previous_release_id'],
+            'schema_release_id': release, 'state': 'schema_prepared'}
+        store.put(key + '/result.json', canonical_bytes(audit), content_type='application/json', cache_control='private, no-store')
+        progress('schema-prepared',target,release)
+        return audit
     progress('application',target,release)
     result = app.execute(token, release, staging_receipt['manifest_sha256'], target=target,
         schema_manifest=schema_manifest if operation == 'rollback' else None)
@@ -150,7 +169,8 @@ def main():
         str(context['run_id']) + '_' + str(context['attempt']))
     Path('.local/production-release.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
     with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
-        summary.write('Production: ' + production.ORIGIN + '\n\n' + context['operation'] + ': `' + context['release_id'] + '`, smoke успешен.\n')
+        status = 'схема подготовлена, приложение не переключалось' if context['operation'] == 'prepare' else 'smoke успешен'
+        summary.write('Production: ' + production.ORIGIN + '\n\n' + context['operation'] + ': `' + context['release_id'] + '`, ' + status + '.\n')
     print(json.dumps(result))
 
 

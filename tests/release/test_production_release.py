@@ -97,6 +97,61 @@ class FlowTests(unittest.TestCase):
         second=release.execute('unused',NEW,'promote','999_1')
         self.assertEqual(first,second)
 
+    def revisions(self, current, candidate):
+        def staged(token, identifier):
+            value = manifest(identifier)
+            value['migration']['revision'] = candidate if identifier == NEW else current
+            return value, {'manifest_sha256': DIGEST}
+        self.mocks['staged_release'].side_effect = staged
+        self.mocks['worker_state'].return_value = (staged('unused', OLD)[0], 'succeeded')
+
+    def test_prepare_additive_0001_to_0003_changes_only_schema(self):
+        self.revisions('0001_runtime_metadata', '0003_workouts_sync')
+        result = release.execute('unused', NEW, 'prepare', '999_1')
+        m.execute.assert_called_once()
+        app.execute.assert_not_called()
+        self.assertEqual(result['state'], 'schema_prepared')
+        self.assertNotIn('deployment', result)
+        self.assertNotIn('deployments/' + NEW + '/result.json', self.objects)
+
+    def test_direct_promotion_cannot_skip_schema_preparation(self):
+        self.revisions('0001_runtime_metadata', '0003_workouts_sync')
+        with patch.object(release, 'configure_api', return_value={'secrets': [{}]}):
+            with self.assertRaises(m.InterventionRequired):
+                release.execute('unused', NEW, 'promote', '999_1')
+        self.assertEqual(self.objects, {})
+        m.execute.assert_not_called(); app.execute.assert_not_called()
+
+    def test_prepared_schema_can_promote_with_separate_oauth(self):
+        self.revisions('0003_workouts_sync', '0003_workouts_sync')
+        with patch.object(release, 'configure_api', return_value={'secrets': [{}]}):
+            release.execute('unused', NEW, 'promote', '999_1')
+        app.execute.assert_called_once()
+
+    def test_promotion_without_production_oauth_stops_before_writes(self):
+        self.revisions('0003_workouts_sync', '0003_workouts_sync')
+        with patch.object(release, 'configure_api', return_value={'environment': {}}):
+            with self.assertRaises(ValueError): release.execute('unused', NEW, 'promote', '999_1')
+        self.assertEqual(self.objects, {})
+        m.execute.assert_not_called(); app.execute.assert_not_called()
+
+    def test_unknown_upgrade_and_downgrade_are_rejected_before_writes(self):
+        for current, candidate in [('0001_runtime_metadata', '0004_unknown'),
+                ('0003_workouts_sync', '0001_runtime_metadata')]:
+            with self.subTest(current=current, candidate=candidate):
+                self.revisions(current, candidate)
+                with self.assertRaises((ValueError, m.InterventionRequired)):
+                    release.execute('unused', NEW, 'prepare', '999_1')
+                self.assertEqual(self.objects, {})
+        m.execute.assert_not_called(); app.execute.assert_not_called()
+
+    def test_prepare_requires_a_known_existing_worker_schema(self):
+        self.revisions('0001_runtime_metadata', '0003_workouts_sync')
+        self.mocks['worker_state'].return_value = (None, None)
+        with self.assertRaises(m.InterventionRequired): release.execute('unused', NEW, 'prepare', '999_1')
+        self.assertEqual(self.objects, {})
+        m.execute.assert_not_called(); app.execute.assert_not_called()
+
 
 class EnvironmentTests(unittest.TestCase):
     def test_known_bootstrap_allows_only_yc_server_for_this_fixed_origin(self):

@@ -1,4 +1,4 @@
-"""Операторский допуск только проверенных Яндекс-личностей staging; не HTTP/MCP."""
+"""Операторский допуск проверенных Яндекс-личностей выбранного окружения; не HTTP/MCP."""
 
 import argparse
 import json
@@ -32,12 +32,17 @@ def admit(store, reference, *, state='active'):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--yc', required=True)
+    parser.add_argument('--environment', choices=['staging', 'production'], default='staging')
     parser.add_argument('command', choices=['pending', 'allow', 'disable'])
     parser.add_argument('--reference')
     args = parser.parse_args()
     if os.environ.get('GITHUB_ACTIONS'):
         parser.error('Операторский доступ не выполняется из CI')
-    config = load_config()
+    if args.environment == 'production':
+        from infra.production_target import ydb_config
+        config = ydb_config()
+    else:
+        config = load_config()
     engine = create_engine(DatabaseSettings(config['endpoint'], config['database'], 'token'), token=Yc(args.yc).token())
     try:
         store = Store(engine)

@@ -20,10 +20,22 @@ class AuthConfigurationTests(unittest.TestCase):
             self.assertEqual(payload['secrets'][0]['versionId'], 'c' * 20)
             evolved = {'migration': {'revision': '0003_workouts_sync'}}
             self.assertEqual(configure_api(copy.deepcopy(source), evolved, staging_target), payload)
-            self.assertEqual(configure_api(copy.deepcopy(source), evolved, production_target), source)
-            self.assertEqual(configure_api(copy.deepcopy(source), manifest, production_target), source)
+            production = configure_api(copy.deepcopy(source), evolved, production_target)
+            self.assertEqual(production['environment']['GYM_ORIGIN'], production_target.ORIGIN)
+            self.assertEqual(configure_api(copy.deepcopy(source), manifest, production_target), production)
             self.assertEqual(configure_api(copy.deepcopy(source), {'migration': {'revision': '0001_runtime_metadata'}}, staging_target), source)
 
     def test_unconfigured_disabled_auth_has_no_secret_or_client_id(self):
         with patch.object(Path, 'read_text', return_value='{"enabled":false,"client_id":null,"secret_id":null,"secret_version_id":null}'):
             self.assertEqual(configure_api({'environment': {}}, {'migration': {'revision': '0002_accounts_programs'}}, staging_target), {'environment': {}})
+
+    def test_production_never_reads_staging_configuration(self):
+        original = Path.read_text
+        seen = []
+        def read(path, *args, **kwargs):
+            seen.append(path.name)
+            return original(path, *args, **kwargs)
+        with patch.object(Path, 'read_text', read):
+            result = configure_api({'environment': {}}, {'migration': {'revision': '0003_workouts_sync'}}, production_target)
+        self.assertEqual(seen, ['production-auth.json'])
+        self.assertNotIn('7cba5f50f12c44788311ba106f1bca8a', str(result))

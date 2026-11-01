@@ -6,9 +6,9 @@ import re
 
 
 def configure_api(payload, manifest, target):
-    if target.NAME != 'staging' or manifest['migration']['revision'] not in {'0002_accounts_programs', '0003_workouts_sync'}:
+    if target.NAME not in {'staging', 'production'} or manifest['migration']['revision'] not in {'0002_accounts_programs', '0003_workouts_sync'}:
         return payload
-    config = json.loads((Path(__file__).parent / 'staging-auth.json').read_text(encoding='utf-8'))
+    config = json.loads((Path(__file__).parent / (target.NAME + '-auth.json')).read_text(encoding='utf-8'))
     if set(config) != {'enabled', 'client_id', 'secret_id', 'secret_version_id'} or type(config['enabled']) is not bool:
         raise ValueError('Неизвестный формат конфигурации OAuth')
     if not config['enabled']:
