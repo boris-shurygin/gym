@@ -4,25 +4,56 @@
 
 | Поле | Значение |
 | --- | --- |
-| Активный этап | Первый полный production-релиз P11 по прямому запросу пользователя |
-| Локальная доработка | Метаданные OAuth production и ссылка gym-stats; код подготовки уже слит в #41 |
-| Состояние | Подготовка production #41 слита. Пользователь одобрил prepare 41328688017; он выполняется без переключения приложения. Отдельный OAuth-секрет ACTIVE, gym-stats зарезервирован. Production пока на P05 |
-| Локальная ветка | ops/production-p11-config от main d3cf214; незакоммичены регламент и production-redirect.json |
+| Активный этап | Production-релиз P11 и читаемая ссылка выполнены |
+| Локальная доработка | Итоги выпуска и регламент фиксируются отдельным docs-PR по прямому запросу пользователя |
+| Состояние | #41/#42 слиты; prepare и promote успешны. Production P11 установлен, публичная идентичность сверена; gym-stats даёт HTTPS 301 на Gateway. Подтверждённая production-личность владельца допущена, состояние active |
+| Ветка фиксации итогов | docs/production-release-results от main 64b4f94; актуальный checkout проверяй через Git |
 | Режим и объём | Пользователь 2026-11-01 явно запросил выпуск в production и gym.website.yandexcloud.net, если имя свободно. Разрешение на production получено; обязательный gate Environment не обходится. Уведомления остаются отложенными (ADR-0023) |
 | Изменение процесса | Правила автономной работы слиты в #16 и проверены полным staging |
-| Локальный базовый main | `d3cf21434d63db59d3e6d4f14041c72f364725f8` — merge #41 |
-| Актуальность origin/main | Fetch main:main подтвердил fast-forward main/origin/main d3cf214 |
-| PR | Реализация [#39](https://github.com/boris-shurygin/gym/pull/39) и финальная приёмка/ADR-0023 [#40](https://github.com/boris-shurygin/gym/pull/40) слиты |
-| CI PR | #40 Web checks 41325728988 и Cloud access 41325728986 успешны, head 54f82d3. Полный профиль реализации, включая native YDB/browser, прошёл в #39 |
+| Локальный базовый main | `64b4f9474f39671fb37357f55f67882b033d121c` — merge #42 |
+| Актуальность origin/main | Fetch и fast-forward подтвердили main/origin/main 64b4f94 |
+| PR | Подготовка production [#41](https://github.com/boris-shurygin/gym/pull/41) и конфигурация [#42](https://github.com/boris-shurygin/gym/pull/42) слиты; P11 #39/#40 сохранены |
+| CI PR | #41 Web checks 41328267102/Cloud access 41328267088 успешны (full). #42 Web checks 41331916837/Cloud access 41331916850 успешны (scoped infra), head 94ea17b |
 | CI сборки | `490995f78087ded09e15273621b56181bb092909_41310675032_1`; сборка и неизменяемая публикация успешны |
 | CI после merge | Web checks 41310480105, Cloud access 41310480082 и [Staging release 41310675032](https://github.com/boris-shurygin/gym/actions/runs/41310675032) успешны |
 | Реальная проверка OIDC | Новый health workflow 41324618272 проверен через workflow_dispatch на main: readiness и metadata backups успешны, включая обмен OIDC staging CI. Ключ Monium хранится в Lockbox, workflow его не читает |
 | Выпуск артефактов | P11: `490995f…_41310675032_1`; сборка/публикация/миграции/deploy выполнены CI |
-| Престейбл | [Gym](https://gym-staging.website.yandexcloud.net/), P11 `490995f…_41310675032_1`. Smoke CI и infra.delivery_status успешны. Обязательный P11 rollback/возврат исполнен один раз штатным infra.staging_app; после возврата readiness=true и release ID кандидата подтверждены |
-| Стейбл | [HTTPS-приложение](https://d5dhqvda3eo6r4c2mgf6.764nr5vy.apigw.yandexcloud.net/), release `9a16a2f…_40852028322_1`, API `d4e7umbbk4a2t9spfecl`; [workflow](https://github.com/boris-shurygin/gym/actions/runs/40863249879), независимая проверка/HTTP/offline успешны. Пять служебных таблиц, пользовательских данных нет |
-| Следующее действие | Дождись prepare 41328688017, затем настрой/проверь точечные права. PR конфигурации OAuth/редиректа можно проверять параллельно, но не меняй main до окончания prepare (source d3cf214). После merge запусти promote того же кандидата с отдельным обязательным gate; включи редирект после успешного smoke |
+| Престейбл | [Gym](https://gym-staging.website.yandexcloud.net/), публичный release `64b4f9474f39671fb37357f55f67882b033d121c_41332267057_1` сверён после #42. Приёмка P11 и rollback/возврат выполнены на `490995f…_41310675032_1`; именно этот проверенный пакет продвинут в production |
+| Стейбл | [Gym](https://gym-stats.website.yandexcloud.net/), release `490995f78087ded09e15273621b56181bb092909_41310675032_1`; [promote 41332213364](https://github.com/boris-shurygin/gym/actions/runs/41332213364) успешен. Те же готовые API/PWA-артефакты, схема 0003, отдельный OAuth/точечный runtime ACL. Публичная идентичность и HTTPS-редирект проверены |
+| Следующее действие | Пользователь подтвердил результат. Закоммить/смёржи оставшуюся документацию и закончи работу на сегодня; новые задачи не начинай. Monium production/уведомления и физический Android остаются вне выполненного запроса |
 
 ## 2026-11-01: подготовка первого полного production
+
+**Итог:** пользователь одобрил финальный Environment gate. [Promote 41332213364](https://github.com/boris-shurygin/gym/actions/runs/41332213364)
+успешен; публичный `/__gym/release` точно совпал с `main_sha=490995f78087ded09e15273621b56181bb092909`,
+`purpose=production-release`, `release_id=490995f78087ded09e15273621b56181bb092909_41310675032_1`.
+Продвигались готовые проверенные API/PWA-байты, без пересборки и downgrade; workflow выполнялся
+из main 64b4f94. Smoke API/PWA/Gateway, приватности и начала/отмены Яндекс OAuth прошёл в CI.
+
+После успеха включён `production-redirect.json` только на заранее проверенном gym-stats.
+`https://gym-stats.website.yandexcloud.net/` и `/app` вернули 301 с точным Location соответствующего
+пути production Gateway; TLS проверен. Закрытые read/list/config_read и лимит 1 MiB сохранены;
+бакет gym и другие сайты не менялись. Квитанции — `.local/production-delivery-result.json`
+и `.local/production-shortcut.json`. Повторная полная облачная/браузерная приёмка не выполнялась.
+
+Владелец выполнил настоящий вход в production и прислал trace_id not_invited.
+Операторский accounts_admin с явным --environment production нашёл единственную
+подтверждённую заявку и предоставил допуск active. Идентификаторы личности не публикуются;
+квитанция находится в `.local/production-owner-admission.json`. После рекомендации начать свежий
+вход пользователь подтвердил: «Все ок», затем запросил фиксацию изменений и завершение работы на сегодня.
+Данные staging не переносились.
+Сервер Monium по-прежнему настроен только в staging; уведомления отложены пользователем.
+
+Prepare 41328688017 завершился успешно, схема 0003 подготовлена без переключения приложения.
+После этого infra.production_runtime_access --apply применил ровно шесть ACL для SA API
+aje8tgptbcm31migrtnj и payloadViewer секрета e6qotfhl6b475l4qi4qs. Внутренняя повторная
+проверка плана не нашла оставшихся изменений. Нативный запрос от API SA прочитал admissions,
+а чтение gym_migration_jobs получило Aborted с явным status AccessDenied/issue 2028.
+Это ожидаемый отказ доступа, не тайм-аут. Личные строки не выводились.
+
+Конфигурация слита в #42 после зелёного scoped CI; main 64b4f94. Promote того же кандидата
+в [41332213364](https://github.com/boris-shurygin/gym/actions/runs/41332213364) прошёл preflight,
+ручное одобрение required reviewer и smoke. Редирект gym-stats включён после успеха и сверки release ID.
 
 OAuth production создан пользователем: Lockbox e6qotfhl6b475l4qi4qs, версия e6q3s9rbt51r1kvj9034,
 status ACTIVE, защита удаления включена, только client_secret, labels подтверждают Client ID
