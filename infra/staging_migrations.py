@@ -131,17 +131,21 @@ def deploy_worker(cloud, manifest, *, mode='worker', target=target):
 def read_ready(call):
     """Повторяй только безопасное чтение после переходного отказа, максимум 4 раза."""
     for attempt in range(4):
+        delay = 3
         try:
             return call()
         except HTTPError as error:
             code = error.code
+            retry_after = error.headers.get('Retry-After', '') if error.headers else ''
+            if retry_after.isdigit():
+                delay = min(15, max(3, int(retry_after)))
             error.close()
-            if code not in {500, 502, 503, 504} or attempt == 3:
+            if code not in {429, 500, 502, 503, 504} or attempt == 3:
                 raise
         except (URLError, TimeoutError, OSError):
             if attempt == 3:
                 raise
-        time.sleep(3)
+        time.sleep(delay)
 
 
 def health(cloud, manifest, *, mode='worker', target=target):

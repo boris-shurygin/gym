@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { recordDiagnostic } from './telemetry';
 
 export default function PwaUpdate() {
   const [registration, setRegistration] = useState<ServiceWorkerRegistration>();
@@ -16,7 +17,7 @@ export default function PwaUpdate() {
     const check = () => {
       if (document.visibilityState !== 'visible' || Date.now() - lastCheck < 60_000) return;
       lastCheck = Date.now();
-      void current?.update().catch(() => undefined);
+      void current?.update().catch(() => recordDiagnostic('page_error', 'update'));
       inspect();
     };
     const changed = () => {
@@ -40,7 +41,7 @@ export default function PwaUpdate() {
         );
         check();
       })
-      .catch(() => undefined);
+      .catch(() => recordDiagnostic('page_error', 'update'));
     navigator.serviceWorker.addEventListener('controllerchange', changed);
     navigator.serviceWorker.addEventListener('message', message);
     document.addEventListener('visibilitychange', check);

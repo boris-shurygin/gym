@@ -37,6 +37,7 @@ class Fixture(helpers.WorkoutCases):
         self.drop_next = False
         self.dropped = 0
         self.posts = []
+        self.telemetry_posts = []
         self.login_probe = False
         self.staging = False
         self.drop_publish = False
@@ -81,7 +82,8 @@ class Handler(BaseHTTPRequestHandler):
             fixtures[key] = Fixture()
             status, payload = 200, {'fixture': key}
         elif self.path == '/__test/status' and fixture:
-            status, payload = 200, {'posts': fixture.posts, 'dropped': fixture.dropped, 'publications': fixture.publications}
+            status, payload = 200, {'posts': fixture.posts, 'dropped': fixture.dropped, 'publications': fixture.publications,
+                'telemetry_posts': fixture.telemetry_posts}
         elif self.path == '/__gym/release' and fixture:
             status, payload = 200, {'purpose': 'staging-release' if fixture.staging else 'development'}
         elif self.path == '/__test/oauth-request' and fixture and self.command == 'POST':
@@ -141,6 +143,8 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_header('Content-Length', str(len(raw)))
                     self.end_headers(); self.wfile.write(raw); return
                 status, payload = result['statusCode'], json.loads(result['body'])
+                if self.path == '/api/v1/telemetry':
+                    fixture.telemetry_posts.append({'input': json.loads(body), 'status': status, 'result': payload})
                 if self.path.endswith('/approve-and-publish') and self.command == 'POST' and status == 200:
                     fixture.publications += 1
                     if fixture.drop_publish:

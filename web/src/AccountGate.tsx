@@ -3,6 +3,7 @@ import App from './App';
 import PwaUpdate from './PwaUpdate';
 import Landing from './Landing';
 import Statistics from './Statistics';
+import Diagnostics from './Diagnostics';
 import { AgentAccess } from './AgentAccess';
 import { publishStagingProgram, stagingProgram } from './staging-program';
 import { DEMO_OWNER, demoProgram } from './demo-program';
@@ -409,6 +410,11 @@ export default function Account() {
           </details>
         )}
       </section>
+      <Diagnostics
+        key={profile?.owner ?? 'anonymous'}
+        owner={candidate ? undefined : profile?.owner}
+        session={session}
+      />
       {session && landing && (
         <main className="landing-dashboard">
           <Statistics

@@ -2883,17 +2883,22 @@
                   "app_open",
                   "local_save_failed",
                   "sync_failed",
-                  "page_error"
+                  "page_error",
+                  "sync_completed",
+                  "api_request_slow",
+                  "sw_update_failed"
                 ]
               },
               "code": {
-                "anyOf": [
-                  {
-                    "$ref": "#/$defs/Id"
-                  },
-                  {
-                    "type": "null"
-                  }
+                "enum": [
+                  null,
+                  "storage",
+                  "network",
+                  "timeout",
+                  "server",
+                  "unexpected",
+                  "update",
+                  "unavailable"
                 ]
               },
               "duration_ms": {
@@ -2933,6 +2938,10 @@
           },
           "minItems": 1,
           "maxItems": 20
+        },
+        "app_version": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
         }
       },
       "required": [
