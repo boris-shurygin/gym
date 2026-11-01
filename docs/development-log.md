@@ -5,13 +5,13 @@
 | Поле | Значение |
 | --- | --- |
 | Активный этап | Первый полный production-релиз P11 по прямому запросу пользователя |
-| Локальная доработка | Поддержка prepare 0001 → 0003 через защищённый workflow, отдельный OAuth production и точечные runtime-права; ссылка production |
-| Состояние | #39 опубликован на staging; Monium, восстановление/изоляция, откат/возврат, iPhone и health/backup workflow проверены. Пользователь отложил уведомления; каналы/алерты не созданы. Физический Android не проверен |
-| Локальная ветка | ops/production-p11-release от main 4ad428e; прежние метаданные #40 сохранены |
+| Локальная доработка | Метаданные OAuth production и ссылка gym-stats; код подготовки уже слит в #41 |
+| Состояние | Подготовка production #41 слита. Пользователь одобрил prepare 41328688017; он выполняется без переключения приложения. Отдельный OAuth-секрет ACTIVE, gym-stats зарезервирован. Production пока на P05 |
+| Локальная ветка | ops/production-p11-config от main d3cf214; незакоммичены регламент и production-redirect.json |
 | Режим и объём | Пользователь 2026-11-01 явно запросил выпуск в production и gym.website.yandexcloud.net, если имя свободно. Разрешение на production получено; обязательный gate Environment не обходится. Уведомления остаются отложенными (ADR-0023) |
 | Изменение процесса | Правила автономной работы слиты в #16 и проверены полным staging |
-| Локальный базовый main | `4ad428e4bd36c6031467984853e8d2236f8ca5a7` — merge #40 |
-| Актуальность origin/main | Fetch и fast-forward подтвердили main/origin/main 4ad428e |
+| Локальный базовый main | `d3cf21434d63db59d3e6d4f14041c72f364725f8` — merge #41 |
+| Актуальность origin/main | Fetch main:main подтвердил fast-forward main/origin/main d3cf214 |
 | PR | Реализация [#39](https://github.com/boris-shurygin/gym/pull/39) и финальная приёмка/ADR-0023 [#40](https://github.com/boris-shurygin/gym/pull/40) слиты |
 | CI PR | #40 Web checks 41325728988 и Cloud access 41325728986 успешны, head 54f82d3. Полный профиль реализации, включая native YDB/browser, прошёл в #39 |
 | CI сборки | `490995f78087ded09e15273621b56181bb092909_41310675032_1`; сборка и неизменяемая публикация успешны |
@@ -20,9 +20,31 @@
 | Выпуск артефактов | P11: `490995f…_41310675032_1`; сборка/публикация/миграции/deploy выполнены CI |
 | Престейбл | [Gym](https://gym-staging.website.yandexcloud.net/), P11 `490995f…_41310675032_1`. Smoke CI и infra.delivery_status успешны. Обязательный P11 rollback/возврат исполнен один раз штатным infra.staging_app; после возврата readiness=true и release ID кандидата подтверждены |
 | Стейбл | [HTTPS-приложение](https://d5dhqvda3eo6r4c2mgf6.764nr5vy.apigw.yandexcloud.net/), release `9a16a2f…_40852028322_1`, API `d4e7umbbk4a2t9spfecl`; [workflow](https://github.com/boris-shurygin/gym/actions/runs/40863249879), независимая проверка/HTTP/offline успешны. Пять служебных таблиц, пользовательских данных нет |
-| Следующее действие | Доведи подготовку workflow через PR/CI/merge; prepare выбранного кандидата через production Environment; настрой отдельный OAuth и точечные права; затем promote того же кандидата. Ожидаются Client ID production и выбор адреса: gym уже занят, чужой бакет не меняется |
+| Следующее действие | Дождись prepare 41328688017, затем настрой/проверь точечные права. PR конфигурации OAuth/редиректа можно проверять параллельно, но не меняй main до окончания prepare (source d3cf214). После merge запусти promote того же кандидата с отдельным обязательным gate; включи редирект после успешного smoke |
 
 ## 2026-11-01: подготовка первого полного production
+
+OAuth production создан пользователем: Lockbox e6qotfhl6b475l4qi4qs, версия e6q3s9rbt51r1kvj9034,
+status ACTIVE, защита удаления включена, только client_secret, labels подтверждают Client ID
+5fc1d13a73e24328ab4e603f9f288636 и production. Payload агент не читает.
+Пользователь одобрил prepare; job выполняется, приложение ещё не переключалось.
+
+Подготовка слита в [#41](https://github.com/boris-shurygin/gym/pull/41), merge d3cf214;
+CI PR 41328267102/41328267088 успешен, включая полный профиль. Операция prepare
+[41328688017](https://github.com/boris-shurygin/gym/actions/runs/41328688017) прошла preflight
+и ожидает required reviewer Environment production. Агент gate не одобряет вместо владельца.
+До окончания этого run не продвигай main, иначе повторная проверка закреплённого source SHA
+остановит job. Production-приложение пока не переключалось.
+
+Пользователь указал Client ID `5fc1d13a73e24328ab4e603f9f288636`: public metadata Яндекса
+подтвердили только login:info и точный production callback. Скрипт скрытого ввода готов;
+на последней проверке production Lockbox ещё пуст. После ответа пользователя сначала
+перечитай metadata секрета/операции, не создавай дубликат. production-auth.json пока выключен.
+
+Вместо занятого gym пользователь выбрал gym-stats. Создан пустой бакет `gym-stats`,
+resource ID e3erk4hqmc57npsgo7qg, production folder b1gt4o1311mhe57522j8, max_size 1048576,
+теги project=gym/purpose=production-shortcut, anonymous flags выключены. Website-редирект
+ещё не включался; production-redirect.json готов. Включи его после успешной публикации приложения.
 
 Прямой запрос пользователя разрешает production-выпуск и читаемую ссылку, если имя свободно.
 Текущий production остаётся на P05 `9a16a2f…_40852028322_1`; приложение ещё не переключалось.

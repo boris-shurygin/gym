@@ -1,6 +1,6 @@
 {
-  "enabled": false,
-  "client_id": null,
-  "secret_id": null,
-  "secret_version_id": null
+  "enabled": true,
+  "client_id": "5fc1d13a73e24328ab4e603f9f288636",
+  "secret_id": "e6qotfhl6b475l4qi4qs",
+  "secret_version_id": "e6q3s9rbt51r1kvj9034"
 }
