@@ -12,23 +12,25 @@ import {
   ApiError,
   profileCache,
   toProgram,
+  exerciseFromContent,
   type CachedProfile,
   type SessionInfo,
   type ProgramView,
-  type Content,
+  type ProgramContent,
 } from './account';
+import { exerciseLoadDescription, formatResult } from './model';
 
 interface Change {
   change_id: string;
   change_revision: number;
   content_digest: string;
   status: string;
-  proposal: { base_program_version_id: string | null; content: Content; rationale: string };
+  proposal: { base_program_version_id: string | null; content: ProgramContent; rationale: string };
 }
 const ownerKey = 'gym.active-owner';
 const modeKey = 'gym.mode';
 
-function Plan({ content }: { content: Content }) {
+function Plan({ content }: { content: ProgramContent }) {
   return (
     <section className="card">
       <h3>{content.name}</h3>
@@ -36,25 +38,26 @@ function Plan({ content }: { content: Content }) {
         <div key={t.template_id}>
           <h4>{t.name}</h4>
           <p>{t.description}</p>
-          {t.exercises.map((e) => (
-            <p key={e.template_exercise_id}>
-              <strong>{e.name}</strong> · {e.equipment_id} ·{' '}
-              {
-                {
-                  total_external_kg: 'общий внешний вес',
-                  machine_marking_kg: 'маркировка тренажёра',
-                  per_implement_kg: 'на один снаряд',
-                }[e.weight_convention]
-              }
-              <br />
-              {e.targets
-                .map(
-                  (t) =>
-                    `${t.weight_g / 1000} кг × ${t.suggested_reps}${t.rep_min === null ? '' : ` (${t.rep_min}–${t.rep_max})`}`,
-                )
-                .join('; ')}
-            </p>
-          ))}
+          {t.exercises.map((e) => {
+            const exercise = exerciseFromContent(e);
+            return (
+              <p key={e.template_exercise_id}>
+                <strong>{e.name}</strong> · {e.equipment_id} · {exerciseLoadDescription(exercise)}
+                <br />
+                {exercise.targets
+                  .map(
+                    (target, index) =>
+                      `${formatResult(target, exercise)}${e.targets[index].rep_min === null ? '' : ` (${e.targets[index].rep_min}–${e.targets[index].rep_max})`}`,
+                  )
+                  .join('; ')}
+                {exercise.sides === 'each' ? ' на каждую сторону' : ''}
+                {exercise.setStructure === 'myo' ? ' · активация и короткие подходы' : ''}
+                {exercise.restSeconds
+                  ? ` · отдых ${exercise.restSeconds.min}–${exercise.restSeconds.max} с`
+                  : ''}
+              </p>
+            );
+          })}
         </div>
       ))}
     </section>

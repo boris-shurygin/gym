@@ -12,7 +12,7 @@
 
 ## Python-клиент и скилл
 
-Основной путь изменён по запросу пользователя, [ADR-0021](adr/0021-python-training-agent-client.md): агент вызывает локальный Python, настройки ChatGPT не нужны. Из корня репозитория:
+Основной путь изменён по запросу пользователя, [ADR-0021](adr/0021-python-training-agent-client.md): агент вызывает локальный Python, настройки ChatGPT не нужны. Подключение к production и Linux-хранилище добавлены в [ADR-0024](adr/0024-production-training-agent.md). По умолчанию CLI использует staging. Из корня репозитория на Windows:
 
 ```powershell
 & ./.local/backend-venv/Scripts/python.exe -m gym_agent status
@@ -22,7 +22,18 @@
 & ./.local/backend-venv/Scripts/python.exe -m gym_agent call get_training_summary --input .local/training/summary.json
 ```
 
-Альтернатива — `scripts/gym-agent.ps1`. `login` открывает браузер и ждёт явного разрешения «Python-агент Gym» до пяти минут. Callback принимает code только на `127.0.0.1:8765`, проверяет state/issuer, а сервер проверяет PKCE. Токены сохраняются через Windows DPAPI текущего пользователя в игнорируемой `.local/agent-credentials/staging.dat`; plaintext fallback отсутствует. Refresh выполняется под файловой блокировкой. CLI работает только со staging; production и иное ОС-хранилище сюда не входят.
+Альтернатива на Windows — `scripts/gym-agent.ps1`. На Linux используй `python3` с установленным `secretstorage` и существующей разблокированной коллекцией Secret Service. Для production явно указывай окружение в каждой команде:
+
+```sh
+python3 -m gym_agent --environment production login
+python3 -m gym_agent --environment production status
+python3 -m gym_agent --environment production call get_program
+python3 -m gym_agent --environment production tools --schema propose_program_changes
+```
+
+Production origin закреплён в клиенте: `https://d5dhqvda3eo6r4c2mgf6.764nr5vy.apigw.yandexcloud.net`. Произвольный origin через CLI не задаётся. Production требует отдельного пользовательского входа и grant; не переноси staging-токены. Считай подключение подтверждённым только после успешного `status` и чтения программы в выбранном окружении.
+
+`login` открывает браузер и ждёт явного разрешения «Python-агент Gym» до пяти минут. Клиент `gym-python` использует прежний callback `http://127.0.0.1:8765/callback`, проверяет state/issuer, а сервер проверяет PKCE. Не запускай параллельные `login`: callback-порт общий. На Windows токены сохраняются через DPAPI текущего пользователя в игнорируемой `.local/agent-credentials/staging.dat` или `production.dat`. На Linux клиент обращается к Secret Service через зашифрованную D-Bus-сессию; записи изолированы по окружению и хешу канонического пути рабочей копии. Данные программы и владельца в атрибутах хранилища отсутствуют. Если существующая коллекция заблокирована или недоступна, команда завершается с ошибкой. Plaintext fallback отсутствует. Refresh выполняется под отдельной файловой блокировкой окружения в той же рабочей копии, на Linux — `fcntl.flock`.
 
 `call` принимает JSON-файл или `--input -` для stdin; веса — целые граммы. Ответ — `{ok,data}` либо ошибка, для черновиков есть `review_url`, для опубликованного изменения своего grant — `publication`. Личные временные payload-файлы держи в `.local/training/`. Содержимое хранилища токенов не выводи. После неопределённого результата записи повторяй только те же request_id/содержание.
 

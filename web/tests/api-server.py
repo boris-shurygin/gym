@@ -131,6 +131,7 @@ class Handler(BaseHTTPRequestHandler):
                             else 'https://gym.example'),
                         'Content-Type': self.headers.get('Content-Type', ''),
                         'X-Gym-Expected-Owner': self.headers.get('X-Gym-Expected-Owner', user),
+                        'X-Gym-Schema-Version': self.headers.get('X-Gym-Schema-Version', '1'),
                         'X-CSRF-Token': self.headers.get('X-CSRF-Token', '')},
                     'body': body.decode('utf-8')}
                 with patch('api.handler.application', return_value=fixture.auth):

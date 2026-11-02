@@ -13,6 +13,44 @@
   --blue: #3e63ed;
   --border: #e9ecf3;
 }
+.side-switch {
+  display: flex;
+  gap: 6px;
+  margin: 12px 0;
+}
+.side-switch button {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: #f8f9fd;
+  min-height: 44px;
+}
+.side-switch button[aria-pressed='true'] {
+  border-color: #9eb1f5;
+  color: var(--blue);
+  background: #edf1ff;
+  font-weight: 650;
+}
+.side-switch button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+.input-row.single {
+  justify-content: center;
+}
+.input-row.single .input-column {
+  max-width: 240px;
+  margin: auto;
+  width: 100%;
+}
+.record-context {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.editor h2 {
+  line-height: 1.4;
+}
 .landing,
 .landing-dashboard {
   max-width: 1080px;

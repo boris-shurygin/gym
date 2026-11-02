@@ -1,4 +1,4 @@
-import type { Program } from './model';
+import { exerciseLoadDescription, type Exercise, type Program } from './model';
 import type { Receipt } from './sync-model';
 import { recordDiagnostic } from './telemetry';
 
@@ -33,10 +33,89 @@ export interface Content {
     }[];
   }[];
 }
+export type WeightConvention = Content['templates'][number]['exercises'][number]['weight_convention'];
+export interface TargetV2 {
+  target_id: string;
+  weight_g: number | null;
+  scale_milli: number | null;
+  suggested_reps: number | null;
+  duration_seconds: number | null;
+  rep_min: number | null;
+  rep_max: number | null;
+}
+export interface ExerciseV2 {
+  template_exercise_id: string;
+  exercise_id: string;
+  equipment_id: string;
+  name: string;
+  measurement: 'reps' | 'duration';
+  load:
+    | { kind: 'bodyweight' }
+    | { kind: 'external'; weight_convention: WeightConvention; implement_count: 1 | 2; step_g: number }
+    | { kind: 'machine_scale'; step_milli: number };
+  sides: 'single' | 'each';
+  set_structure: 'straight' | 'myo';
+  rest_seconds: { min: number; max: number } | null;
+  rule: 'fixed';
+  targets: TargetV2[];
+}
+export interface ContentV2 {
+  content_schema_version: 2;
+  name: string;
+  templates: { template_id: string; name: string; description: string; exercises: ExerciseV2[] }[];
+}
+export type ProgramContent = Content | ContentV2;
+export type ProgramExercise = Content['templates'][number]['exercises'][number] | ExerciseV2;
+
+export function exerciseFromContent(e: ProgramExercise): Exercise {
+  if (!('measurement' in e))
+    return {
+      id: e.template_exercise_id,
+      name: e.name,
+      equipment: weightDescription(e.weight_convention),
+      weightStepKg: e.weight_step_g / 1000,
+      targets: e.targets.map((t) => ({
+        id: t.target_id,
+        weightKg: t.weight_g / 1000,
+        reps: t.suggested_reps,
+      })),
+    };
+  const load: Exercise['load'] =
+    e.load.kind === 'external'
+      ? {
+          kind: 'external',
+          weightConvention: e.load.weight_convention,
+          implementCount: e.load.implement_count,
+          stepKg: e.load.step_g / 1000,
+        }
+      : e.load.kind === 'machine_scale'
+        ? { kind: 'machine_scale', step: e.load.step_milli / 1000 }
+        : { kind: 'bodyweight' };
+  const exercise: Exercise = {
+    id: e.template_exercise_id,
+    name: e.name,
+    equipment: '',
+    measurement: e.measurement,
+    load,
+    weightStepKg: load.kind === 'external' ? load.stepKg : null,
+    sides: e.sides,
+    setStructure: e.set_structure,
+    restSeconds: e.rest_seconds,
+    targets: e.targets.map((t) => ({
+      id: t.target_id,
+      weightKg: t.weight_g === null ? null : t.weight_g / 1000,
+      reps: t.suggested_reps,
+      scaleValue: t.scale_milli === null ? null : t.scale_milli / 1000,
+      durationSeconds: t.duration_seconds,
+    })),
+  };
+  exercise.equipment = exerciseLoadDescription(exercise);
+  return exercise;
+}
 export interface Version {
   program_version_id: string;
   owner_id: string;
-  content: Content;
+  content: ProgramContent;
 }
 export interface ProgramView {
   owner_id: string;
@@ -73,6 +152,7 @@ export async function api<T>(
     cache: 'no-store',
     signal: signal ?? AbortSignal.timeout(15_000),
     headers: {
+      'X-Gym-Schema-Version': '2',
       ...(input ? { 'Content-Type': 'application/json', 'X-CSRF-Token': session?.csrf_token ?? '' } : {}),
       ...(session ? { 'X-Gym-Expected-Owner': session.user_id } : {}),
     },
@@ -114,17 +194,7 @@ export function toProgram(view: ProgramView): Program {
       id: t.template_id,
       name: t.name,
       description: t.description,
-      exercises: t.exercises.map((e) => ({
-        id: e.template_exercise_id,
-        name: e.name,
-        equipment: weightDescription(e.weight_convention),
-        weightStepKg: e.weight_step_g / 1000,
-        targets: e.targets.map((target) => ({
-          id: target.target_id,
-          weightKg: target.weight_g / 1000,
-          reps: target.suggested_reps,
-        })),
-      })),
+      exercises: t.exercises.map(exerciseFromContent),
     })),
   };
 }

@@ -1,7 +1,15 @@
 import 'fake-indexeddb/auto';
 import { afterEach, expect, it, vi } from 'vitest';
-import { activityPoints, exerciseSeries, loadReport, savedReport, type Summary } from './stats-client';
-import type { SessionInfo } from './account';
+import {
+  activityPoints,
+  exerciseOptions,
+  exerciseSeries,
+  loadReport,
+  savedReport,
+  seriesKey,
+  type Summary,
+} from './stats-client';
+import type { ExerciseV2, SessionInfo } from './account';
 
 const session: SessionInfo = {
   user_id: 'stats-alice',
@@ -10,6 +18,42 @@ const session: SessionInfo = {
   analytics_timezone: 'UTC',
 };
 afterEach(() => vi.restoreAllMocks());
+
+it('ряды разделены по стороне, числу снарядов, измерению и прежней семантике', () => {
+  const exercise: ExerciseV2 = {
+    template_exercise_id: 'e',
+    exercise_id: 'row',
+    equipment_id: 'dumbbells',
+    name: 'Пример',
+    rule: 'fixed',
+    measurement: 'reps',
+    sides: 'each',
+    set_structure: 'straight',
+    rest_seconds: null,
+    load: { kind: 'external', weight_convention: 'per_implement_kg', implement_count: 2, step_g: 500 },
+    targets: [],
+  };
+  const options = exerciseOptions(exercise);
+  expect(options.map((e) => e.series_key)).toEqual([
+    'v2|reps|external|per_implement_kg|2|left|straight',
+    'v2|reps|external|per_implement_kg|2|right|straight',
+  ]);
+  expect(seriesKey(options[0])).not.toBe(seriesKey(options[1]));
+  const one = exerciseOptions({
+    ...exercise,
+    load: {
+      ...exercise.load,
+      kind: 'external',
+      weight_convention: 'per_implement_kg',
+      implement_count: 1,
+      step_g: 500,
+    },
+  });
+  expect(seriesKey(one[0])).not.toBe(seriesKey(options[0]));
+  const timed = exerciseOptions({ ...exercise, measurement: 'duration', load: { kind: 'bodyweight' } });
+  expect(timed[0].description).toContain('время');
+  expect(timed[0].description).not.toContain('кг');
+});
 
 it('кэш отделён по владельцам, запрос привязан к ожидаемому аккаунту', async () => {
   const fetch = vi

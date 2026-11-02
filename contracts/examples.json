@@ -1176,6 +1176,193 @@
           }
         }
       }
+    },
+    {
+      "schema": "ProgramContentV2",
+      "value": {
+        "content_schema_version": 2,
+        "name": "Проверка измерений",
+        "templates": [
+          {
+            "template_id": "measurements",
+            "name": "Измерения",
+            "description": "",
+            "exercises": [
+              {
+                "template_exercise_id": "external",
+                "exercise_id": "external",
+                "equipment_id": "external-equipment",
+                "name": "Синтетический пример",
+                "measurement": "reps",
+                "load": {
+                  "kind": "external",
+                  "weight_convention": "total_external_kg",
+                  "implement_count": 1,
+                  "step_g": 1000
+                },
+                "sides": "each",
+                "set_structure": "straight",
+                "rest_seconds": null,
+                "rule": "fixed",
+                "targets": [
+                  {
+                    "target_id": "external-1",
+                    "weight_g": 30000,
+                    "scale_milli": null,
+                    "suggested_reps": 10,
+                    "duration_seconds": null,
+                    "rep_min": null,
+                    "rep_max": null
+                  },
+                  {
+                    "target_id": "external-2",
+                    "weight_g": 35000,
+                    "scale_milli": null,
+                    "suggested_reps": 10,
+                    "duration_seconds": null,
+                    "rep_min": null,
+                    "rep_max": null
+                  }
+                ]
+              },
+              {
+                "template_exercise_id": "body",
+                "exercise_id": "body",
+                "equipment_id": "body-equipment",
+                "name": "Синтетический пример",
+                "measurement": "reps",
+                "load": {
+                  "kind": "bodyweight"
+                },
+                "sides": "single",
+                "set_structure": "straight",
+                "rest_seconds": null,
+                "rule": "fixed",
+                "targets": [
+                  {
+                    "target_id": "body-1",
+                    "weight_g": null,
+                    "scale_milli": null,
+                    "suggested_reps": 10,
+                    "duration_seconds": null,
+                    "rep_min": null,
+                    "rep_max": null
+                  },
+                  {
+                    "target_id": "body-2",
+                    "weight_g": null,
+                    "scale_milli": null,
+                    "suggested_reps": 8,
+                    "duration_seconds": null,
+                    "rep_min": null,
+                    "rep_max": null
+                  }
+                ]
+              },
+              {
+                "template_exercise_id": "duration",
+                "exercise_id": "duration",
+                "equipment_id": "duration-equipment",
+                "name": "Синтетический пример",
+                "measurement": "duration",
+                "load": {
+                  "kind": "bodyweight"
+                },
+                "sides": "each",
+                "set_structure": "straight",
+                "rest_seconds": null,
+                "rule": "fixed",
+                "targets": [
+                  {
+                    "target_id": "duration-1",
+                    "weight_g": null,
+                    "scale_milli": null,
+                    "suggested_reps": null,
+                    "duration_seconds": 45,
+                    "rep_min": null,
+                    "rep_max": null
+                  }
+                ]
+              },
+              {
+                "template_exercise_id": "scale",
+                "exercise_id": "scale",
+                "equipment_id": "scale-equipment",
+                "name": "Синтетический пример",
+                "measurement": "reps",
+                "load": {
+                  "kind": "machine_scale",
+                  "step_milli": 1000
+                },
+                "sides": "single",
+                "set_structure": "straight",
+                "rest_seconds": null,
+                "rule": "fixed",
+                "targets": [
+                  {
+                    "target_id": "scale-1",
+                    "weight_g": null,
+                    "scale_milli": 32500,
+                    "suggested_reps": 10,
+                    "duration_seconds": null,
+                    "rep_min": null,
+                    "rep_max": null
+                  }
+                ]
+              },
+              {
+                "template_exercise_id": "myo",
+                "exercise_id": "myo",
+                "equipment_id": "myo-equipment",
+                "name": "Синтетический пример",
+                "measurement": "reps",
+                "load": {
+                  "kind": "external",
+                  "weight_convention": "per_implement_kg",
+                  "implement_count": 2,
+                  "step_g": 500
+                },
+                "sides": "single",
+                "set_structure": "myo",
+                "rest_seconds": {
+                  "min": 4,
+                  "max": 7
+                },
+                "rule": "fixed",
+                "targets": [
+                  {
+                    "target_id": "myo-1",
+                    "weight_g": 12000,
+                    "scale_milli": null,
+                    "suggested_reps": 15,
+                    "duration_seconds": null,
+                    "rep_min": null,
+                    "rep_max": null
+                  },
+                  {
+                    "target_id": "myo-2",
+                    "weight_g": 12000,
+                    "scale_milli": null,
+                    "suggested_reps": 5,
+                    "duration_seconds": null,
+                    "rep_min": null,
+                    "rep_max": null
+                  },
+                  {
+                    "target_id": "myo-3",
+                    "weight_g": 10000,
+                    "scale_milli": null,
+                    "suggested_reps": 5,
+                    "duration_seconds": null,
+                    "rep_min": null,
+                    "rep_max": null
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "negative": [
@@ -1222,7 +1409,7 @@
       "name": "unknown_schema",
       "schema": "SyncOperation",
       "value": {
-        "schema_version": 2,
+        "schema_version": 3,
         "operation_id": "10000000-0000-4000-8000-000000000001",
         "expected_owner_id": "user-a",
         "device_id": "10000000-0000-4000-8000-000000000002",

@@ -85,7 +85,7 @@ function base(session: ReturnType<typeof sessionFromWorkout>, revision = 1): Wor
       session_exercise_id: s.exerciseId,
       kind: s.kind,
       weight_g: grams(s.weightKg),
-      reps: s.reps,
+      reps: s.reps!,
       planned_target_id: s.plannedTargetId,
       comparison_target_id: s.comparisonTarget?.id ?? null,
       deleted_at: s.deletedAt ?? null,

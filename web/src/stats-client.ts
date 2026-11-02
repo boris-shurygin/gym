@@ -1,4 +1,4 @@
-import { api, type SessionInfo } from './account';
+import { api, type SessionInfo, type ProgramExercise } from './account';
 import type { Workout } from './sync-model';
 
 export interface Report {
@@ -14,7 +14,13 @@ export interface Report {
 }
 export interface Summary extends Report {
   workout_count: number;
-  working_set_count: number;
+  working_set_count?: number;
+  working_result_count?: number;
+  ordinary_set_count?: number;
+  side_result_count?: number;
+  myo_series_count?: number;
+  myo_component_count?: number;
+  duration_seconds?: number;
   rep_count: number;
   activity: { date: string; workout_count: number }[];
 }
@@ -36,9 +42,12 @@ export interface Series extends Report {
   points: {
     workout_id: string;
     started_at: string;
-    max_weight_g: number;
-    max_weight_reps: number;
-    volume_g_reps: number;
+    max_weight_g: number | null;
+    max_weight_reps: number | null;
+    volume_g_reps: number | null;
+    max_scale_milli?: number | null;
+    rep_count?: number;
+    duration_seconds?: number;
   }[];
   next_cursor: string | null;
 }
@@ -47,13 +56,45 @@ export interface ExerciseKey {
   equipment_id: string;
   weight_convention: string;
   name: string;
+  series_key?: string;
+  description?: string;
 }
 export interface HistoryPage {
   items: Workout[];
   next_cursor: string | null;
 }
 export const seriesKey = (exercise: ExerciseKey) =>
-  [exercise.exercise_id, exercise.equipment_id, exercise.weight_convention].join('|');
+  [exercise.exercise_id, exercise.equipment_id, exercise.series_key ?? exercise.weight_convention].join('|');
+
+export function exerciseOptions(exercise: ProgramExercise): ExerciseKey[] {
+  if (!('measurement' in exercise)) return [exercise];
+  const load = exercise.load;
+  const convention = load.kind === 'external' ? load.weight_convention : load.kind;
+  const count = load.kind === 'external' ? load.implement_count : 1;
+  return (exercise.sides === 'each' ? ['left', 'right'] : ['single']).map((side) => ({
+    exercise_id: exercise.exercise_id,
+    equipment_id: exercise.equipment_id,
+    name: exercise.name,
+    weight_convention: convention,
+    series_key: ['v2', exercise.measurement, load.kind, convention, count, side, exercise.set_structure].join(
+      '|',
+    ),
+    description: [
+      load.kind === 'bodyweight'
+        ? 'Свой вес'
+        : load.kind === 'machine_scale'
+          ? 'Шкала тренажёра'
+          : count === 2
+            ? 'Два снаряда · вес одного'
+            : 'Внешний вес',
+      exercise.measurement === 'duration' ? 'время' : 'повторения',
+      side === 'left' ? 'левая' : side === 'right' ? 'правая' : '',
+      exercise.set_structure === 'myo' ? 'миоповторения' : '',
+    ]
+      .filter(Boolean)
+      .join(' · '),
+  }));
+}
 
 interface Cached {
   owner: string;
