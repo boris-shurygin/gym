@@ -7,6 +7,7 @@ const labels: Record<string, string> = {
   'stats:read': 'Читать статистику',
   'program:draft': 'Готовить и проверять изменения программы',
   'program:publish': 'Получать результат публикации после твоего одобрения в Gym',
+  'program:publish_direct': 'Публиковать программу по твоему запросу без отдельного одобрения в Gym',
 };
 interface Grant {
   grant_id: string;
@@ -49,7 +50,7 @@ export function AgentAccess({ session }: { session: SessionInfo }) {
           <h3>{grant.client_name}</h3>
           <ul>
             {grant.scopes.map((scope) => (
-              <li key={scope}>{labels[scope]}</li>
+              <li key={scope}>{labels[scope] ?? scope}</li>
             ))}
           </ul>
           <p className="caption">До {new Date(grant.expires_at).toLocaleDateString('ru-RU')}</p>

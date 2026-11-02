@@ -10,7 +10,7 @@ from contracts.canonical import parse_request
 from contracts.validation import requires_schema2, validate
 from api.analytics import Analytics, OPERATIONS as ANALYTICS
 from api.auth import AGENT_COOKIE, cookie
-from api.delegation import Delegation, DelegatedAuth, OAuthError
+from api.delegation import Delegation, DelegatedAuth, OAuthError, DIRECT_SCOPE
 from api.errors import ServiceError
 from api.programs import Programs, RULES
 from api.workouts import Workouts
@@ -109,7 +109,9 @@ def handle(request, auth, trace):
     if method == 'initialize':
         return rpc({'protocolVersion': params.get('protocolVersion') if params.get('protocolVersion') in VERSIONS else VERSIONS[-1],
             'capabilities': {'tools': {'listChanged': False}}, 'serverInfo': {'name': 'gym', 'version': '1.0.0'},
-            'instructions': 'Читай факты через инструменты. Для модели измерений 2 передавай X-Gym-Schema-Version: 2. Публикуй программу только после одобрения в Gym.'})
+            'instructions': 'Читай факты через инструменты. Для модели измерений 2 передавай X-Gym-Schema-Version: 2. ' + (
+                'Доверенный Python-агент может публиковать проверенную программу только по явному запросу пользователя.'
+                if DIRECT_SCOPE in principal['scopes'] else 'Публикуй программу только после одобрения в Gym.')})
     if method == 'ping':
         return rpc({})
     if method == 'tools/list':
@@ -130,7 +132,7 @@ def handle(request, auth, trace):
         if supported_schema_version < 2 and requires_schema2(value):
             raise ServiceError('upgrade_required')
         service = Programs(delegated) if operation in {'get_program', 'propose_change', 'get_change',
-            'replace_change', 'validate_change', 'publish_approved'} else Analytics(delegated) if operation in ANALYTICS else Workouts(delegated)
+            'replace_change', 'validate_change', 'publish_approved', 'publish_direct'} else Analytics(delegated) if operation in ANALYTICS else Workouts(delegated)
         options = {'supported_schema_version': supported_schema_version} if operation not in ANALYTICS else {}
         data = service.execute(operation, access, value, **options)
         validate(RULES[operation]['output'], data)
@@ -141,15 +143,19 @@ def handle(request, auth, trace):
         text = json.dumps(structured, ensure_ascii=False, separators=(',', ':'))
         if operation in {'propose_change', 'replace_change', 'get_change'}:
             meta['gym/review_url'] = delegation.origin + '/#/program?change_id=' + data['change_id']
-            text += '\nПроверь и одобри в Gym: ' + delegation.origin + '/#/program?change_id=' + data['change_id']
-            if data['status'] == 'published' and data['creator_grant_id'] == principal['grant_id'] and 'program:publish' in principal['scopes']:
+            text += ('\nПубликация разрешена через publish_program_changes только по запросу пользователя.'
+                if DIRECT_SCOPE in principal['scopes'] else '\nПроверь и одобри в Gym: ' + meta['gym/review_url'])
+            publication_scope = DIRECT_SCOPE if DIRECT_SCOPE in principal['scopes'] else 'program:publish'
+            if data['status'] == 'published' and data['creator_grant_id'] == principal['grant_id'] and publication_scope in principal['scopes']:
                 def publication(db):
-                    current = delegation.principal(db, access, 'program:publish')
+                    current = delegation.principal(db, access, publication_scope)
                     return db.get('program_records', current['user_id'], 'publication:' + data['change_id'])
                 saved = auth.store.run(publication)
                 if saved:
+                    if supported_schema_version < 2 and requires_schema2(saved):
+                        raise ServiceError('upgrade_required')
                     meta['gym/publication'] = saved
-                    text += '\nУже одобрено и опубликовано в Gym: ' + json.dumps(saved, ensure_ascii=False)
+                    text += '\nПрограмма уже опубликована: ' + json.dumps(saved, ensure_ascii=False)
         return rpc({'content': [{'type': 'text', 'text': text}], 'structuredContent': structured, 'isError': False,
             **({'_meta': meta} if meta else {})})
     except (ValidationError, ValueError):

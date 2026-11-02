@@ -185,6 +185,15 @@ export default function App({
   const active = sessions.find((s) => s.status === 'active');
   const session = 'sessionId' in view ? sessions.find((s) => s.id === view.sessionId) : undefined;
 
+  useEffect(() => {
+    const published = (event: Event) => {
+      if (!demo && (event as CustomEvent<{ owner: string }>).detail?.owner === ownerId)
+        setView({ kind: 'home' });
+    };
+    window.addEventListener('gym-program-published', published);
+    return () => window.removeEventListener('gym-program-published', published);
+  }, [ownerId, demo]);
+
   async function load(reset = false) {
     if (
       reset &&

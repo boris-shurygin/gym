@@ -11,8 +11,8 @@ from api.auth import timestamp
 from api.errors import ServiceError
 from api.sync_state import append_event
 
-RULES = {route['operation_id']: route for route in json.loads(
-    (Path(__file__).resolve().parents[1] / 'contracts/bindings.json').read_text(encoding='utf-8'))['routes']}
+BINDINGS = json.loads((Path(__file__).resolve().parents[1] / 'contracts/bindings.json').read_text(encoding='utf-8'))
+RULES = {route['operation_id']: route for route in BINDINGS['routes'] + BINDINGS.get('mcp_operations', [])}
 
 
 class Programs:
@@ -30,6 +30,10 @@ class Programs:
             owner = principal['user_id']
             if value.get('expected_owner_id', owner) != owner:
                 raise ServiceError('account_mismatch')
+            if operation == 'publish_direct' and (not principal.get('grant_id')
+                    or principal.get('client_id') != 'gym-python'
+                    or 'program:publish_direct' not in principal.get('scopes', [])):
+                raise ServiceError('insufficient_scope')
             if operation == 'get_program':
                 head = db.get('program_records', owner, 'head')
                 version = db.get('program_records', owner, 'version:' + head['id']) if head else None
@@ -87,7 +91,7 @@ class Programs:
                     result = {'change_id': change['change_id'], 'change_revision': change['change_revision'],
                         'content_digest': change['content_digest'], 'valid': True, 'issues': [],
                         'validated_at': timestamp(now)}
-                elif operation in {'approve_and_publish', 'publish_approved'}:
+                elif operation in {'approve_and_publish', 'publish_approved', 'publish_direct'}:
                     result = self._publish(db, owner, principal, operation, value, change, now)
                 else:
                     raise ServiceError('unavailable')
@@ -126,6 +130,9 @@ class Programs:
         if principal.get('grant_id') and principal['grant_id'] != change['creator_grant_id']:
             raise ServiceError('approval_invalid')
         if previous:
+            direct = 'authorization' in previous
+            if (operation == 'publish_direct') != direct:
+                raise ServiceError('program_conflict')
             if operation == 'publish_approved' and value['approval_id'] != previous['approval_id']:
                 raise ServiceError('approval_invalid')
             return previous
@@ -135,10 +142,11 @@ class Programs:
             raise ServiceError('approval_required')
         if change['creator_grant_id']:
             grant = db.get('program_records', owner, 'grant:' + change['creator_grant_id'])
+            required_scope = 'program:publish_direct' if operation == 'publish_direct' else 'program:publish'
             if (not grant or grant['revoked_at'] or now >= grant['created'] + 90 * 86400
-                    or now >= grant['last_refresh'] + 30 * 86400 or 'program:publish' not in grant['scopes']):
+                    or now >= grant['last_refresh'] + 30 * 86400 or required_scope not in grant['scopes']):
                 raise ServiceError('approval_invalid')
-        if now - principal['auth_at'] >= 600:
+        if operation != 'publish_direct' and now - principal['auth_at'] >= 600:
             raise ServiceError('session_required')
         if change['status'] != 'validated':
             raise ServiceError('validation_failed')
@@ -149,9 +157,14 @@ class Programs:
             'version': head['version'] + 1 if head else 1, 'content': change['proposal']['content'],
             'published_at': timestamp(now), 'change_id': change['change_id']}
         result = {'change_id': change['change_id'], 'change_revision': change['change_revision'],
-            'approval_id': 'ap_' + uuid4().hex, 'content_digest': change['content_digest'],
+            'content_digest': change['content_digest'],
             'program_version': version, 'published_at': timestamp(now)}
-        # Неизменяемая версия, факт одобрения и текущий указатель фиксируются
+        if operation == 'publish_direct':
+            result['authorization'] = {'kind': 'delegated_agent', 'grant_id': principal['grant_id'],
+                'client_id': principal['client_id'], 'scope': 'program:publish_direct'}
+        else:
+            result['approval_id'] = 'ap_' + uuid4().hex
+        # Неизменяемая версия, основание публикации и текущий указатель фиксируются
         # вместе. SERIALIZABLE не даст двум публикациям заменить одну базу.
         db.put('program_records', owner, 'version:' + version['program_version_id'], version)
         db.put('program_records', owner, 'publication:' + change['change_id'], result)

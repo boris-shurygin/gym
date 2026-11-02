@@ -9,7 +9,8 @@ from api.errors import ServiceError
 
 LABELS = {'program:read': 'Читать программу', 'history:read': 'Читать историю тренировок',
     'stats:read': 'Читать статистику', 'program:draft': 'Готовить и проверять изменения программы',
-    'program:publish': 'Подтверждать публикацию после твоего одобрения в Gym'}
+    'program:publish': 'Подтверждать публикацию после твоего одобрения в Gym',
+    'program:publish_direct': 'Публиковать программу по твоему запросу через Python-агента без отдельного одобрения в Gym'}
 
 
 def handle(request, auth, trace):
@@ -52,6 +53,8 @@ def handle(request, auth, trace):
         raise ServiceError('invalid_request')
     info = delegation.consent(token, {'request_id': identifier})
     scopes = ''.join('<li>' + escape(LABELS[scope]) + '</li>' for scope in info['scopes'])
+    publication = ('Ты доверяешь этому агенту публиковать изменения программы по твоим запросам без отдельного одобрения каждой редакции в Gym.'
+        if 'program:publish_direct' in info['scopes'] else 'Каждую новую программу ты отдельно одобряешь в Gym.')
     body = f'''<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Доступ агента — Gym</title><style>body{{font:16px system-ui;background:#f5f6fa;color:#202b40;margin:0;padding:24px}}
 main{{max-width:620px;margin:6vh auto;background:white;border:1px solid #e9ecf3;border-radius:24px;padding:28px}}
@@ -61,7 +64,7 @@ button[value=yes]{{background:#3e63ed;color:white;border-color:#3e63ed}}small{{c
 <p>Аккаунт: <strong>{escape(principal.get('yandex_login') or 'Твой аккаунт Gym')}</strong></p>
 <h2>{escape(info['client_name'])} запрашивает:</h2><ul>{scopes}</ul>
 <p>Доступ можно отозвать в Gym. Срок — до 90 дней, без использования — до 30 дней.
-Агент не сможет исправлять факты тренировок. Каждую новую программу ты отдельно одобряешь в Gym.</p>
+Агент не сможет исправлять факты тренировок. {publication}</p>
 <form method="post" action="/oauth/consent"><input type="hidden" name="request_id" value="{escape(identifier)}">
 <input type="hidden" name="csrf_token" value="{digest('gym:csrf:' + token)}">
 <button name="allow" value="yes" type="submit">Разрешить доступ</button><button name="allow" value="no" type="submit">Отказать</button></form>

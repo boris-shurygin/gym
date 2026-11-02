@@ -268,7 +268,8 @@ def dispatch(request, route, trace_id):
             raise RequestError('validation_failed') from None
     elif operation in {'list_grants', 'revoke_grant'}:
         from api.delegation import Delegation
-        result = Delegation(auth).grants(token, value, operation == 'revoke_grant')
+        result = Delegation(auth).grants(token, value, operation == 'revoke_grant',
+            supported_schema_version=supported_schema_version)
     elif operation == 'telemetry':
         from api.diagnostics import receive
         result = receive(auth, token, value)

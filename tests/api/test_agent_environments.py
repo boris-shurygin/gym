@@ -74,7 +74,7 @@ class EnvironmentTests(unittest.TestCase):
         browser.assert_not_called()
         transport.assert_not_called()
 
-    def test_production_login_rejects_other_issuer_state_and_host(self):
+    def exercise_production_login_callback(self, *, allow_program_publish=False):
         responses, browser_queries = [], []
 
         class Server:
@@ -119,17 +119,36 @@ class EnvironmentTests(unittest.TestCase):
                 patch.object(client.webbrowser, 'open', side_effect=open_browser), \
                 patch.object(client, 'request_json', return_value=TOKENS) as transport, \
                 patch('sys.stdout', new_callable=io.StringIO) as output:
-            result = client.GymClient(vault, environment='production').login()
+            result = client.GymClient(vault, environment='production').login(allow_program_publish=allow_program_publish)
         self.assertEqual(responses, [400, 400, 400, 200])
         self.assertEqual(result['environment'], 'production')
         self.assertTrue(result['credentials_saved'])
         self.assertEqual(browser_queries[0]['resource'], [client.PRODUCTION_ORIGIN + '/mcp'])
         self.assertEqual(browser_queries[0]['redirect_uri'], [client.CALLBACK])
         self.assertEqual(browser_queries[0]['code_challenge_method'], ['S256'])
+        if allow_program_publish:
+            self.assertIn('program:publish_direct', browser_queries[0]['scope'][0].split())
+        else:
+            self.assertNotIn('scope', browser_queries[0])
         self.assertEqual(transport.call_args.args[0], client.PRODUCTION_ORIGIN + '/oauth/token')
         self.assertEqual(vault.value['resource'], client.PRODUCTION_ORIGIN + '/mcp')
         self.assertNotIn(TOKENS['access_token'], output.getvalue())
         self.assertNotIn(TOKENS['refresh_token'], output.getvalue())
+
+    def test_production_login_rejects_other_issuer_state_and_host(self):
+        self.exercise_production_login_callback()
+
+    def test_direct_publication_requires_explicit_login_scope_request(self):
+        self.exercise_production_login_callback(allow_program_publish=True)
+
+    def test_cli_publish_flag_is_opt_in(self):
+        for flag in (False, True):
+            with self.subTest(flag=flag), patch('sys.argv', ['gym_agent', 'login'] + (
+                    ['--allow-program-publish'] if flag else [])), \
+                    patch.object(client, 'GymClient') as bridge, patch('sys.stdout', new_callable=io.StringIO):
+                bridge.return_value.login.return_value = {'ok': True}
+                self.assertEqual(client.main(), 0)
+                bridge.return_value.login.assert_called_once_with(allow_program_publish=flag)
 
     def test_cli_reports_selected_environment_without_exposing_credentials(self):
         with patch('sys.argv', ['gym_agent', '--environment', 'production', 'status']), \

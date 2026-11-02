@@ -119,12 +119,12 @@ class GymClient:
         return dict(structured, **({'review_url': meta['gym/review_url']} if meta.get('gym/review_url') else {}),
             **({'publication': meta['gym/publication']} if meta.get('gym/publication') else {}))
 
-    def login(self):
+    def login(self, *, allow_program_publish=False):
         self.vault.check_available()
         with self.vault.locked():
-            return self._login()
+            return self._login(allow_program_publish=allow_program_publish)
 
-    def _login(self):
+    def _login(self, *, allow_program_publish=False):
         origin = self.origin
         state, verifier = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
         challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip('=')
@@ -154,9 +154,12 @@ class GymClient:
                 self.wfile.write(b'Gym: browser step complete. You can close this tab.' if valid else b'Invalid callback.')
         with HTTPServer(('127.0.0.1', 8765), Callback) as server:
             server.timeout, server.outcome = 1, None
-            url = self.origin + '/oauth/authorize?' + urlencode({'response_type': 'code', 'client_id': CLIENT,
+            query = {'response_type': 'code', 'client_id': CLIENT,
                 'redirect_uri': CALLBACK, 'resource': self.resource, 'state': state,
-                'code_challenge_method': 'S256', 'code_challenge': challenge})
+                'code_challenge_method': 'S256', 'code_challenge': challenge}
+            if allow_program_publish:
+                query['scope'] = 'program:read history:read stats:read program:draft program:publish program:publish_direct'
+            url = self.origin + '/oauth/authorize?' + urlencode(query)
             if not webbrowser.open(url):
                 raise ClientError('browser_unavailable')
             print(json.dumps({'login': 'waiting_for_browser', 'environment': self.environment}), flush=True)
@@ -179,7 +182,9 @@ def main():
     parser.add_argument('--environment', choices=('staging', 'production'), default='staging',
         help='Окружение Gym; production требует отдельного явного выбора и входа')
     commands = parser.add_subparsers(dest='command', required=True)
-    commands.add_parser('login')
+    login = commands.add_parser('login')
+    login.add_argument('--allow-program-publish', action='store_true',
+        help='Явно запросить отдельное право Python-агента публиковать программу по запросу пользователя')
     commands.add_parser('status')
     tools = commands.add_parser('tools')
     tools.add_argument('--schema')
@@ -190,7 +195,7 @@ def main():
     try:
         client = GymClient(environment=args.environment)
         if args.command == 'login':
-            result = client.login()
+            result = client.login(allow_program_publish=args.allow_program_publish)
         elif args.command == 'status':
             result = {'environment': client.environment, 'credentials_saved': client.vault.exists()}
         elif args.command == 'tools':

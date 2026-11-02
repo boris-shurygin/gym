@@ -71,6 +71,7 @@ export default function Account() {
   const [demo, setDemo] = useState(localStorage.getItem(modeKey) === 'demo');
   const [message, setMessage] = useState('Проверяем вход…');
   const [change, setChange] = useState<Change>();
+  const [publicationError, setPublicationError] = useState('');
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
   const [staging, setStaging] = useState(false);
@@ -160,6 +161,7 @@ export default function Account() {
           const draft = await api<Change>(`/api/v1/program/changes/${changeId}`);
           if (!cancelled) {
             localStorage.setItem(`gym.review-change:${current.user_id}`, changeId);
+            setPublicationError('');
             setChange(draft);
           }
         }
@@ -260,6 +262,7 @@ export default function Account() {
     if (!session || !change || busy) return;
     const viewed = change;
     setBusy(true);
+    setPublicationError('');
     try {
       await api(
         `/api/v1/program/changes/${viewed.change_id}/validate`,
@@ -283,13 +286,17 @@ export default function Account() {
       );
       localStorage.removeItem(`gym.review-change:${session.user_id}`);
       setChange(undefined);
-      location.hash = '';
+      setMessage('Программа опубликована. Можно начать тренировку.');
+      window.dispatchEvent(new CustomEvent('gym-program-published', { detail: { owner: session.user_id } }));
+      location.hash = '/app';
       setRevision((r) => r + 1);
     } catch (error) {
-      setMessage(
+      setPublicationError(
         error instanceof ApiError && error.code === 'session_required'
-          ? 'Перед одобрением подтверди вход через Яндекс ID.'
-          : 'Публикация не подтверждена. Обнови черновик: программа или его редакция могли измениться.',
+          ? 'Публикация требует входа через Яндекс ID за последние 10 минут. Подтверди вход по ссылке ниже и вернись к этому черновику.'
+          : error instanceof ApiError && error.code === 'upgrade_required'
+            ? 'Для этой программы нужна новая версия приложения. Сохрани незаписанный ввод и обнови Gym.'
+            : 'Публикация не подтверждена. Обнови черновик: программа или его редакция могли измениться. Сохранённые тренировки останутся.',
       );
     } finally {
       setBusy(false);
@@ -442,13 +449,23 @@ export default function Account() {
           )}
           <h3>Предложено</h3>
           <Plan content={change.proposal.content} />
+          {publicationError && (
+            <p className="error" role="alert">
+              {publicationError}
+            </p>
+          )}
+          {change.status === 'published' && (
+            <p role="status">
+              Программа уже опубликована. <a href="#/app">Открыть тренировки</a>
+            </p>
+          )}
           <div className="review-actions">
             <button
               className="primary"
               disabled={busy || change.status === 'published'}
               onClick={() => void publish()}
             >
-              Одобрить и опубликовать
+              {busy ? 'Публикуем…' : 'Одобрить и опубликовать'}
             </button>
             <a className="secondary" href={`/auth/login?purpose=reauth&return_to=/program`}>
               Подтвердить вход перед одобрением
