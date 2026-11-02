@@ -1,8 +1,10 @@
-import type { Content, ProgramView } from './account';
-import { weightDescription } from './account';
+import type { Content, ContentV2, ProgramView } from './account';
+import { exerciseFromContent } from './account';
 import {
   applyMutation,
   grams,
+  scaleMilli,
+  validateValues,
   WorkoutError,
   type Mutation,
   type Session,
@@ -10,15 +12,35 @@ import {
   type Command,
 } from './model';
 
-export interface PlanSnapshot {
+interface PlanSnapshotBase {
   plan_snapshot_id: string;
-  snapshot_schema_version: 1;
   owner_id: string;
   program_version_id: string;
-  template: Content['templates'][number];
   calculated_at: string;
   history_revision: number;
   calculator_version: string;
+}
+export type PlanSnapshot = PlanSnapshotBase &
+  (
+    | { snapshot_schema_version: 1; template: Content['templates'][number] }
+    | { snapshot_schema_version: 2; template: ContentV2['templates'][number] }
+  );
+export interface WorkoutSetV1 {
+  set_id: string;
+  session_exercise_id: string;
+  kind: 'working' | 'warmup';
+  weight_g: number;
+  reps: number;
+  planned_target_id: string | null;
+  comparison_target_id: string | null;
+  deleted_at: string | null;
+}
+export interface WorkoutSetV2 extends Omit<WorkoutSetV1, 'weight_g' | 'reps'> {
+  weight_g: number | null;
+  reps: number | null;
+  scale_milli: number | null;
+  duration_seconds: number | null;
+  side: 'left' | 'right' | null;
 }
 export interface Workout {
   workout_id: string;
@@ -29,18 +51,10 @@ export interface Workout {
   started_at: string;
   completed_at: string | null;
   updated_at: string;
-  sets: {
-    set_id: string;
-    session_exercise_id: string;
-    kind: 'working' | 'warmup';
-    weight_g: number;
-    reps: number;
-    planned_target_id: string | null;
-    comparison_target_id: string | null;
-    deleted_at: string | null;
-  }[];
+  sets: (WorkoutSetV1 | WorkoutSetV2)[];
 }
-type WireCommand =
+
+type WireCommandV1 =
   | { type: 'start_workout'; plan_snapshot_id: string }
   | {
       type: 'add_set';
@@ -64,16 +78,22 @@ type WireCommand =
   | { type: 'delete_set'; set_id: string }
   | { type: 'complete_workout' }
   | { type: 'cancel_empty_workout' };
-export interface SyncOperation {
-  schema_version: 1;
+type V2SetValues = Omit<WorkoutSetV2, 'session_exercise_id' | 'deleted_at'>;
+type WireCommandV2 =
+  | Exclude<WireCommandV1, { type: 'add_set' | 'edit_set' }>
+  | ({ type: 'add_set'; session_exercise_id: string } & V2SetValues)
+  | ({ type: 'edit_set' } & V2SetValues);
+interface SyncOperationBase {
   operation_id: string;
   expected_owner_id: string;
   device_id: string;
   workout_id: string;
   precondition: { server_revision: number } | { after_operation_id: string };
   client_occurred_at: string;
-  command: WireCommand;
 }
+export type SyncOperation = SyncOperationBase &
+  ({ schema_version: 1; command: WireCommandV1 } | { schema_version: 2; command: WireCommandV2 });
+
 export type Receipt =
   | {
       operation_id: string;
@@ -116,7 +136,7 @@ export interface ChangePage {
 }
 
 export function programFromPlans(owner: string, plans: PlanSnapshot[]): Program {
-  if (plans.some((p) => p.owner_id !== owner || p.snapshot_schema_version !== 1))
+  if (plans.some((p) => p.owner_id !== owner || ![1, 2].includes(p.snapshot_schema_version)))
     throw new WorkoutError('План другого аккаунта или неподдерживаемой версии.');
   return {
     versionId: plans[0]?.program_version_id ?? 'unpublished',
@@ -125,17 +145,7 @@ export function programFromPlans(owner: string, plans: PlanSnapshot[]): Program 
       name: plan.template.name,
       description: plan.template.description,
       planSnapshot: structuredClone(plan),
-      exercises: plan.template.exercises.map((e) => ({
-        id: e.template_exercise_id,
-        name: e.name,
-        equipment: weightDescription(e.weight_convention),
-        weightStepKg: e.weight_step_g / 1000,
-        targets: e.targets.map((t) => ({
-          id: t.target_id,
-          weightKg: t.weight_g / 1000,
-          reps: t.suggested_reps,
-        })),
-      })),
+      exercises: plan.template.exercises.map(exerciseFromContent),
     })),
   };
 }
@@ -153,19 +163,34 @@ export function sessionFromWorkout(workout: Workout, localRevision = 0): Session
     status: workout.status,
     startedAt: workout.started_at,
     ...(workout.completed_at ? { completedAt: workout.completed_at } : {}),
-    sets: workout.sets.map((s) => ({
-      id: s.set_id,
-      exerciseId: s.session_exercise_id,
-      kind: s.kind,
-      weightKg: s.weight_g / 1000,
-      reps: s.reps,
-      plannedTargetId: s.planned_target_id,
-      comparisonTarget:
-        template.exercises
-          .find((e) => e.id === s.session_exercise_id)
-          ?.targets.find((t) => t.id === s.comparison_target_id) ?? null,
-      ...(s.deleted_at ? { deletedAt: s.deleted_at } : {}),
-    })),
+    sets: workout.sets.map((s) => {
+      const isV2 = 'scale_milli' in s;
+      if (isV2 !== (workout.plan.snapshot_schema_version === 2))
+        throw new WorkoutError('Версия результата не совпала со снимком.');
+      const exercise = template.exercises.find((e) => e.id === s.session_exercise_id);
+      if (!exercise) throw new WorkoutError('Результат относится к неизвестному упражнению.');
+      const values = {
+        kind: s.kind,
+        weightKg: s.weight_g === null ? null : s.weight_g / 1000,
+        reps: s.reps,
+        ...(isV2
+          ? {
+              side: s.side,
+              scaleValue: s.scale_milli === null ? null : s.scale_milli / 1000,
+              durationSeconds: s.duration_seconds,
+            }
+          : {}),
+      };
+      validateValues(values, exercise);
+      return {
+        id: s.set_id,
+        exerciseId: s.session_exercise_id,
+        ...values,
+        plannedTargetId: s.planned_target_id,
+        comparisonTarget: exercise.targets.find((t) => t.id === s.comparison_target_id) ?? null,
+        ...(s.deleted_at ? { deletedAt: s.deleted_at } : {}),
+      };
+    }),
   };
 }
 
@@ -179,18 +204,31 @@ export function operationFor(
   const plan = saved.snapshot.planSnapshot;
   if (!plan || saved.localOnly) return; // Preserve pre-P08/demo or explicitly archived local-only records.
   if (plan.owner_id !== command.ownerId) throw new WorkoutError('План принадлежит другому аккаунту.');
-  let wire: WireCommand;
+  let wire: WireCommandV1 | WireCommandV2;
   if (mutation.type === 'start') wire = { type: 'start_workout', plan_snapshot_id: plan.plan_snapshot_id };
   else if (mutation.type === 'addSet' || mutation.type === 'editSet') {
     const set = saved.sets.find((s) => s.id === mutation.setId)!;
-    const values = {
-      set_id: set.id,
-      kind: set.kind,
-      weight_g: grams(set.weightKg),
-      reps: set.reps,
-      planned_target_id: set.plannedTargetId,
-      comparison_target_id: set.comparisonTarget?.id ?? null,
-    };
+    const values =
+      plan.snapshot_schema_version === 1
+        ? {
+            set_id: set.id,
+            kind: set.kind,
+            weight_g: grams(set.weightKg),
+            reps: set.reps!,
+            planned_target_id: set.plannedTargetId,
+            comparison_target_id: set.comparisonTarget?.id ?? null,
+          }
+        : {
+            set_id: set.id,
+            kind: set.kind,
+            weight_g: set.weightKg === null ? null : grams(set.weightKg),
+            reps: set.reps,
+            planned_target_id: set.plannedTargetId,
+            comparison_target_id: set.comparisonTarget?.id ?? null,
+            scale_milli: set.scaleValue == null ? null : scaleMilli(set.scaleValue),
+            duration_seconds: set.durationSeconds ?? null,
+            side: set.side ?? null,
+          };
     wire =
       mutation.type === 'addSet'
         ? { type: 'add_set', session_exercise_id: set.exerciseId, ...values }
@@ -198,7 +236,7 @@ export function operationFor(
   } else if (mutation.type === 'deleteSet') wire = { type: 'delete_set', set_id: mutation.setId };
   else wire = { type: mutation.type === 'complete' ? 'complete_workout' : 'cancel_empty_workout' };
   return {
-    schema_version: 1,
+    schema_version: plan.snapshot_schema_version,
     operation_id: command.id,
     expected_owner_id: command.ownerId,
     device_id: deviceId,
@@ -206,7 +244,7 @@ export function operationFor(
     precondition,
     client_occurred_at: mutation.type === 'start' ? saved.startedAt : command.createdAt,
     command: wire,
-  };
+  } as SyncOperation;
 }
 
 export interface RebaseResult {
@@ -217,6 +255,13 @@ export interface RebaseResult {
 }
 // Build a preview of the entire undelivered suffix, never PUT a stale full workout.
 export function rebase(server: Workout, local: Session, commands: Command[], now: string): RebaseResult {
+  const originalPlan = local.snapshot.planSnapshot;
+  if (
+    originalPlan &&
+    (originalPlan.plan_snapshot_id !== server.plan.plan_snapshot_id ||
+      originalPlan.snapshot_schema_version !== server.plan.snapshot_schema_version)
+  )
+    throw new WorkoutError('Исходный снимок тренировки изменился. Автоматический перенос запрещён.');
   let session = sessionFromWorkout(server, local.revision);
   const mutations: RebaseResult['mutations'] = [];
   const warnings: string[] = [];
@@ -252,7 +297,8 @@ export function rebase(server: Workout, local: Session, commands: Command[], now
       if (
         before &&
         (before.plannedTargetId !== after.plannedTargetId ||
-          before.comparisonTarget?.id !== after.comparisonTarget?.id)
+          before.comparisonTarget?.id !== after.comparisonTarget?.id ||
+          (before.side ?? null) !== (after.side ?? null))
       )
         warnings.push('Плановая цель подхода изменится. Проверь предпросмотр перед подтверждением.');
     }

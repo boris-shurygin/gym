@@ -22,6 +22,38 @@ spec.loader.exec_module(helpers)
 
 
 class DelegationCases:
+    def test_mcp_schema2_draft_uses_same_approval_and_owner_checks(self):
+        fixture_spec = importlib.util.spec_from_file_location('mcp_measurement_fixture', Path(__file__).with_name('test_measurements.py'))
+        fixture = importlib.util.module_from_spec(fixture_spec)
+        fixture_spec.loader.exec_module(fixture)
+        content = fixture.program2()
+        issued, _ = self.issue()
+        access = issued['access_token']
+        version = {'X-Gym-Schema-Version': '2'}
+        tools = json.loads(self.rpc(access)['body'])['result']['tools']
+        proposal_tool = next(tool for tool in tools if tool['name'] == 'propose_program_changes')
+        self.assertIn('ProgramContentV2', proposal_tool['inputSchema']['$defs'])
+        response = self.rpc(access, 'tools/call', {'name': 'propose_program_changes', 'arguments': {
+            'request_id': str(uuid4()), 'expected_owner_id': 'alice', 'proposal': {
+                'base_program_version_id': None, 'content': content, 'rationale': 'Синтетические измерения'}}}, **version)
+        result = json.loads(response['body'])['result']
+        self.assertFalse(result['isError'])
+        change = result['structuredContent']['data']
+        self.assertEqual(change['proposal']['content'], content)
+        self.assertIsNone(self.h.execute('get_program')['version'])
+        validated = self.rpc(access, 'tools/call', {'name': 'validate_program_changes', 'arguments': {
+            'change_id': change['change_id'], 'expected_revision': 1}}, **version)
+        self.assertFalse(json.loads(validated['body'])['result']['isError'])
+        self.h.publish(change)
+        legacy = self.rpc(access, 'tools/call', {'name': 'get_program', 'arguments': {}})
+        self.assertEqual(json.loads(legacy['body'])['result']['structuredContent']['error']['code'], 'upgrade_required')
+        current = self.rpc(access, 'tools/call', {'name': 'get_program', 'arguments': {}}, **version)
+        self.assertEqual(json.loads(current['body'])['result']['structuredContent']['data']['version']['content'], content)
+        other, _ = self.issue(browser=self.h.bob)
+        foreign = self.rpc(other['access_token'], 'tools/call', {'name': 'get_program_change', 'arguments': {
+            'change_id': change['change_id']}}, **version)
+        self.assertEqual(json.loads(foreign['body'])['result']['structuredContent']['error']['code'], 'not_found')
+
     def prepare_delegation(self):
         self.h = helpers.ApplicationCases()
         self.h.engine, self.h.prefix = self.engine, self.prefix

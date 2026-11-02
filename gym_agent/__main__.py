@@ -1,14 +1,10 @@
-"""Вход через браузер и вызовы staging Gym без настройки ChatGPT."""
+"""Вход через браузер и вызовы Gym staging/production без настройки ChatGPT."""
 import argparse
 import base64
-from contextlib import contextmanager
-import ctypes
-from ctypes import wintypes
 import hashlib
 import hmac
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
-import os
 from pathlib import Path
 import re
 import secrets
@@ -20,79 +16,13 @@ from urllib.parse import parse_qsl, urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, HTTPSHandler, Request, build_opener
 import webbrowser
 from contracts.canonical import parse_request, MAX_BYTES
+from gym_agent.storage import ClientError, Vault, protect
 
 ORIGIN = 'https://d5d734k3s76t42pa5rtn.764nr5vy.apigw.yandexcloud.net'
+PRODUCTION_ORIGIN = 'https://d5dhqvda3eo6r4c2mgf6.764nr5vy.apigw.yandexcloud.net'
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = 'gym-python'
 CALLBACK = 'http://127.0.0.1:8765/callback'
-
-
-class ClientError(Exception):
-    def __init__(self, code, trace_id=None):
-        super().__init__(code)
-        self.code, self.trace_id = code, trace_id
-
-
-def protect(raw, decrypt=False):
-    if os.name != 'nt':
-        raise ClientError('secure_storage_requires_windows')
-    class Blob(ctypes.Structure):
-        _fields_ = [('size', wintypes.DWORD), ('data', ctypes.POINTER(ctypes.c_ubyte))]
-    buffer = (ctypes.c_ubyte * len(raw)).from_buffer_copy(raw)
-    source, result = Blob(len(raw), buffer), Blob()
-    crypt = ctypes.WinDLL('crypt32', use_last_error=True)
-    function = crypt.CryptUnprotectData if decrypt else crypt.CryptProtectData
-    function.argtypes = [ctypes.POINTER(Blob), ctypes.c_void_p, ctypes.c_void_p,
-        ctypes.c_void_p, ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(Blob)]
-    function.restype = wintypes.BOOL
-    if not function(ctypes.byref(source), None, None, None, None, 1, ctypes.byref(result)):
-        raise ClientError('credential_storage_failed')
-    try:
-        return ctypes.string_at(result.data, result.size)
-    finally:
-        kernel = ctypes.WinDLL('kernel32', use_last_error=True)
-        kernel.LocalFree.argtypes, kernel.LocalFree.restype = [ctypes.c_void_p], ctypes.c_void_p
-        kernel.LocalFree(result.data)
-
-
-class Vault:
-    def __init__(self):
-        self.path = ROOT / '.local/agent-credentials/staging.dat'
-
-    @contextmanager
-    def locked(self):
-        if os.name != 'nt':
-            raise ClientError('secure_storage_requires_windows')
-        import msvcrt
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.path.with_suffix('.lock').open('a+b') as handle:
-            deadline = time.monotonic() + 10
-            while True:
-                try:
-                    handle.seek(0); msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
-                    break
-                except OSError:
-                    if time.monotonic() >= deadline:
-                        raise ClientError('another_agent_is_refreshing') from None
-                    time.sleep(0.1)
-            try:
-                yield
-            finally:
-                handle.seek(0); msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
-
-    def read(self):
-        if not self.path.exists():
-            raise ClientError('login_required')
-        return json.loads(protect(self.path.read_bytes(), True))
-
-    def save(self, value):
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = self.path.with_suffix('.tmp-' + secrets.token_hex(8))
-        try:
-            temporary.write_bytes(protect(json.dumps(value).encode()))
-            os.replace(temporary, self.path)
-        finally:
-            temporary.unlink(missing_ok=True)
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -110,7 +40,7 @@ def request_json(url, value, *, token=None, form=False):
     headers = {'User-Agent': 'Gym-Python-agent', 'Content-Type': 'application/x-www-form-urlencoded' if form else 'application/json'}
     if token:
         headers.update(Authorization='Bearer ' + token, Accept='application/json, text/event-stream',
-            **{'MCP-Protocol-Version': '2025-11-25'})
+            **{'MCP-Protocol-Version': '2025-11-25', 'X-Gym-Schema-Version': '2'})
     body = urlencode(value).encode() if form else json.dumps(value, ensure_ascii=False).encode()
     try:
         with build_opener(NoRedirect(), HTTPSHandler(context=context)).open(Request(url, data=body, headers=headers), timeout=30) as response:
@@ -135,8 +65,13 @@ def request_json(url, value, *, token=None, form=False):
 
 
 class GymClient:
-    def __init__(self, vault=None):
-        self.resource, self.vault = ORIGIN + '/mcp', vault or Vault()
+    def __init__(self, vault=None, *, environment='staging'):
+        if environment not in ('staging', 'production'):
+            raise ClientError('invalid_environment')
+        self.environment = environment
+        self.origin = ORIGIN if environment == 'staging' else PRODUCTION_ORIGIN
+        self.resource = self.origin + '/mcp'
+        self.vault = vault if vault is not None else Vault(environment, origin=self.origin)
         self.request_id = 0
 
     def save_tokens(self, value):
@@ -154,7 +89,7 @@ class GymClient:
             if saved.get('resource') != self.resource or saved.get('client_id') != CLIENT:
                 raise ClientError('credential_environment_mismatch')
             if time.time() >= saved['expires_at'] - 30:
-                value = request_json(ORIGIN + '/oauth/token', {'grant_type': 'refresh_token',
+                value = request_json(self.origin + '/oauth/token', {'grant_type': 'refresh_token',
                     'client_id': CLIENT, 'resource': self.resource, 'refresh_token': saved['refresh_token']}, form=True)
                 self.save_tokens(value)
                 saved = self.vault.read()
@@ -185,8 +120,12 @@ class GymClient:
             **({'publication': meta['gym/publication']} if meta.get('gym/publication') else {}))
 
     def login(self):
-        if os.name != 'nt':
-            raise ClientError('secure_storage_requires_windows')
+        self.vault.check_available()
+        with self.vault.locked():
+            return self._login()
+
+    def _login(self):
+        origin = self.origin
         state, verifier = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
         challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip('=')
         class Callback(BaseHTTPRequestHandler):
@@ -203,7 +142,7 @@ class GymClient:
                 valid = (parsed.path == '/callback' and len(self.path) <= 8192 and len(value) == len(pairs)
                     and self.headers.get('Host') == '127.0.0.1:8765'
                     and re.fullmatch(r'[A-Za-z0-9_-]{43}', value.get('state', ''))
-                    and hmac.compare_digest(value['state'], state) and value.get('iss') == ORIGIN
+                    and hmac.compare_digest(value['state'], state) and value.get('iss') == origin
                     and (re.fullmatch(r'[A-Za-z0-9_-]{43,128}', value.get('code', '')) or value.get('error') == 'access_denied'))
                 if valid:
                     self.server.outcome = value
@@ -215,12 +154,12 @@ class GymClient:
                 self.wfile.write(b'Gym: browser step complete. You can close this tab.' if valid else b'Invalid callback.')
         with HTTPServer(('127.0.0.1', 8765), Callback) as server:
             server.timeout, server.outcome = 1, None
-            url = ORIGIN + '/oauth/authorize?' + urlencode({'response_type': 'code', 'client_id': CLIENT,
+            url = self.origin + '/oauth/authorize?' + urlencode({'response_type': 'code', 'client_id': CLIENT,
                 'redirect_uri': CALLBACK, 'resource': self.resource, 'state': state,
                 'code_challenge_method': 'S256', 'code_challenge': challenge})
             if not webbrowser.open(url):
                 raise ClientError('browser_unavailable')
-            print(json.dumps({'login': 'waiting_for_browser', 'environment': 'staging'}), flush=True)
+            print(json.dumps({'login': 'waiting_for_browser', 'environment': self.environment}), flush=True)
             deadline = time.monotonic() + 300
             while server.outcome is None and time.monotonic() < deadline:
                 server.handle_request()
@@ -228,16 +167,17 @@ class GymClient:
                 raise ClientError('login_timeout')
             if server.outcome.get('error'):
                 raise ClientError('authorization_denied')
-            value = request_json(ORIGIN + '/oauth/token', {'grant_type': 'authorization_code',
+            value = request_json(self.origin + '/oauth/token', {'grant_type': 'authorization_code',
                 'client_id': CLIENT, 'resource': self.resource, 'redirect_uri': CALLBACK,
                 'code': server.outcome['code'], 'code_verifier': verifier}, form=True)
-        with self.vault.locked():
-            self.save_tokens(value)
-        return {'ok': True, 'environment': 'staging', 'credentials_saved': True}
+        self.save_tokens(value)
+        return {'ok': True, 'environment': self.environment, 'credentials_saved': True}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--environment', choices=('staging', 'production'), default='staging',
+        help='Окружение Gym; production требует отдельного явного выбора и входа')
     commands = parser.add_subparsers(dest='command', required=True)
     commands.add_parser('login')
     commands.add_parser('status')
@@ -248,11 +188,11 @@ def main():
     call.add_argument('--input', help='JSON-файл или - для stdin; веса в целых граммах')
     args = parser.parse_args()
     try:
-        client = GymClient()
+        client = GymClient(environment=args.environment)
         if args.command == 'login':
             result = client.login()
         elif args.command == 'status':
-            result = {'environment': 'staging', 'credentials_saved': client.vault.path.exists()}
+            result = {'environment': client.environment, 'credentials_saved': client.vault.exists()}
         elif args.command == 'tools':
             listing = client.command()['tools']
             result = {'tools': [tool for tool in listing if tool['name'] == args.schema]} if args.schema else {

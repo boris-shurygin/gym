@@ -8,6 +8,7 @@ import {
 } from './model';
 import {
   operationFor,
+  programFromPlans,
   rebase,
   sessionFromWorkout,
   type PlanSnapshot,
@@ -305,6 +306,8 @@ export class WorkoutRepository {
         (input.program && input.program.owner_id !== owner)
       )
         throw new WorkoutError('Ответ другого аккаунта.');
+      // Accept both supported snapshot versions; never upgrade stored outbox payloads.
+      if (input.plans) programFromPlans(owner, input.plans);
       this.mergeWorkouts(data, input.workouts ?? []);
       const { workouts: _, ...metadata } = input;
       Object.assign(data.state, metadata);

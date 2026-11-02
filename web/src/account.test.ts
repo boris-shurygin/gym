@@ -8,6 +8,20 @@ const examples = JSON.parse(
 const view = examples.find((e: { operation: string }) => e.operation === 'get_program').output;
 
 describe('серверный план', () => {
+  it('объявляет поддержку схемы 2, не переписывая тело старой операции', async () => {
+    const operation = { schema_version: 1, command: { type: 'complete_workout' } };
+    const body = JSON.stringify(operation);
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'));
+    try {
+      await api('/api/v1/sync/operations', operation);
+      const options = fetch.mock.calls[0][1];
+      expect(new Headers(options?.headers).get('X-Gym-Schema-Version')).toBe('2');
+      expect(options?.body).toBe(body);
+      expect(operation.schema_version).toBe(1);
+    } finally {
+      fetch.mockRestore();
+    }
+  });
   it('сохраняет Retry-After не-JSON ответа шлюза и не выдаёт его за окончательную квитанцию', async () => {
     const fetch = vi
       .spyOn(globalThis, 'fetch')

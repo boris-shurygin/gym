@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   createSession,
-  grams,
   exerciseSets,
   nextTarget,
   newSetDefaults,
-  volumeRatio,
+  progressRatio,
+  formatResult,
+  formatDuration,
+  parseDuration,
+  exerciseLoadDescription,
+  exerciseSetCounts,
+  nextSide,
   WorkoutError,
   type Command,
   type Exercise,
@@ -13,6 +18,8 @@ import {
   type Session,
   type SetKind,
   type SetResult,
+  type SetValues,
+  type Side,
   type Program,
 } from './model';
 import { WorkoutRepository } from './repository';
@@ -21,6 +28,7 @@ import { programFromPlans } from './sync-model';
 import { SyncCoordinator, type SyncNotice } from './sync';
 import SyncPanel from './SyncPanel';
 import FinishExerciseButton from './ui/FinishExerciseButton';
+import SetInput from './ui/SetInput';
 import Statistics from './Statistics';
 import type { ProgramView } from './account';
 import { recordDiagnostic } from './telemetry';
@@ -35,6 +43,7 @@ type View =
 interface Draft {
   weight: string;
   reps: string;
+  duration: string;
   kind: SetKind;
   revision: number;
 }
@@ -62,24 +71,62 @@ const plural = (value: number, forms: [string, string, string]) =>
           : 2
   ];
 
-function Volume({ set }: { set: SetResult }) {
-  const ratio = volumeRatio(set);
+const sideName = (side: Side) => (side === 'left' ? 'Левая' : side === 'right' ? 'Правая' : '');
+const decimalInput = (text: string) =>
+  /^(?:\d+(?:\.\d{1,3})?|\.\d{1,3})$/.test(text.trim().replace(',', '.'))
+    ? Number(text.trim().replace(',', '.'))
+    : NaN;
+const draftValues = (values: SetValues) => ({
+  weight: String(values.scaleValue ?? values.weightKg ?? ''),
+  reps: String(values.reps ?? ''),
+  duration: values.durationSeconds == null ? '' : formatDuration(values.durationSeconds),
+});
+function progressText(current: Session, exercise: Exercise) {
+  const count = exerciseSetCounts(current, exercise.id);
+  const base =
+    exercise.sides === 'each'
+      ? `${count.pairs} / ${exercise.targets.length} пар · ${count.planned} / ${count.totalPlanned} сторон`
+      : `${count.planned} / ${count.totalPlanned} ${exercise.setStructure === 'myo' ? 'подходов серии' : 'рабочих подходов'}`;
+  return (
+    base +
+    (count.additional
+      ? ` · +${count.additional} дополнительно${exercise.sides === 'each' ? ' (стороны)' : ''}`
+      : '')
+  );
+}
+function Volume({ set, exercise }: { set: SetResult; exercise: Exercise }) {
+  const ratio = progressRatio(set, exercise);
   if (ratio === null)
     return (
       <p className="caption">
         {set.kind === 'warmup'
           ? 'Разминка · вне рабочего плана'
-          : 'Нет положительного планового объёма для сравнения'}
+          : set.comparisonTarget && exercise.load?.kind === 'machine_scale'
+            ? `План: ${formatResult(set.comparisonTarget, exercise)}`
+            : 'Нет положительного планового объёма для сравнения'}
       </p>
     );
   const percent = ratio * 100;
   const target = set.comparisonTarget!;
+  const duration = exercise.measurement === 'duration';
+  const bodyweight = exercise.load?.kind === 'bodyweight';
+  const factor = exercise.load?.kind === 'external' ? exercise.load.implementCount : 1;
+  const metric = (value: typeof target | SetResult) =>
+    duration ? value.durationSeconds! : bodyweight ? value.reps! : value.weightKg! * value.reps! * factor;
+  const display = duration ? formatDuration : format;
+  const unit = duration ? 'мм:сс' : bodyweight ? 'повт.' : 'кг·повт.';
   return (
     <div className="volume">
       <div
         className="volume-track"
         role="progressbar"
-        aria-label="Объём относительно плана"
+        aria-label={
+          duration
+            ? 'Время относительно плана'
+            : bodyweight
+              ? 'Повторения относительно плана'
+              : 'Объём относительно плана'
+        }
         aria-valuemin={0}
         aria-valuemax={Math.max(130, percent)}
         aria-valuenow={percent}
@@ -90,15 +137,13 @@ function Volume({ set }: { set: SetResult }) {
       </div>
       <div className="between caption">
         <span>
-          {format(set.weightKg * set.reps)} / {format(target.weightKg * target.reps)} кг·повт.
+          {display(metric(set))} / {display(metric(target))} {unit}
         </span>
         <strong>
           {percentage.format(percent)}%{percent > 130 ? ' ↑' : ''}
         </strong>
       </div>
-      <p className="caption">
-        План: {format(target.weightKg)} кг × {target.reps} · отметка 100%
-      </p>
+      <p className="caption">План: {formatResult(target, exercise)} · отметка 100%</p>
     </div>
   );
 }
@@ -118,6 +163,7 @@ export default function App({
   const [pending, setPending] = useState(0);
   const [view, setView] = useState<View>({ kind: 'home' });
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  const [selectedSides, setSelectedSides] = useState<Record<string, Side>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
@@ -155,6 +201,7 @@ export default function App({
         setError('');
         setView({ kind: 'home' });
         setDrafts({});
+        setSelectedSides({});
       }
     } catch {
       setError('Не удалось открыть локальные данные. Записи не сбрасывались. Попробуй обновить данные.');
@@ -254,6 +301,12 @@ export default function App({
     };
     try {
       const saved = await repository.commit(command);
+      if (mutation.type === 'addSet' && mutation.values.kind === 'working' && mutation.values.side) {
+        setSelectedSides((previous) => ({
+          ...previous,
+          [`${sessionId}:${mutation.exerciseId}`]: mutation.values.side === 'left' ? 'right' : 'left',
+        }));
+      }
       setSessions((previous) => [saved, ...previous.filter((s) => s.id !== saved.id)]);
       setPending((previous) => previous + 1);
       setDrafts((previous) =>
@@ -303,7 +356,10 @@ export default function App({
 
   function sessionOverview(current: Session) {
     const count = current.sets.filter((s) => !s.deletedAt && s.kind === 'working').length;
-    const plan = current.snapshot.exercises.reduce((sum, exercise) => sum + exercise.targets.length, 0);
+    const counts = current.snapshot.exercises.map((exercise) => exerciseSetCounts(current, exercise.id));
+    const plan = counts.reduce((sum, item) => sum + item.totalPlanned, 0);
+    const planned = counts.reduce((sum, item) => sum + item.planned, 0);
+    const hasSides = current.snapshot.exercises.some((exercise) => exercise.sides === 'each');
     const hasResults = current.sets.some((s) => !s.deletedAt);
     return (
       <>
@@ -336,13 +392,13 @@ export default function App({
         )}
         <section className="card summary">
           <div className="between">
-            <span>Рабочие подходы</span>
+            <span>{hasSides ? 'Рабочие записи · стороны отдельно' : 'Рабочие подходы'}</span>
             <strong>
-              {count} / {plan}
+              {planned} / {plan}
             </strong>
           </div>
           <div className="count-track">
-            <span style={{ width: `${Math.min(100, (count / plan) * 100)}%` }} />
+            <span style={{ width: `${plan ? Math.min(100, (planned / plan) * 100) : 0}%` }} />
           </div>
           <p className="caption">План и фактические результаты сохраняются отдельно</p>
         </section>
@@ -351,25 +407,20 @@ export default function App({
         </div>
         <div className="exercise-list">
           {current.snapshot.exercises.map((exercise, i) => {
-            const done = exerciseSets(current, exercise.id).filter((s) => s.kind === 'working').length;
+            const done = exerciseSetCounts(current, exercise.id);
             return (
               <button
                 key={exercise.id}
                 className="exercise-row"
                 onClick={() => setView({ kind: 'exercise', sessionId: current.id, exerciseId: exercise.id })}
               >
-                <span className={`exercise-number ${done >= exercise.targets.length ? 'done' : ''}`}>
-                  {done >= exercise.targets.length ? '✓' : i + 1}
+                <span className={`exercise-number ${done.planned >= done.totalPlanned ? 'done' : ''}`}>
+                  {done.planned >= done.totalPlanned ? '✓' : i + 1}
                 </span>
                 <span className="grow">
                   <strong>{exercise.name}</strong>
                   <span className="caption block">{exercise.equipment}</span>
-                  <span className="caption block">
-                    {done} / {exercise.targets.length} рабочих
-                    {done > exercise.targets.length
-                      ? ` · +${done - exercise.targets.length} дополнительно`
-                      : ''}
-                  </span>
+                  <span className="caption block">{progressText(current, exercise)}</span>
                 </span>
                 <span className="chevron">›</span>
               </button>
@@ -387,7 +438,7 @@ export default function App({
                 }
               } else if (
                 window.confirm(
-                  `Завершить тренировку? Записано ${count} из ${plan} рабочих подходов. Невыполненные подходы не будут записаны как нули. Результаты можно исправить в истории.`,
+                  `Завершить тренировку? По плану записано ${planned} из ${plan}${hasSides ? ' рабочих записей (стороны отдельно)' : ' рабочих подходов'}.${count > planned ? ` Дополнительно: ${count - planned}.` : ''} Невыполненные подходы не будут записаны как нули. Результаты можно исправить в истории.`,
                 )
               ) {
                 void execute({ type: 'complete' }, current.id, current.revision, { kind: 'history' });
@@ -408,12 +459,13 @@ export default function App({
     const sets = exerciseSets(current, exercise.id);
     const editing = sets.find((s) => s.id === editSetId);
     const removedWhileEditing = Boolean(editSetId && !editing);
-    const next = nextTarget(current, exercise.id);
-    const defaults = newSetDefaults(current, exercise.id, 'working');
-    const key = `${current.id}:${exercise.id}:${editSetId ?? 'new'}`;
+    const sideKey = `${current.id}:${exercise.id}`;
+    const side = editing?.side ?? selectedSides[sideKey] ?? nextSide(current, exercise.id);
+    const next = nextTarget(current, exercise.id, undefined, side);
+    const defaults = newSetDefaults(current, exercise.id, 'working', side);
+    const key = `${sideKey}:${editSetId ?? `new:${side ?? 'single'}`}`;
     const draft = drafts[key] ?? {
-      weight: String(editing?.weightKg ?? defaults.weightKg),
-      reps: String(editing?.reps ?? defaults.reps),
+      ...draftValues(editing ?? defaults),
       kind: editing?.kind ?? 'working',
       revision: current.revision,
     };
@@ -422,9 +474,26 @@ export default function App({
     const goBack: View = { kind: 'session', sessionId: current.id };
     const newSetView: View = { kind: 'exercise', sessionId: current.id, exerciseId: exercise.id };
     const workingCount = sets.filter((s) => s.kind === 'working').length;
-    const weightText = draft.weight.trim().replace(',', '.');
-    const weightNumber = /^(?:\d+(?:\.\d{1,3})?|\.\d{1,3})$/.test(weightText) ? Number(weightText) : NaN;
+    const workingSideCount = sets.filter((s) => s.kind === 'working' && (s.side ?? null) === side).length;
+    const position = next.plannedTargetId
+      ? exercise.targets.findIndex((target) => target.id === next.plannedTargetId) + 1
+      : workingSideCount + 1;
+    const duration = exercise.measurement === 'duration';
+    const scale = exercise.load?.kind === 'machine_scale';
+    const hasLoad = exercise.load?.kind !== 'bodyweight';
+    const loadStep =
+      exercise.load?.kind === 'machine_scale' ? exercise.load.step : (exercise.weightStepKg ?? 1);
+    const weightNumber = decimalInput(draft.weight);
     const repsNumber = /^\d+$/.test(draft.reps.trim()) ? Number(draft.reps) : NaN;
+    const durationNumber = parseDuration(draft.duration) ?? NaN;
+    const loadLabel = scale
+      ? 'Показание шкалы'
+      : exercise.load?.kind === 'external' && exercise.load.weightConvention === 'per_implement_kg'
+        ? 'На один снаряд, кг'
+        : 'Вес, кг';
+    const sameTargetSides = sets.filter(
+      (set) => set.kind === 'working' && next.plannedTargetId && set.plannedTargetId === next.plannedTargetId,
+    ).length;
     return (
       <>
         <button className="back" onClick={() => setView(goBack)}>
@@ -433,12 +502,28 @@ export default function App({
         <p className="eyebrow">{current.snapshot.name}</p>
         <h1>{exercise.name}</h1>
         <p className="subheading">{exercise.equipment}</p>
+        {exercise.measurement && exercise.equipment !== exerciseLoadDescription(exercise) && (
+          <p className="caption">{exerciseLoadDescription(exercise)}</p>
+        )}
         <section className="card plan">
           <span className="eyebrow">План упражнения</span>
-          <strong>{exercise.targets.map((t) => `${format(t.weightKg)} × ${t.reps}`).join(' / ')}</strong>
+          <strong>
+            {exercise.targets.map((target) => formatResult(target, exercise)).join(' / ')}
+            {exercise.sides === 'each' ? ' на каждую сторону' : ''}
+          </strong>
           <p className="caption">
-            Вес в кг · {workingCount} / {exercise.targets.length} рабочих подходов
+            {exercise.measurement
+              ? progressText(current, exercise)
+              : `Вес в кг · ${workingCount} / ${exercise.targets.length} рабочих подходов`}
           </p>
+          {exercise.setStructure === 'myo' && (
+            <p className="caption">
+              Активация + {exercise.targets.length - 1} коротких подхода
+              {exercise.restSeconds
+                ? ` · отдых ${exercise.restSeconds.min}–${exercise.restSeconds.max} с`
+                : ''}
+            </p>
+          )}
         </section>
         {removedWhileEditing && (
           <section className="error" role="alert">
@@ -468,10 +553,17 @@ export default function App({
           className="card editor"
           onSubmit={(event) => {
             event.preventDefault();
-            const values = {
+            const values: SetValues = {
               kind: draft.kind,
-              weightKg: weightNumber,
-              reps: repsNumber,
+              weightKg: hasLoad && !scale ? weightNumber : null,
+              reps: duration ? null : repsNumber,
+              ...(exercise.measurement
+                ? {
+                    side,
+                    scaleValue: scale ? weightNumber : null,
+                    durationSeconds: duration ? durationNumber : null,
+                  }
+                : {}),
             };
             const mutation: Mutation = editSetId
               ? { type: 'editSet', setId: editSetId, values }
@@ -484,7 +576,7 @@ export default function App({
               ? 'Исправление подхода'
               : draft.kind === 'warmup'
                 ? 'Новый разминочный подход'
-                : `Рабочий подход ${workingCount + 1}`}
+                : `Рабочий подход ${exercise.measurement ? position : workingCount + 1}${exercise.setStructure === 'myo' && position === 1 ? ' · активация' : ''}`}
           </h2>
           {!editing && draft.kind === 'working' && !next.plannedTargetId && (
             <p className="caption">Дополнительный · цель последнего планового подхода</p>
@@ -498,15 +590,10 @@ export default function App({
                 aria-pressed={draft.kind === kind}
                 onClick={() => {
                   if (kind === draft.kind) return;
-                  const values = newSetDefaults(current, exercise.id, kind);
+                  const values = newSetDefaults(current, exercise.id, kind, side);
                   update({
                     kind,
-                    ...(!editSetId
-                      ? {
-                          weight: String(values.weightKg),
-                          reps: String(values.reps),
-                        }
-                      : {}),
+                    ...(!editSetId ? draftValues(values) : {}),
                   });
                 }}
               >
@@ -514,96 +601,104 @@ export default function App({
               </button>
             ))}
           </div>
+          {exercise.sides === 'each' && (
+            <div className="side-switch" aria-label="Сторона">
+              {(['left', 'right'] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  disabled={busy || Boolean(editSetId)}
+                  aria-pressed={side === value}
+                  onClick={() => setSelectedSides((previous) => ({ ...previous, [sideKey]: value }))}
+                >
+                  {sideName(value)}
+                </button>
+              ))}
+            </div>
+          )}
+          {!editing && exercise.sides === 'each' && draft.kind === 'working' && next.plannedTargetId && (
+            <p className="caption">
+              {sameTargetSides ? 'Записана 1 из 2 сторон' : 'Обе стороны ещё не записаны'}
+            </p>
+          )}
+          {!editing && exercise.measurement && draft.kind === 'working' && (
+            <p className="caption">
+              Цель: {formatResult(next.target, exercise)}
+              {exercise.sides === 'each' ? ' на эту сторону' : ''}
+            </p>
+          )}
           {!editSetId && draft.kind === 'warmup' && (
             <p className="caption">
-              По умолчанию: 70% рабочего веса и повторения × 1,5, округлённые вверх (до 1000). Значения можно
-              изменить.
+              {duration
+                ? 'Укажи время разминки вручную.'
+                : scale
+                  ? 'Показание шкалы укажи вручную. Повторения × 1,5, округлённые вверх (до 1000).'
+                  : !hasLoad
+                    ? 'Повторения × 1,5, округлённые вверх (до 1000). Значение можно изменить.'
+                    : 'По умолчанию: 70% рабочего веса и повторения × 1,5, округлённые вверх (до 1000). Значения можно изменить.'}
             </p>
           )}
           {!editSetId &&
             draft.kind === 'working' &&
-            (defaults.weightKg !== next.target.weightKg || defaults.reps !== next.target.reps) && (
+            (defaults.weightKg !== next.target.weightKg ||
+              defaults.reps !== next.target.reps ||
+              defaults.durationSeconds !== next.target.durationSeconds ||
+              defaults.scaleValue !== next.target.scaleValue) && (
               <p className="caption">
                 Ввод перенесён из предыдущего рабочего подхода. Сравнение с планом остаётся прежним.
               </p>
             )}
-          <div className="input-row">
-            <div className="input-column">
-              <label>
-                Вес, кг
-                <input
-                  inputMode="decimal"
-                  aria-label="Вес, кг"
-                  disabled={busy}
+          <div className={`input-row ${hasLoad ? '' : 'single'}`}>
+            {hasLoad && (
+              <>
+                <SetInput
+                  label={loadLabel}
                   value={draft.weight}
-                  onChange={(e) => update({ weight: e.target.value })}
-                />
-              </label>
-              <div className="stepper">
-                <button
-                  type="button"
-                  aria-label="Уменьшить вес"
-                  disabled={
-                    !Number.isFinite(weightNumber) ||
-                    weightNumber > 2000 ||
-                    weightNumber < exercise.weightStepKg ||
-                    !/^\d+(\.\d{1,3})?$/.test(String(weightNumber))
-                  }
-                  onClick={() =>
-                    update({ weight: String((grams(weightNumber) - grams(exercise.weightStepKg)) / 1000) })
-                  }
-                >
-                  −
-                </button>
-                <span>{format(exercise.weightStepKg)} кг</span>
-                <button
-                  type="button"
-                  aria-label="Увеличить вес"
-                  disabled={
-                    !Number.isFinite(weightNumber) ||
-                    weightNumber > 2000 - exercise.weightStepKg ||
-                    !/^\d+(\.\d{1,3})?$/.test(String(weightNumber))
-                  }
-                  onClick={() =>
-                    update({ weight: String((grams(weightNumber) + grams(exercise.weightStepKg)) / 1000) })
-                  }
-                >
-                  +
-                </button>
-              </div>
-            </div>
-            <span className="multiply">×</span>
-            <div className="input-column">
-              <label>
-                Повторения
-                <input
-                  inputMode="numeric"
-                  aria-label="Повторения"
+                  onChange={(weight) => update({ weight })}
+                  parsed={weightNumber}
+                  step={loadStep}
+                  unit={`${format(loadStep)}${scale ? ' дел.' : ' кг'}`}
+                  min={0}
+                  max={2000}
                   disabled={busy}
-                  value={draft.reps}
-                  onChange={(e) => update({ reps: e.target.value })}
+                  inputMode="decimal"
+                  decrease={scale ? 'Уменьшить показание' : 'Уменьшить вес'}
+                  increase={scale ? 'Увеличить показание' : 'Увеличить вес'}
                 />
-              </label>
-              <div className="stepper">
-                <button
-                  type="button"
-                  aria-label="Уменьшить повторения"
-                  disabled={!Number.isSafeInteger(repsNumber) || repsNumber <= 1}
-                  onClick={() => update({ reps: String(repsNumber - 1) })}
-                >
-                  −
-                </button>
-                <span>1 повт.</span>
-                <button
-                  type="button"
-                  aria-label="Увеличить повторения"
-                  disabled={!Number.isSafeInteger(repsNumber) || repsNumber >= 1000}
-                  onClick={() => update({ reps: String(repsNumber + 1) })}
-                >
-                  +
-                </button>
-              </div>
-            </div>
+                <span className="multiply">{duration ? '·' : '×'}</span>
+              </>
+            )}
+            {duration ? (
+              <SetInput
+                label="Время, мм:сс"
+                value={draft.duration}
+                onChange={(duration) => update({ duration })}
+                parsed={durationNumber}
+                step={5}
+                unit="5 с"
+                min={1}
+                max={86400}
+                disabled={busy}
+                inputMode="text"
+                print={formatDuration}
+                decrease="Уменьшить время"
+                increase="Увеличить время"
+              />
+            ) : (
+              <SetInput
+                label="Повторения"
+                value={draft.reps}
+                onChange={(reps) => update({ reps })}
+                parsed={repsNumber}
+                step={1}
+                unit="1 повт."
+                min={1}
+                max={1000}
+                disabled={busy}
+                decrease="Уменьшить повторения"
+                increase="Увеличить повторения"
+              />
+            )}
           </div>
           <button className="primary wide" disabled={busy || removedWhileEditing}>
             {busy ? 'Сохраняем…' : editing ? 'Сохранить изменения' : 'Записать подход'}
@@ -633,7 +728,7 @@ export default function App({
                 onClick={() => {
                   if (
                     window.confirm(
-                      `Удалить подход ${format(editing.weightKg)} кг × ${editing.reps}? Остальные результаты останутся.`,
+                      `Удалить подход ${formatResult(editing, exercise)}${editing.side ? ` · ${sideName(editing.side)}` : ''}? Остальные результаты останутся.`,
                     )
                   ) {
                     void execute(
@@ -687,12 +782,18 @@ export default function App({
                 <span>
                   <strong>{index + 1}.</strong>{' '}
                   {set.kind === 'warmup' ? 'Разминка' : set.plannedTargetId ? 'Рабочий' : 'Дополнительный'}
+                  {set.side && <span className="record-context">{sideName(set.side)}</span>}
+                  {exercise.setStructure === 'myo' && set.kind === 'working' && (
+                    <span className="record-context">
+                      {set.plannedTargetId === exercise.targets[0].id ? 'Активация' : 'После активации'}
+                    </span>
+                  )}
                 </span>
                 <strong>
-                  {format(set.weightKg)} кг × {set.reps} <span className="chevron">›</span>
+                  {formatResult(set, exercise)} <span className="chevron">›</span>
                 </strong>
               </div>
-              <Volume set={set} />
+              <Volume set={set} exercise={exercise} />
             </button>
           </article>
         ))}
@@ -722,9 +823,11 @@ export default function App({
             <div className="preview-row" key={exercise.id}>
               <strong>{exercise.name}</strong>
               <span className="caption block">
-                {exercise.targets.length} × {exercise.targets[0].reps} ·{' '}
-                {format(exercise.targets[0].weightKg)} кг
+                {exercise.targets.map((target) => formatResult(target, exercise)).join(' / ')}
+                {exercise.sides === 'each' ? ' на каждую сторону' : ''}
+                {exercise.setStructure === 'myo' ? ' · активация и короткие подходы' : ''}
               </span>
+              <span className="caption block">{exerciseLoadDescription(exercise)}</span>
             </div>
           ))}
         </div>
@@ -768,11 +871,13 @@ export default function App({
             <strong>{current.snapshot.name}</strong>
             <span className="caption">
               {current.sets.filter((s) => !s.deletedAt && s.kind === 'working').length}{' '}
-              {plural(current.sets.filter((s) => !s.deletedAt && s.kind === 'working').length, [
-                'рабочий подход',
-                'рабочих подхода',
-                'рабочих подходов',
-              ])}{' '}
+              {current.snapshot.exercises.some((exercise) => exercise.sides === 'each')
+                ? 'рабочих записей · стороны отдельно'
+                : plural(current.sets.filter((s) => !s.deletedAt && s.kind === 'working').length, [
+                    'рабочий подход',
+                    'рабочих подхода',
+                    'рабочих подходов',
+                  ])}{' '}
               · сохранено на устройстве
             </span>
             <span className="chevron">›</span>
@@ -845,7 +950,10 @@ export default function App({
               <span className="caption block">{template.description}</span>
               <span className="caption block">
                 {template.exercises.length} упражнения ·{' '}
-                {template.exercises.reduce((n, e) => n + e.targets.length, 0)} подходов
+                {template.exercises.reduce((n, e) => n + e.targets.length * (e.sides === 'each' ? 2 : 1), 0)}{' '}
+                {template.exercises.some((exercise) => exercise.sides === 'each')
+                  ? 'записей · стороны отдельно'
+                  : 'подходов'}
               </span>
             </span>
             <span className="chevron">›</span>

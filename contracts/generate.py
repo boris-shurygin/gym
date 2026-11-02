@@ -15,6 +15,7 @@ def read(name):
 
 def bundled(root, definitions):
     result = deepcopy(root)
+    result.setdefault('type', 'object')
     included = {}
 
     def visit(value):
@@ -46,15 +47,18 @@ def external_refs(value):
     return value
 
 
-def input_fields(schema):
+def input_fields(schema, definitions=None):
+    if '$ref' in schema:
+        return input_fields(definitions[schema['$ref'].removeprefix('#/$defs/')], definitions)
     if 'properties' in schema:
         return schema['properties'], schema.get('required', [])
     branches = schema['oneOf']
     fields = {}
-    required = set(branches[0]['required'])
+    required = None
     for branch in branches:
-        fields.update(branch['properties'])
-        required.intersection_update(branch['required'])
+        branch_fields, branch_required = input_fields(branch, definitions)
+        fields.update(branch_fields)
+        required = set(branch_required) if required is None else required.intersection(branch_required)
     return fields, sorted(required)
 
 
@@ -67,7 +71,7 @@ def artifacts():
     for binding in bindings:
         name = binding['operation_id']
         source = deepcopy(definitions[binding['input']])
-        fields, required = input_fields(source)
+        fields, required = input_fields(source, definitions)
         path_fields = re.findall(r'{([^}]+)}', binding['path'])
         parameters = []
         for field in path_fields:
@@ -77,6 +81,10 @@ def artifacts():
                 if field not in path_fields:
                     parameters.append({'name': field, 'in': 'query', 'required': field in required, 'schema': external_refs(schema)})
         cookie = binding['auth'] == 'cookie'
+        if cookie:
+            parameters.append({'name': 'X-Gym-Schema-Version', 'in': 'header', 'required': False,
+                'schema': {'enum': ['1', '2']},
+                'description': 'Передай 2 для представлений программы, снимков и результатов schema 2.'})
         if cookie and binding['method'] != 'get':
             parameters.append({'name': 'Origin', 'in': 'header', 'required': True, 'schema': {'type': 'string', 'format': 'uri'}})
             parameters.append({'name': 'X-CSRF-Token', 'in': 'header', 'required': name != 'auth_logout', 'schema': {'type': 'string', 'minLength': 32, 'maxLength': 256}})
@@ -97,7 +105,7 @@ def artifacts():
         operation = {'operationId': name, 'summary': binding['summary'], 'security': [{'sessionCookie': []}] if cookie else [], 'parameters': parameters, 'responses': responses, 'x-gym-input-schema': 'schema.json#/$defs/' + binding['input'], 'x-gym-error-codes': binding['errors']}
         if name == 'auth_logout':
             operation['security'].append({})
-        if binding['method'] != 'get' and source.get('properties'):
+        if binding['method'] != 'get' and (source.get('properties') or source.get('oneOf')):
             for field in path_fields:
                 source['properties'].pop(field)
                 source['required'].remove(field)

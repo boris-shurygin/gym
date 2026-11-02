@@ -13,7 +13,7 @@ import os
 import time
 
 from jsonschema import ValidationError
-from contracts.validation import validate
+from contracts.validation import requires_schema2, validate
 from api.errors import ServiceError
 from api.auth import Auth, AuthSettings, cookies, SESSION_COOKIE
 from api.programs import Programs
@@ -181,6 +181,10 @@ PROGRAM_OPERATIONS = {'get_profile', 'set_profile', 'get_program', 'propose_chan
 def dispatch(request, route, trace_id):
     auth = application()
     operation = route['operation_id']
+    schema_header = request.headers.get('x-gym-schema-version', '1')
+    if schema_header not in ('1', '2'):
+        raise RequestError()
+    supported_schema_version = int(schema_header)
     token = cookies(request.headers.get('cookie', '')).get(SESSION_COOKIE)
     if auth is None:
         raise RequestError('session_required' if route['auth'] == 'cookie' else 'unavailable')
@@ -225,7 +229,13 @@ def dispatch(request, route, trace_id):
                 raise RequestError()
             value[name] = path_value
     try:
-        if operation == 'submit_operation' and type(value.get('schema_version')) is int and value['schema_version'] != 1:
+        if operation in ANALYTICS_OPERATIONS and request.method == 'GET' and 'schema_version' in value:
+            if value['schema_version'] != '2':
+                raise RequestError()
+            value['schema_version'] = 2
+        if operation == 'submit_operation' and type(value.get('schema_version')) is int and value['schema_version'] not in (1, 2):
+            raise RequestError('upgrade_required')
+        if supported_schema_version < 2 and requires_schema2(value):
             raise RequestError('upgrade_required')
         if operation in {'list_workouts', 'get_changes', 'list_exercises'} and 'limit' in value and request.method == 'GET':
             if not re.fullmatch(r'[0-9]{1,3}', value['limit']):
@@ -252,7 +262,8 @@ def dispatch(request, route, trace_id):
         try:
             service = (Programs(auth) if operation in PROGRAM_OPERATIONS else
                 Analytics(auth) if operation in ANALYTICS_OPERATIONS else Workouts(auth))
-            result = service.execute(operation, token, value)
+            options = {'supported_schema_version': supported_schema_version} if operation not in ANALYTICS_OPERATIONS else {}
+            result = service.execute(operation, token, value, **options)
         except (ValidationError, ValueError):
             raise RequestError('validation_failed') from None
     elif operation in {'list_grants', 'revoke_grant'}:
@@ -264,6 +275,8 @@ def dispatch(request, route, trace_id):
     else:
         raise RequestError('unavailable')
     validate(route['output'], result)
+    if supported_schema_version < 2 and requires_schema2(result):
+        raise RequestError('upgrade_required')
     return _response(route['success_status'], result, trace_id)
 
 

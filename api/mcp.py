@@ -7,7 +7,7 @@ from urllib.parse import parse_qsl
 
 from jsonschema import ValidationError
 from contracts.canonical import parse_request
-from contracts.validation import validate
+from contracts.validation import requires_schema2, validate
 from api.analytics import Analytics, OPERATIONS as ANALYTICS
 from api.auth import AGENT_COOKIE, cookie
 from api.delegation import Delegation, DelegatedAuth, OAuthError
@@ -63,6 +63,10 @@ def handle(request, auth, trace):
         return _response(400, {'error': error.code}, trace)
     if path != '/mcp':
         raise ServiceError('not_found')
+    schema_header = request.headers.get('x-gym-schema-version', '1')
+    if schema_header not in ('1', '2'):
+        raise ServiceError('invalid_request')
+    supported_schema_version = int(schema_header)
     if request.headers.get('origin') not in (None, delegation.origin):
         return _response(403, {'error': 'origin_not_allowed'}, trace)
     header = request.headers.get('authorization', '')
@@ -105,7 +109,7 @@ def handle(request, auth, trace):
     if method == 'initialize':
         return rpc({'protocolVersion': params.get('protocolVersion') if params.get('protocolVersion') in VERSIONS else VERSIONS[-1],
             'capabilities': {'tools': {'listChanged': False}}, 'serverInfo': {'name': 'gym', 'version': '1.0.0'},
-            'instructions': 'Читай факты через инструменты. Публикуй программу только после одобрения в Gym.'})
+            'instructions': 'Читай факты через инструменты. Для модели измерений 2 передавай X-Gym-Schema-Version: 2. Публикуй программу только после одобрения в Gym.'})
     if method == 'ping':
         return rpc({})
     if method == 'tools/list':
@@ -123,10 +127,15 @@ def handle(request, auth, trace):
             raise ServiceError('insufficient_scope')
         value = params.get('arguments', {})
         validate(RULES[operation]['input'], value)
+        if supported_schema_version < 2 and requires_schema2(value):
+            raise ServiceError('upgrade_required')
         service = Programs(delegated) if operation in {'get_program', 'propose_change', 'get_change',
             'replace_change', 'validate_change', 'publish_approved'} else Analytics(delegated) if operation in ANALYTICS else Workouts(delegated)
-        data = service.execute(operation, access, value)
+        options = {'supported_schema_version': supported_schema_version} if operation not in ANALYTICS else {}
+        data = service.execute(operation, access, value, **options)
         validate(RULES[operation]['output'], data)
+        if supported_schema_version < 2 and requires_schema2(data):
+            raise ServiceError('upgrade_required')
         structured = {'ok': True, 'data': data}
         meta = {}
         text = json.dumps(structured, ensure_ascii=False, separators=(',', ':'))

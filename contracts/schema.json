@@ -193,27 +193,14 @@
       "additionalProperties": false
     },
     "ProgramContent": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 120
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ProgramContentV1"
         },
-        "templates": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/Template"
-          },
-          "minItems": 1,
-          "maxItems": 20
+        {
+          "$ref": "#/$defs/ProgramContentV2"
         }
-      },
-      "required": [
-        "name",
-        "templates"
-      ],
-      "additionalProperties": false
+      ]
     },
     "ProgramVersion": {
       "type": "object",
@@ -277,46 +264,14 @@
       "additionalProperties": false
     },
     "PlanSnapshot": {
-      "type": "object",
-      "properties": {
-        "plan_snapshot_id": {
-          "$ref": "#/$defs/Id"
+      "oneOf": [
+        {
+          "$ref": "#/$defs/PlanSnapshotV1"
         },
-        "snapshot_schema_version": {
-          "const": 1
-        },
-        "owner_id": {
-          "$ref": "#/$defs/Id"
-        },
-        "program_version_id": {
-          "$ref": "#/$defs/Id"
-        },
-        "template": {
-          "$ref": "#/$defs/Template"
-        },
-        "calculated_at": {
-          "$ref": "#/$defs/Timestamp"
-        },
-        "history_revision": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 9007199254740991
-        },
-        "calculator_version": {
-          "const": "fixed-v1"
+        {
+          "$ref": "#/$defs/PlanSnapshotV2"
         }
-      },
-      "required": [
-        "plan_snapshot_id",
-        "snapshot_schema_version",
-        "owner_id",
-        "program_version_id",
-        "template",
-        "calculated_at",
-        "history_revision",
-        "calculator_version"
-      ],
-      "additionalProperties": false
+      ]
     },
     "PlanList": {
       "type": "object",
@@ -446,89 +401,12 @@
       ]
     },
     "Workout": {
-      "type": "object",
-      "properties": {
-        "workout_id": {
-          "$ref": "#/$defs/Uuid"
-        },
-        "owner_id": {
-          "$ref": "#/$defs/Id"
-        },
-        "server_revision": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 9007199254740991
-        },
-        "status": {
-          "enum": [
-            "active",
-            "completed",
-            "cancelled"
-          ]
-        },
-        "plan": {
-          "$ref": "#/$defs/PlanSnapshot"
-        },
-        "started_at": {
-          "$ref": "#/$defs/Timestamp"
-        },
-        "completed_at": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Timestamp"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "updated_at": {
-          "$ref": "#/$defs/Timestamp"
-        },
-        "sets": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/SetResult"
-          },
-          "minItems": 0,
-          "maxItems": 2000
-        }
-      },
-      "required": [
-        "workout_id",
-        "owner_id",
-        "server_revision",
-        "status",
-        "plan",
-        "started_at",
-        "completed_at",
-        "updated_at",
-        "sets"
-      ],
-      "additionalProperties": false,
-      "allOf": [
+      "oneOf": [
         {
-          "if": {
-            "properties": {
-              "status": {
-                "const": "completed"
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "completed_at": {
-                "$ref": "#/$defs/Timestamp"
-              }
-            }
-          },
-          "else": {
-            "properties": {
-              "completed_at": {
-                "type": "null"
-              }
-            }
-          }
+          "$ref": "#/$defs/WorkoutV1"
+        },
+        {
+          "$ref": "#/$defs/WorkoutV2"
         }
       ]
     },
@@ -610,36 +488,14 @@
       "additionalProperties": false
     },
     "CatalogEntry": {
-      "type": "object",
-      "properties": {
-        "exercise_id": {
-          "$ref": "#/$defs/Id"
+      "oneOf": [
+        {
+          "$ref": "#/$defs/CatalogEntryV1"
         },
-        "equipment_id": {
-          "$ref": "#/$defs/Id"
-        },
-        "name": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 120
-        },
-        "weight_convention": {
-          "$ref": "#/$defs/WeightConvention"
-        },
-        "weight_step_g": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 2000000
+        {
+          "$ref": "#/$defs/CatalogEntryV2"
         }
-      },
-      "required": [
-        "exercise_id",
-        "equipment_id",
-        "name",
-        "weight_convention",
-        "weight_step_g"
-      ],
-      "additionalProperties": false
+      ]
     },
     "CatalogPage": {
       "type": "object",
@@ -930,126 +786,12 @@
       "additionalProperties": false
     },
     "SyncOperation": {
-      "type": "object",
-      "properties": {
-        "schema_version": {
-          "const": 1
-        },
-        "operation_id": {
-          "$ref": "#/$defs/Uuid"
-        },
-        "expected_owner_id": {
-          "$ref": "#/$defs/Id"
-        },
-        "device_id": {
-          "$ref": "#/$defs/Uuid"
-        },
-        "workout_id": {
-          "$ref": "#/$defs/Uuid"
-        },
-        "precondition": {
-          "$ref": "#/$defs/Precondition"
-        },
-        "client_occurred_at": {
-          "$ref": "#/$defs/Timestamp"
-        },
-        "command": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/StartWorkout"
-            },
-            {
-              "$ref": "#/$defs/AddSet"
-            },
-            {
-              "$ref": "#/$defs/EditSet"
-            },
-            {
-              "$ref": "#/$defs/DeleteSet"
-            },
-            {
-              "$ref": "#/$defs/CompleteWorkout"
-            },
-            {
-              "$ref": "#/$defs/CancelWorkout"
-            }
-          ]
-        }
-      },
-      "required": [
-        "schema_version",
-        "operation_id",
-        "expected_owner_id",
-        "device_id",
-        "workout_id",
-        "precondition",
-        "client_occurred_at",
-        "command"
-      ],
-      "additionalProperties": false,
-      "allOf": [
+      "oneOf": [
         {
-          "if": {
-            "properties": {
-              "command": {
-                "properties": {
-                  "type": {
-                    "const": "start_workout"
-                  }
-                }
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "precondition": {
-                "type": "object",
-                "properties": {
-                  "server_revision": {
-                    "const": 0
-                  }
-                },
-                "required": [
-                  "server_revision"
-                ],
-                "additionalProperties": false
-              }
-            }
-          },
-          "else": {
-            "properties": {
-              "precondition": {
-                "oneOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "server_revision": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 9007199254740991
-                      }
-                    },
-                    "required": [
-                      "server_revision"
-                    ],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "after_operation_id": {
-                        "$ref": "#/$defs/Uuid"
-                      }
-                    },
-                    "required": [
-                      "after_operation_id"
-                    ],
-                    "additionalProperties": false
-                  }
-                ]
-              }
-            }
-          }
+          "$ref": "#/$defs/SyncOperationV1"
+        },
+        {
+          "$ref": "#/$defs/SyncOperationV2"
         }
       ]
     },
@@ -2117,150 +1859,34 @@
       "additionalProperties": false
     },
     "StatsInput": {
-      "type": "object",
-      "properties": {
-        "period_days": {
-          "enum": [
-            7,
-            30,
-            90
-          ]
+      "oneOf": [
+        {
+          "$ref": "#/$defs/StatsInputV1"
         },
-        "timezone": {
-          "$ref": "#/$defs/Timezone"
+        {
+          "$ref": "#/$defs/StatsInputV2"
         }
-      },
-      "required": [],
-      "additionalProperties": false
+      ]
     },
     "SeriesInput": {
-      "type": "object",
-      "properties": {
-        "exercise_id": {
-          "$ref": "#/$defs/Id"
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SeriesInputV1"
         },
-        "equipment_id": {
-          "$ref": "#/$defs/Id"
-        },
-        "weight_convention": {
-          "$ref": "#/$defs/WeightConvention"
-        },
-        "period_days": {
-          "enum": [
-            7,
-            30,
-            90
-          ]
-        },
-        "timezone": {
-          "$ref": "#/$defs/Timezone"
-        },
-        "cursor": {
-          "$ref": "#/$defs/Cursor"
+        {
+          "$ref": "#/$defs/SeriesInputV2"
         }
-      },
-      "required": [
-        "exercise_id",
-        "equipment_id",
-        "weight_convention"
-      ],
-      "additionalProperties": false
+      ]
     },
     "Summary": {
-      "type": "object",
-      "properties": {
-        "history_revision": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 9007199254740991
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SummaryV1"
         },
-        "analytics_version": {
-          "const": "stats-v1"
-        },
-        "freshness": {
-          "enum": [
-            "fresh",
-            "stale",
-            "recalculating"
-          ]
-        },
-        "generated_at": {
-          "$ref": "#/$defs/Timestamp"
-        },
-        "period_days": {
-          "enum": [
-            7,
-            30,
-            90
-          ]
-        },
-        "timezone": {
-          "$ref": "#/$defs/Timezone"
-        },
-        "start_date": {
-          "$ref": "#/$defs/Date"
-        },
-        "end_date_exclusive": {
-          "$ref": "#/$defs/Date"
-        },
-        "complete": {
-          "type": "boolean"
-        },
-        "workout_count": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 9007199254740991
-        },
-        "working_set_count": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 9007199254740991
-        },
-        "rep_count": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 9007199254740991
-        },
-        "activity": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "date": {
-                "$ref": "#/$defs/Date"
-              },
-              "workout_count": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 9007199254740991
-              }
-            },
-            "required": [
-              "date",
-              "workout_count"
-            ],
-            "additionalProperties": false
-          },
-          "minItems": 0,
-          "maxItems": 90
+        {
+          "$ref": "#/$defs/SummaryV2"
         }
-      },
-      "required": [
-        "history_revision",
-        "analytics_version",
-        "freshness",
-        "generated_at",
-        "period_days",
-        "timezone",
-        "start_date",
-        "end_date_exclusive",
-        "complete",
-        "workout_count",
-        "working_set_count",
-        "rep_count",
-        "activity"
-      ],
-      "additionalProperties": false
+      ]
     },
     "SeriesPoint": {
       "type": "object",
@@ -2309,90 +1935,14 @@
       "additionalProperties": false
     },
     "Series": {
-      "type": "object",
-      "properties": {
-        "history_revision": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 9007199254740991
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SeriesV1"
         },
-        "analytics_version": {
-          "const": "stats-v1"
-        },
-        "freshness": {
-          "enum": [
-            "fresh",
-            "stale",
-            "recalculating"
-          ]
-        },
-        "generated_at": {
-          "$ref": "#/$defs/Timestamp"
-        },
-        "period_days": {
-          "enum": [
-            7,
-            30,
-            90
-          ]
-        },
-        "timezone": {
-          "$ref": "#/$defs/Timezone"
-        },
-        "start_date": {
-          "$ref": "#/$defs/Date"
-        },
-        "end_date_exclusive": {
-          "$ref": "#/$defs/Date"
-        },
-        "complete": {
-          "type": "boolean"
-        },
-        "exercise_id": {
-          "$ref": "#/$defs/Id"
-        },
-        "equipment_id": {
-          "$ref": "#/$defs/Id"
-        },
-        "weight_convention": {
-          "$ref": "#/$defs/WeightConvention"
-        },
-        "points": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/SeriesPoint"
-          },
-          "minItems": 0,
-          "maxItems": 100
-        },
-        "next_cursor": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Cursor"
-            },
-            {
-              "type": "null"
-            }
-          ]
+        {
+          "$ref": "#/$defs/SeriesV2"
         }
-      },
-      "required": [
-        "history_revision",
-        "analytics_version",
-        "freshness",
-        "generated_at",
-        "period_days",
-        "timezone",
-        "start_date",
-        "end_date_exclusive",
-        "complete",
-        "exercise_id",
-        "equipment_id",
-        "weight_convention",
-        "points",
-        "next_cursor"
-      ],
-      "additionalProperties": false
+      ]
     },
     "Proposal": {
       "type": "object",
@@ -2755,7 +2305,10 @@
       "type": "object",
       "properties": {
         "yandex_login": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "minLength": 1,
           "maxLength": 256
         },
@@ -3061,6 +2614,1966 @@
         "request_id",
         "expected_owner_id",
         "grant_id"
+      ],
+      "additionalProperties": false
+    },
+    "ProgramContentV1": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "templates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Template"
+          },
+          "minItems": 1,
+          "maxItems": 20
+        }
+      },
+      "required": [
+        "name",
+        "templates"
+      ],
+      "additionalProperties": false
+    },
+    "PlanSnapshotV1": {
+      "type": "object",
+      "properties": {
+        "plan_snapshot_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "snapshot_schema_version": {
+          "const": 1
+        },
+        "owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "program_version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "template": {
+          "$ref": "#/$defs/Template"
+        },
+        "calculated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "history_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "calculator_version": {
+          "const": "fixed-v1"
+        }
+      },
+      "required": [
+        "plan_snapshot_id",
+        "snapshot_schema_version",
+        "owner_id",
+        "program_version_id",
+        "template",
+        "calculated_at",
+        "history_revision",
+        "calculator_version"
+      ],
+      "additionalProperties": false
+    },
+    "WorkoutV1": {
+      "type": "object",
+      "properties": {
+        "workout_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "server_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "status": {
+          "enum": [
+            "active",
+            "completed",
+            "cancelled"
+          ]
+        },
+        "plan": {
+          "$ref": "#/$defs/PlanSnapshotV1"
+        },
+        "started_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "sets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SetResult"
+          },
+          "minItems": 0,
+          "maxItems": 2000
+        }
+      },
+      "required": [
+        "workout_id",
+        "owner_id",
+        "server_revision",
+        "status",
+        "plan",
+        "started_at",
+        "completed_at",
+        "updated_at",
+        "sets"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "completed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "completed_at": {
+                "$ref": "#/$defs/Timestamp"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "completed_at": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "SyncOperationV1": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "expected_owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "device_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "workout_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "precondition": {
+          "$ref": "#/$defs/Precondition"
+        },
+        "client_occurred_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "command": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/StartWorkout"
+            },
+            {
+              "$ref": "#/$defs/AddSet"
+            },
+            {
+              "$ref": "#/$defs/EditSet"
+            },
+            {
+              "$ref": "#/$defs/DeleteSet"
+            },
+            {
+              "$ref": "#/$defs/CompleteWorkout"
+            },
+            {
+              "$ref": "#/$defs/CancelWorkout"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "operation_id",
+        "expected_owner_id",
+        "device_id",
+        "workout_id",
+        "precondition",
+        "client_occurred_at",
+        "command"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "command": {
+                "properties": {
+                  "type": {
+                    "const": "start_workout"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "precondition": {
+                "type": "object",
+                "properties": {
+                  "server_revision": {
+                    "const": 0
+                  }
+                },
+                "required": [
+                  "server_revision"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "precondition": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "server_revision": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "server_revision"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "after_operation_id": {
+                        "$ref": "#/$defs/Uuid"
+                      }
+                    },
+                    "required": [
+                      "after_operation_id"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "CatalogEntryV1": {
+      "type": "object",
+      "properties": {
+        "exercise_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "equipment_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "weight_convention": {
+          "$ref": "#/$defs/WeightConvention"
+        },
+        "weight_step_g": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2000000
+        }
+      },
+      "required": [
+        "exercise_id",
+        "equipment_id",
+        "name",
+        "weight_convention",
+        "weight_step_g"
+      ],
+      "additionalProperties": false
+    },
+    "LoadV2": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "bodyweight"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "external"
+            },
+            "weight_convention": {
+              "$ref": "#/$defs/WeightConvention"
+            },
+            "implement_count": {
+              "enum": [
+                1,
+                2
+              ]
+            },
+            "step_g": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2000000
+            }
+          },
+          "required": [
+            "kind",
+            "weight_convention",
+            "implement_count",
+            "step_g"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "machine_scale"
+            },
+            "step_milli": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2000000
+            }
+          },
+          "required": [
+            "kind",
+            "step_milli"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "RestSecondsV2": {
+      "type": "object",
+      "properties": {
+        "min": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400
+        }
+      },
+      "required": [
+        "min",
+        "max"
+      ],
+      "additionalProperties": false
+    },
+    "TargetV2": {
+      "type": "object",
+      "properties": {
+        "target_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "weight_g": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2000000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "suggested_reps": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rep_min": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rep_max": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scale_milli": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2000000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "duration_seconds": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "target_id",
+        "weight_g",
+        "suggested_reps",
+        "rep_min",
+        "rep_max",
+        "scale_milli",
+        "duration_seconds"
+      ],
+      "additionalProperties": false
+    },
+    "ExerciseV2": {
+      "type": "object",
+      "properties": {
+        "template_exercise_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "exercise_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "equipment_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "rule": {
+          "const": "fixed"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TargetV2"
+          },
+          "minItems": 1,
+          "maxItems": 30
+        },
+        "measurement": {
+          "enum": [
+            "reps",
+            "duration"
+          ]
+        },
+        "load": {
+          "$ref": "#/$defs/LoadV2"
+        },
+        "sides": {
+          "enum": [
+            "single",
+            "each"
+          ]
+        },
+        "set_structure": {
+          "enum": [
+            "straight",
+            "myo"
+          ]
+        },
+        "rest_seconds": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RestSecondsV2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "template_exercise_id",
+        "exercise_id",
+        "equipment_id",
+        "name",
+        "rule",
+        "targets",
+        "measurement",
+        "load",
+        "sides",
+        "set_structure",
+        "rest_seconds"
+      ],
+      "additionalProperties": false
+    },
+    "TemplateV2": {
+      "type": "object",
+      "properties": {
+        "template_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 2000
+        },
+        "exercises": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ExerciseV2"
+          },
+          "minItems": 1,
+          "maxItems": 20
+        }
+      },
+      "required": [
+        "template_id",
+        "name",
+        "description",
+        "exercises"
+      ],
+      "additionalProperties": false
+    },
+    "ProgramContentV2": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "templates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TemplateV2"
+          },
+          "minItems": 1,
+          "maxItems": 20
+        },
+        "content_schema_version": {
+          "const": 2
+        }
+      },
+      "required": [
+        "name",
+        "templates",
+        "content_schema_version"
+      ],
+      "additionalProperties": false
+    },
+    "PlanSnapshotV2": {
+      "type": "object",
+      "properties": {
+        "plan_snapshot_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "snapshot_schema_version": {
+          "const": 2
+        },
+        "owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "program_version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "template": {
+          "$ref": "#/$defs/TemplateV2"
+        },
+        "calculated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "history_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "calculator_version": {
+          "const": "fixed-v2"
+        }
+      },
+      "required": [
+        "plan_snapshot_id",
+        "snapshot_schema_version",
+        "owner_id",
+        "program_version_id",
+        "template",
+        "calculated_at",
+        "history_revision",
+        "calculator_version"
+      ],
+      "additionalProperties": false
+    },
+    "SetResultV2": {
+      "type": "object",
+      "properties": {
+        "set_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "session_exercise_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "deleted_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "enum": [
+            "working",
+            "warmup"
+          ]
+        },
+        "weight_g": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2000000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reps": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "planned_target_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "comparison_target_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scale_milli": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2000000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "duration_seconds": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "side": {
+          "enum": [
+            null,
+            "left",
+            "right"
+          ]
+        }
+      },
+      "required": [
+        "set_id",
+        "session_exercise_id",
+        "deleted_at",
+        "kind",
+        "weight_g",
+        "reps",
+        "planned_target_id",
+        "comparison_target_id",
+        "scale_milli",
+        "duration_seconds",
+        "side"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "warmup"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "planned_target_id": {
+                "type": "null"
+              },
+              "comparison_target_id": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "comparison_target_id": {
+                "$ref": "#/$defs/Id"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "AddSetV2": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "add_set"
+        },
+        "session_exercise_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "set_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "kind": {
+          "enum": [
+            "working",
+            "warmup"
+          ]
+        },
+        "weight_g": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2000000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reps": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "planned_target_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "comparison_target_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scale_milli": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2000000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "duration_seconds": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "side": {
+          "enum": [
+            null,
+            "left",
+            "right"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "session_exercise_id",
+        "set_id",
+        "kind",
+        "weight_g",
+        "reps",
+        "planned_target_id",
+        "comparison_target_id",
+        "scale_milli",
+        "duration_seconds",
+        "side"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "warmup"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "planned_target_id": {
+                "type": "null"
+              },
+              "comparison_target_id": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "comparison_target_id": {
+                "$ref": "#/$defs/Id"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "EditSetV2": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "edit_set"
+        },
+        "set_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "kind": {
+          "enum": [
+            "working",
+            "warmup"
+          ]
+        },
+        "weight_g": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2000000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reps": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "planned_target_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "comparison_target_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scale_milli": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2000000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "duration_seconds": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "side": {
+          "enum": [
+            null,
+            "left",
+            "right"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "set_id",
+        "kind",
+        "weight_g",
+        "reps",
+        "planned_target_id",
+        "comparison_target_id",
+        "scale_milli",
+        "duration_seconds",
+        "side"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "warmup"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "planned_target_id": {
+                "type": "null"
+              },
+              "comparison_target_id": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "comparison_target_id": {
+                "$ref": "#/$defs/Id"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "SyncOperationV2": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "expected_owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "device_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "workout_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "precondition": {
+          "$ref": "#/$defs/Precondition"
+        },
+        "client_occurred_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "command": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/StartWorkout"
+            },
+            {
+              "$ref": "#/$defs/AddSetV2"
+            },
+            {
+              "$ref": "#/$defs/EditSetV2"
+            },
+            {
+              "$ref": "#/$defs/DeleteSet"
+            },
+            {
+              "$ref": "#/$defs/CompleteWorkout"
+            },
+            {
+              "$ref": "#/$defs/CancelWorkout"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "operation_id",
+        "expected_owner_id",
+        "device_id",
+        "workout_id",
+        "precondition",
+        "client_occurred_at",
+        "command"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "command": {
+                "properties": {
+                  "type": {
+                    "const": "start_workout"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "precondition": {
+                "type": "object",
+                "properties": {
+                  "server_revision": {
+                    "const": 0
+                  }
+                },
+                "required": [
+                  "server_revision"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "precondition": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "server_revision": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "server_revision"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "after_operation_id": {
+                        "$ref": "#/$defs/Uuid"
+                      }
+                    },
+                    "required": [
+                      "after_operation_id"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "WorkoutV2": {
+      "type": "object",
+      "properties": {
+        "workout_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "server_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "status": {
+          "enum": [
+            "active",
+            "completed",
+            "cancelled"
+          ]
+        },
+        "plan": {
+          "$ref": "#/$defs/PlanSnapshotV2"
+        },
+        "started_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "sets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SetResultV2"
+          },
+          "minItems": 0,
+          "maxItems": 2000
+        }
+      },
+      "required": [
+        "workout_id",
+        "owner_id",
+        "server_revision",
+        "status",
+        "plan",
+        "started_at",
+        "completed_at",
+        "updated_at",
+        "sets"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "completed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "completed_at": {
+                "$ref": "#/$defs/Timestamp"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "completed_at": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "CatalogEntryV2": {
+      "type": "object",
+      "properties": {
+        "exercise_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "equipment_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "measurement": {
+          "enum": [
+            "reps",
+            "duration"
+          ]
+        },
+        "load": {
+          "$ref": "#/$defs/LoadV2"
+        },
+        "sides": {
+          "enum": [
+            "single",
+            "each"
+          ]
+        },
+        "set_structure": {
+          "enum": [
+            "straight",
+            "myo"
+          ]
+        },
+        "rest_seconds": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RestSecondsV2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "exercise_id",
+        "equipment_id",
+        "name",
+        "measurement",
+        "load",
+        "sides",
+        "set_structure",
+        "rest_seconds"
+      ],
+      "additionalProperties": false
+    },
+    "StatsInputV1": {
+      "type": "object",
+      "properties": {
+        "period_days": {
+          "enum": [
+            7,
+            30,
+            90
+          ]
+        },
+        "timezone": {
+          "$ref": "#/$defs/Timezone"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "SeriesInputV1": {
+      "type": "object",
+      "properties": {
+        "exercise_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "equipment_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "weight_convention": {
+          "$ref": "#/$defs/WeightConvention"
+        },
+        "period_days": {
+          "enum": [
+            7,
+            30,
+            90
+          ]
+        },
+        "timezone": {
+          "$ref": "#/$defs/Timezone"
+        },
+        "cursor": {
+          "$ref": "#/$defs/Cursor"
+        }
+      },
+      "required": [
+        "exercise_id",
+        "equipment_id",
+        "weight_convention"
+      ],
+      "additionalProperties": false
+    },
+    "SummaryV1": {
+      "type": "object",
+      "properties": {
+        "history_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "analytics_version": {
+          "const": "stats-v1"
+        },
+        "freshness": {
+          "enum": [
+            "fresh",
+            "stale",
+            "recalculating"
+          ]
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "period_days": {
+          "enum": [
+            7,
+            30,
+            90
+          ]
+        },
+        "timezone": {
+          "$ref": "#/$defs/Timezone"
+        },
+        "start_date": {
+          "$ref": "#/$defs/Date"
+        },
+        "end_date_exclusive": {
+          "$ref": "#/$defs/Date"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "workout_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "working_set_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "rep_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "activity": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "$ref": "#/$defs/Date"
+              },
+              "workout_count": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "date",
+              "workout_count"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0,
+          "maxItems": 90
+        }
+      },
+      "required": [
+        "history_revision",
+        "analytics_version",
+        "freshness",
+        "generated_at",
+        "period_days",
+        "timezone",
+        "start_date",
+        "end_date_exclusive",
+        "complete",
+        "workout_count",
+        "working_set_count",
+        "rep_count",
+        "activity"
+      ],
+      "additionalProperties": false
+    },
+    "SeriesV1": {
+      "type": "object",
+      "properties": {
+        "history_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "analytics_version": {
+          "const": "stats-v1"
+        },
+        "freshness": {
+          "enum": [
+            "fresh",
+            "stale",
+            "recalculating"
+          ]
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "period_days": {
+          "enum": [
+            7,
+            30,
+            90
+          ]
+        },
+        "timezone": {
+          "$ref": "#/$defs/Timezone"
+        },
+        "start_date": {
+          "$ref": "#/$defs/Date"
+        },
+        "end_date_exclusive": {
+          "$ref": "#/$defs/Date"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "exercise_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "equipment_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "weight_convention": {
+          "$ref": "#/$defs/WeightConvention"
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SeriesPoint"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "history_revision",
+        "analytics_version",
+        "freshness",
+        "generated_at",
+        "period_days",
+        "timezone",
+        "start_date",
+        "end_date_exclusive",
+        "complete",
+        "exercise_id",
+        "equipment_id",
+        "weight_convention",
+        "points",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    },
+    "StatsInputV2": {
+      "type": "object",
+      "properties": {
+        "period_days": {
+          "enum": [
+            7,
+            30,
+            90
+          ]
+        },
+        "timezone": {
+          "$ref": "#/$defs/Timezone"
+        },
+        "schema_version": {
+          "const": 2
+        }
+      },
+      "required": [
+        "schema_version"
+      ],
+      "additionalProperties": false
+    },
+    "SeriesInputV2": {
+      "type": "object",
+      "properties": {
+        "period_days": {
+          "enum": [
+            7,
+            30,
+            90
+          ]
+        },
+        "timezone": {
+          "$ref": "#/$defs/Timezone"
+        },
+        "schema_version": {
+          "const": 2
+        },
+        "exercise_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "equipment_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "series_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 180,
+          "pattern": "^v[12]\\|[a-z0-9_|]+$"
+        },
+        "cursor": {
+          "$ref": "#/$defs/Cursor"
+        }
+      },
+      "required": [
+        "schema_version",
+        "exercise_id",
+        "equipment_id",
+        "series_key"
+      ],
+      "additionalProperties": false
+    },
+    "SummaryV2": {
+      "type": "object",
+      "properties": {
+        "history_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "analytics_version": {
+          "const": "stats-v2"
+        },
+        "freshness": {
+          "enum": [
+            "fresh",
+            "stale",
+            "recalculating"
+          ]
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "period_days": {
+          "enum": [
+            7,
+            30,
+            90
+          ]
+        },
+        "timezone": {
+          "$ref": "#/$defs/Timezone"
+        },
+        "start_date": {
+          "$ref": "#/$defs/Date"
+        },
+        "end_date_exclusive": {
+          "$ref": "#/$defs/Date"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "workout_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "rep_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "activity": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "$ref": "#/$defs/Date"
+              },
+              "workout_count": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "date",
+              "workout_count"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0,
+          "maxItems": 90
+        },
+        "working_result_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ordinary_set_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "side_result_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "myo_series_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "myo_component_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "duration_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "history_revision",
+        "analytics_version",
+        "freshness",
+        "generated_at",
+        "period_days",
+        "timezone",
+        "start_date",
+        "end_date_exclusive",
+        "complete",
+        "workout_count",
+        "rep_count",
+        "activity",
+        "working_result_count",
+        "ordinary_set_count",
+        "side_result_count",
+        "myo_series_count",
+        "myo_component_count",
+        "duration_seconds"
+      ],
+      "additionalProperties": false
+    },
+    "SeriesPointV2": {
+      "type": "object",
+      "properties": {
+        "workout_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "started_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "working_result_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "ordinary_set_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "side_result_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "myo_series_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "myo_component_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "duration_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "rep_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "max_weight_g": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2000000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max_weight_reps": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "volume_g_reps": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max_scale_milli": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2000000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "workout_id",
+        "started_at",
+        "working_result_count",
+        "ordinary_set_count",
+        "side_result_count",
+        "myo_series_count",
+        "myo_component_count",
+        "duration_seconds",
+        "rep_count",
+        "max_weight_g",
+        "max_weight_reps",
+        "volume_g_reps",
+        "max_scale_milli"
+      ],
+      "additionalProperties": false
+    },
+    "SeriesV2": {
+      "type": "object",
+      "properties": {
+        "history_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "analytics_version": {
+          "const": "stats-v2"
+        },
+        "freshness": {
+          "enum": [
+            "fresh",
+            "stale",
+            "recalculating"
+          ]
+        },
+        "generated_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "period_days": {
+          "enum": [
+            7,
+            30,
+            90
+          ]
+        },
+        "timezone": {
+          "$ref": "#/$defs/Timezone"
+        },
+        "start_date": {
+          "$ref": "#/$defs/Date"
+        },
+        "end_date_exclusive": {
+          "$ref": "#/$defs/Date"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "exercise_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "equipment_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SeriesPointV2"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "series_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 180,
+          "pattern": "^v[12]\\|[a-z0-9_|]+$"
+        }
+      },
+      "required": [
+        "history_revision",
+        "analytics_version",
+        "freshness",
+        "generated_at",
+        "period_days",
+        "timezone",
+        "start_date",
+        "end_date_exclusive",
+        "complete",
+        "exercise_id",
+        "equipment_id",
+        "points",
+        "next_cursor",
+        "series_key"
       ],
       "additionalProperties": false
     }

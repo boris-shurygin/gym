@@ -6,7 +6,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from contracts.canonical import fingerprint
-from contracts.validation import validate
+from contracts.validation import requires_schema2, validate
 from api.auth import timestamp
 from api.errors import ServiceError
 from api.sync_state import append_event
@@ -19,7 +19,7 @@ class Programs:
     def __init__(self, auth):
         self.auth, self.store = auth, auth.store
 
-    def execute(self, operation, token, value):
+    def execute(self, operation, token, value, *, supported_schema_version=2):
         rule = RULES.get(operation)
         if not rule:
             raise ServiceError('unavailable')
@@ -98,6 +98,8 @@ class Programs:
         def checked(db):
             result = perform(db)
             validate(rule['output'], result)
+            if supported_schema_version < 2 and requires_schema2(result):
+                raise ServiceError('upgrade_required')
             return result
         return self.store.run(checked)
 

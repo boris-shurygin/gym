@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { rebase, sessionFromWorkout, type RebaseResult, type Workout } from './sync-model';
 import { unresolved, type LocalData, WorkoutRepository } from './repository';
-import type { Session } from './model';
+import { formatResult, type Session } from './model';
 import type { SyncCoordinator, SyncNotice } from './sync';
 
 function Results({ session }: { session: Session }) {
@@ -19,24 +19,24 @@ function Results({ session }: { session: Session }) {
       )}
       {session.sets
         .filter((s) => !s.deletedAt)
-        .map((set) => (
-          <p key={set.id}>
-            {session.snapshot.exercises.find((e) => e.id === set.exerciseId)?.name}:{' '}
-            <strong>
-              {set.weightKg} кг × {set.reps}
-            </strong>
-            <span className="caption block">
-              {set.kind === 'warmup'
-                ? 'Разминка'
-                : set.plannedTargetId
-                  ? 'Плановый рабочий'
-                  : 'Дополнительный'}
-              {set.comparisonTarget
-                ? ` · цель ${set.comparisonTarget.weightKg} кг × ${set.comparisonTarget.reps}`
-                : ''}
-            </span>
-          </p>
-        ))}
+        .map((set) => {
+          const exercise = session.snapshot.exercises.find((e) => e.id === set.exerciseId);
+          return (
+            <p key={set.id}>
+              {exercise?.name}
+              {set.side ? (set.side === 'left' ? ' · левая' : ' · правая') : ''}:{' '}
+              <strong>{formatResult(set, exercise)}</strong>
+              <span className="caption block">
+                {set.kind === 'warmup'
+                  ? 'Разминка'
+                  : set.plannedTargetId
+                    ? 'Плановый рабочий'
+                    : 'Дополнительный'}
+                {set.comparisonTarget ? ` · цель ${formatResult(set.comparisonTarget, exercise)}` : ''}
+              </span>
+            </p>
+          );
+        })}
       {!session.sets.some((s) => !s.deletedAt) && <p>Без подходов</p>}
     </div>
   );

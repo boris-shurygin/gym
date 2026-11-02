@@ -9,7 +9,7 @@ from api.errors import ServiceError
 from api.programs import RULES
 from api.sync_state import MAX_INTEGER, append_event, metadata
 from contracts.canonical import canonical_bytes, fingerprint
-from contracts.validation import validate
+from contracts.validation import requires_schema2, validate, validate_values_v2
 
 OPERATIONS = {'list_exercises', 'list_plans', 'get_plan', 'list_workouts', 'get_workout',
     'submit_operation', 'get_receipt', 'get_changes', 'bootstrap'}
@@ -33,10 +33,10 @@ class Workouts:
     def __init__(self, auth):
         self.auth, self.store = auth, auth.store
 
-    def execute(self, operation, token, value):
+    def execute(self, operation, token, value, *, supported_schema_version=2):
         if operation not in OPERATIONS:
             raise ServiceError('unavailable')
-        if operation == 'submit_operation' and type(value.get('schema_version')) is int and value['schema_version'] != 1:
+        if operation == 'submit_operation' and type(value.get('schema_version')) is int and value['schema_version'] not in (1, 2):
             raise ServiceError('upgrade_required')
         validate(RULES[operation]['input'], value)
         def perform(db):
@@ -57,9 +57,13 @@ class Workouts:
                     catalog = {}
                     for template in version['content']['templates'] if version else []:
                         for exercise in template['exercises']:
-                            entry = {key: exercise[key] for key in ('exercise_id', 'equipment_id', 'name',
-                                'weight_convention', 'weight_step_g')}
-                            catalog[tuple(entry[key] for key in ('exercise_id', 'equipment_id', 'weight_convention'))] = entry
+                            version2 = version['content'].get('content_schema_version') == 2
+                            fields = ('measurement', 'load', 'sides', 'set_structure', 'rest_seconds') if version2 else ('weight_convention', 'weight_step_g')
+                            entry = {key: exercise[key] for key in ('exercise_id', 'equipment_id', 'name', *fields)}
+                            # Метаданные измерения и структуры — часть сопоставимости.
+                            identity = (canonical_bytes({key: value for key, value in entry.items() if key != 'name'})
+                                if version2 else tuple(entry[key] for key in ('exercise_id', 'equipment_id', 'weight_convention')))
+                            catalog[identity] = entry
                     items, offset = list(catalog.values()), 0
                     manifest = self._manifest(db, owner, 'catalog', items, now, options={'limit': limit}) if len(items) > limit else None
                 end = min(len(items), offset + limit)
@@ -82,6 +86,8 @@ class Workouts:
                 result = self._history(db, owner, value, now)
             if '_failure' not in result:
                 validate(RULES[operation]['output'], result)
+                if supported_schema_version < 2 and requires_schema2(result):
+                    raise ServiceError('upgrade_required')
             return result
         result = self.store.run(perform)
         # Окончательный отказ также должен успешно закоммитить квитанцию.
@@ -106,10 +112,11 @@ class Workouts:
             items = []
             for template in version['content']['templates'] if version else []:
                 plan_id = 'plan_' + uuid4().hex
-                plan = {'plan_snapshot_id': plan_id, 'snapshot_schema_version': 1, 'owner_id': owner,
+                schema_version = version['content'].get('content_schema_version', 1)
+                plan = {'plan_snapshot_id': plan_id, 'snapshot_schema_version': schema_version, 'owner_id': owner,
                     'program_version_id': current, 'template': copy.deepcopy(template),
                     'calculated_at': timestamp(now), 'history_revision': state['history_revision'],
-                    'calculator_version': 'fixed-v1'}
+                    'calculator_version': 'fixed-v' + str(schema_version)}
                 validate('PlanSnapshot', plan)
                 db.put('workout_records', owner, 'plan:' + plan_id, plan)
                 items.append(plan_id)
@@ -194,10 +201,14 @@ class Workouts:
             plan = db.get('workout_records', owner, 'plan:' + command['plan_snapshot_id'])
             if plan is None:
                 return reject('snapshot_unavailable')
+            if operation['schema_version'] != plan['snapshot_schema_version']:
+                return reject('validation_failed')
             workout = {'workout_id': workout_id, 'owner_id': owner, 'server_revision': 1,
                 'status': 'active', 'plan': plan, 'started_at': operation['client_occurred_at'],
                 'completed_at': None, 'updated_at': timestamp(now), 'sets': []}
         else:
+            if operation['schema_version'] != workout['plan']['snapshot_schema_version']:
+                return reject('validation_failed')
             if observed >= MAX_INTEGER:
                 return reject('validation_failed')
             workout = copy.deepcopy(workout)
@@ -251,13 +262,22 @@ class Workouts:
             if e['template_exercise_id'] == exercise_id), None)
         if exercise is None:
             return False
+        version2 = workout['plan']['snapshot_schema_version'] == 2
+        if version2:
+            try:
+                validate_values_v2(exercise, command)
+            except (KeyError, ValueError):
+                return False
+            if old and old['side'] != command['side']:
+                return False
         if old and old['kind'] == command['kind']:
             return (old['planned_target_id'], old['comparison_target_id']) == (
                 command['planned_target_id'], command['comparison_target_id'])
         if command['kind'] == 'warmup':
             return command['planned_target_id'] is None and command['comparison_target_id'] is None
         occupied = {s['planned_target_id'] for s in workout['sets'] if s is not old
-            and s['session_exercise_id'] == exercise_id and s['deleted_at'] is None and s['kind'] == 'working'}
+            and s['session_exercise_id'] == exercise_id and s['deleted_at'] is None and s['kind'] == 'working'
+            and (not version2 or s['side'] == command['side'])}
         first = next((t['target_id'] for t in exercise['targets'] if t['target_id'] not in occupied), None)
         comparison = first if first is not None else exercise['targets'][-1]['target_id']
         return (command['planned_target_id'], command['comparison_target_id']) == (first, comparison)

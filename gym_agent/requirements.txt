@@ -1,0 +1,1 @@
+SecretStorage>=3.3,<4; sys_platform == "linux"

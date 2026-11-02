@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { api, type ProgramView, type SessionInfo, weightDescription } from './account';
+import { api, type ProgramView, type SessionInfo, weightDescription, exerciseFromContent } from './account';
+import { exerciseLoadDescription } from './model';
 import {
   exerciseSeries,
   loadReport,
   savedReport,
   seriesKey,
   activityPoints,
+  exerciseOptions,
   type ExerciseKey,
   type HistoryPage,
   type Series,
@@ -122,7 +124,11 @@ export default function Statistics({
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState('');
   const [seriesPath, setSeriesPath] = useState('');
-  const criteria = new URLSearchParams({ period_days: String(period), timezone }).toString();
+  const criteria = new URLSearchParams({
+    schema_version: '2',
+    period_days: String(period),
+    timezone,
+  }).toString();
   const summaryPath = '/api/v1/stats/summary?' + criteria;
   const historyPath = '/api/v1/workouts?limit=20';
   const catalog = new Map<string, ExerciseKey>();
@@ -130,7 +136,8 @@ export default function Statistics({
     ...(program?.version?.content.templates ?? []),
     ...(history?.items ?? []).map((w) => w.plan.template),
   ])
-    for (const e of template.exercises) catalog.set(seriesKey(e), e);
+    for (const e of template.exercises)
+      for (const option of exerciseOptions(e)) catalog.set(seriesKey(option), option);
   const options = [...catalog.entries()];
 
   useEffect(() => {
@@ -336,7 +343,10 @@ export default function Statistics({
           <div className="stats-totals">
             {[
               [summary.workout_count, 'тренировок'],
-              [summary.working_set_count, 'рабочих подходов'],
+              [
+                summary.working_result_count ?? summary.working_set_count,
+                summary.analytics_version === 'stats-v2' ? 'рабочих записей' : 'рабочих подходов',
+              ],
               [summary.rep_count, 'повторений'],
             ].map(([value, label]) => (
               <div className="card" key={label}>
@@ -345,6 +355,13 @@ export default function Statistics({
               </div>
             ))}
           </div>
+          {summary.analytics_version === 'stats-v2' && (
+            <p className="caption">
+              Обычные подходы: {summary.ordinary_set_count} · результаты сторон: {summary.side_result_count}
+              {' · '}серии миоповторений: {summary.myo_series_count} ({summary.myo_component_count} записей)
+              {' · '}удержания: {summary.duration_seconds} с
+            </p>
+          )}
           <LineChart label="Тренировки по дням" unit="занятий" points={activityPoints(summary)} />
         </>
       ) : (
@@ -369,7 +386,8 @@ export default function Statistics({
               {options.map(([key, e]) => (
                 <option value={key} key={key}>
                   {e.name} · {e.equipment_id} ·{' '}
-                  {weightDescription(e.weight_convention as Parameters<typeof weightDescription>[0])}
+                  {e.description ??
+                    weightDescription(e.weight_convention as Parameters<typeof weightDescription>[0])}
                 </option>
               ))}
             </select>
@@ -379,7 +397,7 @@ export default function Statistics({
             onClick={() => {
               const e = catalog.get(selected || options[0][0])!;
               setSeriesPath(
-                `/api/v1/stats/exercises/${encodeURIComponent(e.exercise_id)}?${criteria}&equipment_id=${encodeURIComponent(e.equipment_id)}&weight_convention=${e.weight_convention}`,
+                `/api/v1/stats/exercises/${encodeURIComponent(e.exercise_id)}?${criteria}&equipment_id=${encodeURIComponent(e.equipment_id)}&series_key=${encodeURIComponent(e.series_key ?? 'v1|' + e.weight_convention)}`,
               );
             }}
           >
@@ -396,22 +414,59 @@ export default function Statistics({
               : 'сохранённые данные, проверь актуальность'}{' '}
             · ревизия {series.history_revision} · разминка исключена
           </p>
-          <LineChart
-            label="Наибольший рабочий вес"
-            timezone={series.timezone}
-            unit="кг"
-            points={series.points.map((p) => ({
-              date: p.started_at,
-              value: p.max_weight_g / 1000,
-              note: `× ${p.max_weight_reps} повт.`,
-            }))}
-          />
-          <LineChart
-            label="Рабочий объём упражнения"
-            timezone={series.timezone}
-            unit="кг·повт."
-            points={series.points.map((p) => ({ date: p.started_at, value: p.volume_g_reps / 1000 }))}
-          />
+          {series.points.some((p) => p.max_weight_g !== null) && (
+            <LineChart
+              label="Наибольший рабочий вес"
+              timezone={series.timezone}
+              unit="кг"
+              points={series.points
+                .filter((p) => p.max_weight_g !== null)
+                .map((p) => ({
+                  date: p.started_at,
+                  value: p.max_weight_g! / 1000,
+                  note: p.max_weight_reps === null ? undefined : `× ${p.max_weight_reps} повт.`,
+                }))}
+            />
+          )}
+          {series.points.some((p) => p.volume_g_reps !== null) && (
+            <LineChart
+              label="Рабочий объём упражнения"
+              timezone={series.timezone}
+              unit="кг·повт."
+              points={series.points
+                .filter((p) => p.volume_g_reps !== null)
+                .map((p) => ({ date: p.started_at, value: p.volume_g_reps! / 1000 }))}
+            />
+          )}
+          {series.analytics_version === 'stats-v2' &&
+            series.points.some((p) => (p.duration_seconds ?? 0) > 0) && (
+              <LineChart
+                label="Длительность"
+                timezone={series.timezone}
+                unit="с"
+                points={series.points.map((p) => ({ date: p.started_at, value: p.duration_seconds ?? 0 }))}
+              />
+            )}
+          {series.analytics_version === 'stats-v2' &&
+            series.points.some((p) => p.max_scale_milli != null) && (
+              <LineChart
+                label="Наибольшая отметка шкалы"
+                timezone={series.timezone}
+                unit="по шкале"
+                points={series.points
+                  .filter((p) => p.max_scale_milli != null)
+                  .map((p) => ({ date: p.started_at, value: p.max_scale_milli! / 1000 }))}
+              />
+            )}
+          {series.analytics_version === 'stats-v2' &&
+            series.points.some((p) => p.volume_g_reps === null && (p.rep_count ?? 0) > 0) && (
+              <LineChart
+                label="Повторения"
+                timezone={series.timezone}
+                unit="повт."
+                points={series.points.map((p) => ({ date: p.started_at, value: p.rep_count ?? 0 }))}
+              />
+            )}
         </>
       )}
       <h3>История на сервере</h3>
@@ -433,12 +488,22 @@ export default function Statistics({
           {workout.plan.template.exercises.map((e) => (
             <div key={e.template_exercise_id}>
               <h4>{e.name}</h4>
+              {'measurement' in e && (
+                <p className="caption">{exerciseLoadDescription(exerciseFromContent(e))}</p>
+              )}
               {workout.sets
                 .filter((s) => s.session_exercise_id === e.template_exercise_id && !s.deleted_at)
                 .map((s) => (
                   <p key={s.set_id}>
-                    {s.kind === 'warmup' ? 'Разминка' : 'Рабочий'}: {number.format(s.weight_g / 1000)} кг ×{' '}
-                    {s.reps}
+                    {s.kind === 'warmup' ? 'Разминка' : 'Рабочий'}
+                    {'side' in s && s.side ? (s.side === 'left' ? ' · левая' : ' · правая') : ''}:{' '}
+                    {'duration_seconds' in s && s.duration_seconds != null
+                      ? `${s.weight_g != null ? `${number.format(s.weight_g / 1000)} кг · ` : s.scale_milli != null ? `Шкала ${number.format(s.scale_milli / 1000)} · ` : ''}${Math.floor(s.duration_seconds / 60)}:${String(s.duration_seconds % 60).padStart(2, '0')}`
+                      : 'scale_milli' in s && s.scale_milli != null
+                        ? `Шкала ${number.format(s.scale_milli / 1000)} × ${s.reps}`
+                        : s.weight_g == null
+                          ? `Свой вес · ${s.reps} повт.`
+                          : `${number.format(s.weight_g / 1000)} кг${'load' in e && e.load.kind === 'external' && e.load.implement_count === 2 ? ' на снаряд' : ''} × ${s.reps}`}
                   </p>
                 ))}
             </div>

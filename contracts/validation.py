@@ -37,6 +37,36 @@ def _unique(items, key):
         raise ValueError(f'Повторяется {key}')
 
 
+def requires_schema2(value):
+    """Определи наличие нового представления, не преобразуя сохранённый документ."""
+    if isinstance(value, list):
+        return any(requires_schema2(item) for item in value)
+    if not isinstance(value, dict):
+        return False
+    return (value.get('content_schema_version') == 2
+        or value.get('snapshot_schema_version') == 2
+        or value.get('schema_version') == 2
+        or value.get('analytics_version') == 'stats-v2'
+        or {'measurement', 'load', 'set_structure'} <= value.keys()
+        or any(requires_schema2(item) for item in value.values()))
+
+
+def validate_values_v2(exercise, value, *, target=False):
+    """Проверь единицы и сторону факта по неизменяемым метаданным упражнения."""
+    repetition = 'suggested_reps' if target else 'reps'
+    if exercise['measurement'] == 'reps':
+        if value[repetition] is None or value['duration_seconds'] is not None:
+            raise ValueError('Ожидаются повторения, а не длительность')
+    elif value[repetition] is not None or value['duration_seconds'] is None:
+        raise ValueError('Ожидается длительность, а не повторения')
+    load = exercise['load']['kind']
+    if ((value['weight_g'] is not None) != (load == 'external')
+            or (value['scale_milli'] is not None) != (load == 'machine_scale')):
+        raise ValueError('Значения нагрузки не соответствуют её виду')
+    if not target and ((value['side'] is None) != (exercise['sides'] == 'single')):
+        raise ValueError('Сторона результата не соответствует упражнению')
+
+
 def _semantics(value):
     if isinstance(value, list):
         for item in value:
@@ -44,8 +74,22 @@ def _semantics(value):
     elif isinstance(value, dict):
         if {'target_id','suggested_reps','rep_min','rep_max'} <= value.keys():
             lo, hi = value['rep_min'], value['rep_max']
-            if (lo is None) != (hi is None) or lo is not None and not lo <= value['suggested_reps'] <= hi:
+            reps = value['suggested_reps']
+            if ((lo is None) != (hi is None)
+                    or lo is not None and (reps is None or not lo <= reps <= hi)):
                 raise ValueError('Рекомендуемые повторения вне полного диапазона')
+        if {'measurement', 'load', 'set_structure'} <= value.keys():
+            load = value['load']
+            if load['kind'] == 'external' and load['weight_convention'] != 'per_implement_kg' and load['implement_count'] != 1:
+                raise ValueError('Множитель снарядов применим только к весу одного снаряда')
+            rest = value['rest_seconds']
+            if rest is not None and rest['min'] > rest['max']:
+                raise ValueError('Неверный диапазон отдыха')
+            if value['set_structure'] == 'myo' and (value['measurement'] != 'reps'
+                    or 'targets' in value and len(value['targets']) < 2):
+                raise ValueError('Миосерия содержит активацию и короткий подход с повторениями')
+            for target in value.get('targets', []):
+                validate_values_v2(value, target, target=True)
         for field, key in [('templates','template_id'),('exercises','template_exercise_id'),('targets','target_id'),('sets','set_id')]:
             if field in value:
                 _unique(value[field], key)
@@ -61,6 +105,9 @@ def _semantics(value):
                 exercise = exercises.get(result['session_exercise_id'])
                 if exercise is None:
                     raise ValueError('Упражнения нет в снимке')
+                version2 = value['plan']['snapshot_schema_version'] == 2
+                if version2:
+                    validate_values_v2(exercise, result)
                 targets = exercise['targets']
                 ids = {t['target_id'] for t in targets}
                 if result['kind'] == 'working':
@@ -69,7 +116,7 @@ def _semantics(value):
                         raise ValueError('Плановой позиции нет в снимке')
                     if target is None and result['comparison_target_id'] != targets[-1]['target_id']:
                         raise ValueError('Дополнительный подход сравнивается с последней целью')
-                    key = (result['session_exercise_id'], target)
+                    key = (result['session_exercise_id'], target, result.get('side'))
                     if target is not None and result['deleted_at'] is None:
                         if key in occupied:
                             raise ValueError('Плановая позиция занята дважды')
