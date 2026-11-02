@@ -115,8 +115,20 @@ test('одобрение v2, offline-запись сторон и синхрон
   await context.setOffline(true);
   await page.getByRole('textbox', { name: 'Время, мм:сс' }).fill('0:31');
   await page.getByRole('button', { name: 'Записать подход', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Редактировать подход 1', exact: true })).toContainText(
+    '0:31',
+  );
+  await expect(page.getByRole('button', { name: 'Правая', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await page.getByRole('textbox', { name: 'Время, мм:сс' }).fill('0:27');
   await page.getByRole('button', { name: 'Записать подход', exact: true }).click();
+  // click() does not await the async handler; App renders this record only after
+  // the IndexedDB transaction commits. Wait for that acknowledgement before reload.
+  await expect(page.getByRole('button', { name: 'Редактировать подход 2', exact: true })).toContainText(
+    '0:27',
+  );
   await page.reload();
   await page.getByRole('button', { name: 'Продолжить тренировку' }).click();
   await page.getByRole('button', { name: /Боковая планка/ }).click();
