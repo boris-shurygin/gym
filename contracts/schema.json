@@ -2545,11 +2545,12 @@
               "history:read",
               "stats:read",
               "program:draft",
-              "program:publish"
+              "program:publish",
+              "program:publish_direct"
             ]
           },
           "minItems": 1,
-          "maxItems": 5,
+          "maxItems": 6,
           "uniqueItems": true
         },
         "created_at": {
@@ -4574,6 +4575,102 @@
         "points",
         "next_cursor",
         "series_key"
+      ],
+      "additionalProperties": false
+    },
+    "DirectPublishInput": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "expected_owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "change_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "base_program_version_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "content_digest": {
+          "$ref": "#/$defs/Digest"
+        }
+      },
+      "required": [
+        "request_id",
+        "expected_owner_id",
+        "change_id",
+        "expected_revision",
+        "base_program_version_id",
+        "content_digest"
+      ],
+      "additionalProperties": false
+    },
+    "DelegatedPublication": {
+      "type": "object",
+      "properties": {
+        "change_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "change_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "content_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "program_version": {
+          "$ref": "#/$defs/ProgramVersion"
+        },
+        "published_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "authorization": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "delegated_agent"
+            },
+            "grant_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "client_id": {
+              "const": "gym-python"
+            },
+            "scope": {
+              "const": "program:publish_direct"
+            }
+          },
+          "required": [
+            "kind",
+            "grant_id",
+            "client_id",
+            "scope"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "change_id",
+        "change_revision",
+        "content_digest",
+        "program_version",
+        "published_at",
+        "authorization"
       ],
       "additionalProperties": false
     }

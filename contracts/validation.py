@@ -47,6 +47,8 @@ def requires_schema2(value):
         or value.get('snapshot_schema_version') == 2
         or value.get('schema_version') == 2
         or value.get('analytics_version') == 'stats-v2'
+        or isinstance(value.get('scopes'), list) and 'program:publish_direct' in value['scopes']
+        or isinstance(value.get('authorization'), dict) and value['authorization'].get('kind') == 'delegated_agent'
         or {'measurement', 'load', 'set_structure'} <= value.keys()
         or any(requires_schema2(item) for item in value.values()))
 

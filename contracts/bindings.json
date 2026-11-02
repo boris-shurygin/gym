@@ -648,5 +648,34 @@
         "upgrade_required"
       ]
     }
+  ],
+  "mcp_operations": [
+    {
+      "operation_id": "publish_direct",
+      "input": "DirectPublishInput",
+      "output": "DelegatedPublication",
+      "summary": "Опубликовать проверенную программу по запросу пользователя с отдельным разрешением доверенному Python-агенту",
+      "scope": "program:publish_direct",
+      "mcp_tool": "publish_program_changes",
+      "errors": [
+        "invalid_request",
+        "session_required",
+        "account_disabled",
+        "not_found",
+        "rate_limited",
+        "unavailable",
+        "revision_conflict",
+        "program_conflict",
+        "approval_required",
+        "approval_invalid",
+        "validation_failed",
+        "request_id_reused",
+        "account_mismatch",
+        "csrf_failed",
+        "invalid_token",
+        "insufficient_scope",
+        "upgrade_required"
+      ]
+    }
   ]
 }

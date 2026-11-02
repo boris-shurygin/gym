@@ -62,9 +62,21 @@ def input_fields(schema, definitions=None):
     return fields, sorted(required)
 
 
+def mcp_tool(binding, definitions):
+    output = {'type': 'object', 'oneOf': [
+        {'type': 'object', 'properties': {'ok': {'const': True}, 'data': {'$ref': '#/$defs/' + binding['output']}}, 'required': ['ok','data'], 'additionalProperties': False},
+        {'type': 'object', 'properties': {'ok': {'const': False}, 'error': {'allOf': [{'$ref': '#/$defs/Error'}, {'properties': {'code': {'enum': binding['errors']}}}]}}, 'required': ['ok','error'], 'additionalProperties': False}]}
+    return {'name': binding['mcp_tool'], 'description': binding['summary'],
+        'inputSchema': bundled(definitions[binding['input']], definitions), 'outputSchema': bundled(output, definitions),
+        'annotations': {'readOnlyHint': binding.get('method') == 'get', 'idempotentHint': True,
+            'destructiveHint': binding['operation_id'] in {'publish_approved', 'publish_direct'}, 'openWorldHint': False},
+        '_meta': {'gym.requiredScope': binding['scope'], 'gym.operationId': binding['operation_id']}}
+
+
 def artifacts():
     definitions = read('schema.json')['$defs']
-    bindings = read('bindings.json')['routes']
+    source_bindings = read('bindings.json')
+    bindings = source_bindings['routes']
     errors = read('errors.json')
     paths = {}
     tools = []
@@ -112,10 +124,8 @@ def artifacts():
             operation['requestBody'] = {'required': True, 'content': {'application/json': {'schema': external_refs(source)}}}
         paths.setdefault(binding['path'], {})[binding['method']] = operation
         if binding['mcp_tool']:
-            output = {'type': 'object', 'oneOf': [
-                {'type': 'object', 'properties': {'ok': {'const': True}, 'data': {'$ref': '#/$defs/' + binding['output']}}, 'required': ['ok','data'], 'additionalProperties': False},
-                {'type': 'object', 'properties': {'ok': {'const': False}, 'error': {'allOf': [{'$ref': '#/$defs/Error'}, {'properties': {'code': {'enum': binding['errors']}}}]}}, 'required': ['ok','error'], 'additionalProperties': False}]}
-            tools.append({'name': binding['mcp_tool'], 'description': binding['summary'], 'inputSchema': bundled(definitions[binding['input']], definitions), 'outputSchema': bundled(output, definitions), 'annotations': {'readOnlyHint': binding['method'] == 'get', 'idempotentHint': True, 'destructiveHint': name == 'publish_approved', 'openWorldHint': False}, '_meta': {'gym.requiredScope': binding['scope'], 'gym.operationId': name}})
+            tools.append(mcp_tool(binding, definitions))
+    tools.extend(mcp_tool(binding, definitions) for binding in source_bindings.get('mcp_operations', []))
     api = {'openapi': '3.1.2', 'jsonSchemaDialect': 'https://json-schema.org/draft/2020-12/schema', 'info': {'title': 'Gym API', 'version': '1.0.0'}, 'servers': [{'url': '/'}], 'paths': paths, 'components': {'securitySchemes': {'sessionCookie': {'type': 'apiKey', 'in': 'cookie', 'name': '__Host-gym_session'}}}}
     return {'openapi.json': api, 'mcp-tools.json': {'tools': sorted(tools, key=lambda t: t['name'])}}
 

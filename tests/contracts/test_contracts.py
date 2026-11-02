@@ -27,9 +27,10 @@ class ContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.routes = read('bindings.json')['routes']
-        cls.bindings = {r['operation_id']: r for r in cls.routes}
+        cls.operations = cls.routes + read('bindings.json').get('mcp_operations', [])
+        cls.bindings = {r['operation_id']: r for r in cls.operations}
         cls.fixtures = read('examples.json')
-        cls.examples = {e['operation']: e for e in cls.fixtures['examples']}
+        cls.examples = {e['operation']: e for e in cls.fixtures['examples'] + cls.fixtures.get('mcp_examples', [])}
 
     def test_schemas_are_valid_and_all_refs_resolve_locally(self):
         Draft202012Validator.check_schema(SCHEMA)
@@ -89,7 +90,7 @@ class ContractTests(unittest.TestCase):
     def test_mcp_uses_identical_inputs_and_typed_success_and_error_outputs(self):
         tools = {t['name']: t for t in read('mcp-tools.json')['tools']}
         error = {'code':'unavailable','message':'Временно недоступно','trace_id':'trace-a','retryable':True,'action':'retry','retry_after_seconds':1,'field_errors':[],'receipt':None}
-        for route in self.routes:
+        for route in self.operations:
             if not route['mcp_tool']:
                 continue
             with self.subTest(tool=route['mcp_tool']):
@@ -115,11 +116,13 @@ class ContractTests(unittest.TestCase):
                     output.validate({'ok':False, 'error':wrong})
 
     def test_mcp_does_not_expose_owner_approval_or_workout_mutations(self):
-        writers = {r['operation_id'] for r in self.routes if r['mcp_tool'] and r['method'] != 'get'}
-        self.assertEqual(writers, {'propose_change','replace_change','validate_change','publish_approved'})
-        for route in self.routes:
+        writers = {r['operation_id'] for r in self.operations if r['mcp_tool'] and r.get('method') != 'get'}
+        self.assertEqual(writers, {'propose_change','replace_change','validate_change','publish_approved','publish_direct'})
+        for route in self.operations:
             if route['mcp_tool']:
-                self.assertIn(route['scope'], {'program:read','history:read','stats:read','program:draft','program:publish'})
+                self.assertIn(route['scope'], {'program:read','history:read','stats:read','program:draft','program:publish','program:publish_direct'})
+        self.assertNotIn('publish_direct', {r['operation_id'] for r in self.routes})
+        self.assertEqual(self.bindings['publish_direct']['scope'], 'program:publish_direct')
         self.assertIsNone(self.bindings['approve_and_publish']['mcp_tool'])
         self.assertIsNone(self.bindings['submit_operation']['mcp_tool'])
 

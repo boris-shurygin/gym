@@ -2376,5 +2376,68 @@
         }
       ]
     }
+  ],
+  "mcp_examples": [
+    {
+      "operation": "publish_direct",
+      "input": {
+        "request_id": "10000000-0000-4000-8000-000000000013",
+        "expected_owner_id": "user-a",
+        "change_id": "10000000-0000-4000-8000-000000000011",
+        "expected_revision": 2,
+        "base_program_version_id": "program-v1",
+        "content_digest": "b15f2cd48bbfcf9e6ee83c880a7fe76af8941465391c633ca50fc560d185374d"
+      },
+      "output": {
+        "change_id": "10000000-0000-4000-8000-000000000011",
+        "change_revision": 2,
+        "content_digest": "b15f2cd48bbfcf9e6ee83c880a7fe76af8941465391c633ca50fc560d185374d",
+        "program_version": {
+          "program_id": "program-a",
+          "program_version_id": "program-v2",
+          "owner_id": "user-a",
+          "version": 2,
+          "content": {
+            "name": "Программа-пример",
+            "templates": [
+              {
+                "template_id": "template-a",
+                "name": "Тренировка A",
+                "description": "Синтетический пример",
+                "exercises": [
+                  {
+                    "template_exercise_id": "exercise-position-a",
+                    "exercise_id": "bench",
+                    "equipment_id": "barbell-a",
+                    "name": "Жим лёжа",
+                    "weight_convention": "total_external_kg",
+                    "weight_step_g": 2500,
+                    "rule": "fixed",
+                    "targets": [
+                      {
+                        "target_id": "target-a",
+                        "weight_g": 62500,
+                        "suggested_reps": 10,
+                        "rep_min": null,
+                        "rep_max": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "published_at": "2026-10-26T12:00:00Z",
+          "change_id": "10000000-0000-4000-8000-000000000011"
+        },
+        "published_at": "2026-10-26T12:00:00Z",
+        "authorization": {
+          "kind": "delegated_agent",
+          "grant_id": "grant-direct-example",
+          "client_id": "gym-python",
+          "scope": "program:publish_direct"
+        }
+      }
+    }
   ]
 }

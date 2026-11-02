@@ -87,12 +87,14 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == '/__gym/release' and fixture:
             status, payload = 200, {'purpose': 'staging-release' if fixture.staging else 'development'}
         elif self.path == '/__test/oauth-request' and fixture and self.command == 'POST':
-            from api.delegation import Delegation, challenge
+            from api.delegation import Delegation, challenge, SCOPES, DIRECT_SCOPE
+            config = json.loads(body or b'{}')
             location = Delegation(fixture.auth).begin({'client_id': 'gym-python',
                 'redirect_uri': 'http://127.0.0.1:8765/callback',
                 'response_type': 'code', 'state': 'synthetic-client-state',
                 'resource': 'https://gym.example/mcp', 'code_challenge_method': 'S256',
-                'code_challenge': challenge('v' * 43)})
+                'code_challenge': challenge('v' * 43),
+                **({'scope': ' '.join(SCOPES + (DIRECT_SCOPE,))} if config.get('direct_publication') else {})})
             fixture.oauth_request = location.split('request_id=', 1)[1]
             status, payload = 200, {'location': '/oauth/consent'}
         elif self.path == '/__test/config' and fixture and self.command == 'POST':
@@ -112,6 +114,13 @@ class Handler(BaseHTTPRequestHandler):
                     session.pop('yandex_login', None)
                     db.put('sessions', 'session', digest(fixture.alice), session)
                 fixture.store.run(legacy)
+            if 'old_auth' in config:
+                def authentication_age(db):
+                    token = fixture.alice if fixture.user == 'alice' else fixture.bob
+                    session = db.get('sessions', 'session', digest(token))
+                    session['auth_at'] = fixture.clock - (601 if config['old_auth'] else 0)
+                    db.put('sessions', 'session', digest(token), session)
+                fixture.store.run(authentication_age)
             status, payload = 200, {'ok': True}
         else:
             if not fixture or not fixture.signed_in:
@@ -130,6 +139,9 @@ class Handler(BaseHTTPRequestHandler):
                             else self.headers.get('Origin', '')) if urlsplit(self.path).path == '/oauth/consent'
                             else 'https://gym.example'),
                         'Content-Type': self.headers.get('Content-Type', ''),
+                        'Authorization': self.headers.get('Authorization', ''),
+                        'Accept': self.headers.get('Accept', ''),
+                        'MCP-Protocol-Version': self.headers.get('MCP-Protocol-Version', '2025-11-25'),
                         'X-Gym-Expected-Owner': self.headers.get('X-Gym-Expected-Owner', user),
                         'X-Gym-Schema-Version': self.headers.get('X-Gym-Schema-Version', '1'),
                         'X-CSRF-Token': self.headers.get('X-CSRF-Token', '')},

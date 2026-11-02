@@ -10,8 +10,11 @@ from urllib.parse import urlencode
 from api.auth import digest, timestamp
 from api.errors import ServiceError
 from contracts.canonical import fingerprint
+from contracts.validation import requires_schema2
 
 SCOPES = ('program:read', 'history:read', 'stats:read', 'program:draft', 'program:publish')
+DIRECT_SCOPE = 'program:publish_direct'
+SUPPORTED_SCOPES = SCOPES + (DIRECT_SCOPE,)
 CLIENTS = {'gym-chatgpt': {'name': 'ChatGPT',
     'redirects': ['https://chatgpt.com/connector_platform_oauth_redirect']},
     'gym-python': {'name': 'Python-агент Gym', 'redirects': ['http://127.0.0.1:8765/callback']}}
@@ -40,12 +43,12 @@ class Delegation:
     def metadata(self, resource=False):
         if resource:
             return {'resource': self.resource, 'authorization_servers': [self.origin],
-                'scopes_supported': list(SCOPES), 'bearer_methods_supported': ['header']}
+                'scopes_supported': list(SUPPORTED_SCOPES), 'bearer_methods_supported': ['header']}
         return {'issuer': self.origin, 'authorization_endpoint': self.origin + '/oauth/authorize',
             'token_endpoint': self.origin + '/oauth/token', 'revocation_endpoint': self.origin + '/oauth/revoke',
             'response_types_supported': ['code'], 'grant_types_supported': ['authorization_code', 'refresh_token'],
             'code_challenge_methods_supported': ['S256'], 'token_endpoint_auth_methods_supported': ['none'],
-            'authorization_response_iss_parameter_supported': True, 'scopes_supported': list(SCOPES)}
+            'authorization_response_iss_parameter_supported': True, 'scopes_supported': list(SUPPORTED_SCOPES)}
 
     def begin(self, value):
         # OAuth разрешает расширения запроса; неизвестные параметры не меняют
@@ -61,8 +64,10 @@ class Delegation:
                 or value['resource'] != self.resource or value['code_challenge_method'] != 'S256'
                 or not re.fullmatch(r'[A-Za-z0-9_-]{43}', value['code_challenge'])
                 or not 1 <= len(value['state']) <= 1024 or any(ord(c) < 32 for c in value['state'])
-                or not scopes or len(scopes) != len(set(scopes)) or set(scopes) - set(SCOPES)):
+                or not scopes or len(scopes) != len(set(scopes)) or set(scopes) - set(SUPPORTED_SCOPES)):
             raise OAuthError()
+        if DIRECT_SCOPE in scopes and value['client_id'] != 'gym-python':
+            raise OAuthError('invalid_scope')
         identifier, now = secrets.token_urlsafe(32), int(self.auth.now())
         def save(db):
             bucket = 'oauth:' + str(now // 60)
@@ -117,7 +122,8 @@ class Delegation:
         now = int(self.auth.now())
         if (not row or row['revoked_at'] or now >= row['created'] + 90 * 86400
                 or now >= row['last_refresh'] + 30 * 86400 or row['resource'] != self.resource
-                or row['client_id'] not in CLIENTS):
+                or row['client_id'] not in CLIENTS
+                or DIRECT_SCOPE in row['scopes'] and row['client_id'] != 'gym-python'):
             raise ServiceError('invalid_token')
         admission = db.get('admissions', 'yandex', row['subject_hash'])
         if not admission or admission['state'] != 'active' or admission['user_id'] != owner:
@@ -196,7 +202,7 @@ class Delegation:
         return {'user_id': row['owner'], 'grant_id': row['grant_id'], 'client_id': row['client_id'],
             'scopes': grant['scopes'], 'subject_hash': grant['subject_hash']}
 
-    def grants(self, token, value, revoke=False):
+    def grants(self, token, value, revoke=False, *, supported_schema_version=2):
         def run(db):
             owner = self.auth.principal(db, token)['user_id']
             if value.get('expected_owner_id', owner) != owner:
@@ -218,7 +224,12 @@ class Delegation:
                 db.put('program_records', owner, key, {'digest': request_digest, 'result': result})
                 return result
             return {'items': [self.public_grant(row) for _, row in db.scan('program_records', owner, 'grant:', limit=100)]}
-        return self.store.run(run)
+        def checked(db):
+            result = run(db)
+            if supported_schema_version < 2 and requires_schema2(result):
+                raise ServiceError('upgrade_required')
+            return result
+        return self.store.run(checked)
 
     @staticmethod
     def public_grant(row):
