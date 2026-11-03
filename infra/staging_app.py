@@ -20,6 +20,7 @@ from infra.staging_migrations import Cloud, active_revision, matches, read_manif
 from infra import staging_target as target
 from infra.auth_config import configure_api
 from infra.diagnostics_config import configure_diagnostics
+from infra.deployment_diagnostics import phase
 
 
 FUNCTIONS = 'https://serverless-functions.api.cloud.yandex.net'
@@ -301,8 +302,10 @@ def smoke(manifest, files, *, validation=False, target=target):
 def execute(token, release, manifest_digest, *, validation=False, target=target, schema_manifest=None):
     if validation and (os.environ.get('GITHUB_ACTIONS') or target.NAME != 'staging'):
         raise ValueError('Validation Gateway разрешён оператору только для staging')
-    manifest = read_manifest(token, release, manifest_digest)
-    files = load_payload(token, manifest)
+    with phase('read_manifest'):
+        manifest = read_manifest(token, release, manifest_digest)
+    with phase('load_payload'):
+        files = load_payload(token, manifest)
     spec = render_gateway(manifest, files['gateway.json'], validation=validation, target=target)
     cloud = AppCloud(token, target=target)
     if schema_manifest is not None:
@@ -310,18 +313,25 @@ def execute(token, release, manifest_digest, *, validation=False, target=target,
         if (schema_manifest['migration']['revision'] != manifest['migration']['revision']
                 or schema_manifest['compatibility'] != manifest['compatibility']):
             raise InterventionRequired('Откат приложения несовместим с текущей схемой')
-    verify_migrations(cloud, schema_manifest if schema_manifest is not None else manifest, target=target)
+    with phase('verify_migrations'):
+        verify_migrations(cloud, schema_manifest if schema_manifest is not None else manifest, target=target)
     retention = None if validation else TagRetention(cloud, token, target)
     if retention is not None:
-        retention.prepare(release)
-    version = function_version(cloud, manifest, validation, target=target)
-    private_api_smoke(token, version_tag(release, validation), target=target)
-    upload_web(token, manifest, files, target=target)
-    switch_gateway(cloud, spec, target=target)
+        with phase('prepare_tags'):
+            retention.prepare(release)
+    with phase('function_version'):
+        version = function_version(cloud, manifest, validation, target=target)
+    with phase('private_api_smoke'):
+        private_api_smoke(token, version_tag(release, validation), target=target)
+    with phase('upload_web'):
+        upload_web(token, manifest, files, target=target)
+    with phase('switch_gateway'):
+        switch_gateway(cloud, spec, target=target)
     # Повторяй только чтение smoke во время распространения нового Gateway.
     for attempt in range(12):
         try:
-            smoke(manifest, files, validation=validation, target=target)
+            with phase('public_smoke'):
+                smoke(manifest, files, validation=validation, target=target)
             break
         except InterventionRequired:
             if attempt == 11: raise
@@ -331,18 +341,23 @@ def execute(token, release, manifest_digest, *, validation=False, target=target,
         'gateway_sha256': hashlib.sha256(canonical_bytes(spec)).hexdigest(),
         'purpose': 'operator-validation' if validation else target.NAME + '-release', 'smoke': 'succeeded', 'origin': target.ORIGIN}
     key = 'deployments/' + release + ('/operator-validation.json' if validation else '/result.json')
-    ImmutableStore(token, target.WEB_BUCKET).put(key, canonical_bytes(receipt), content_type='application/json', cache_control='private, no-store')
+    with phase('write_receipt'):
+        ImmutableStore(token, target.WEB_BUCKET).put(key, canonical_bytes(receipt), content_type='application/json', cache_control='private, no-store')
     if retention is not None:
-        retention.finish(receipt)
+        with phase('finish_tags'):
+            retention.finish(receipt)
     return receipt
 
 
 def main():
     if os.environ.get('GITHUB_ACTIONS'):
-        context = context_from_github()
+        with phase('github_context'):
+            context = context_from_github()
         release = os.environ['GYM_RELEASE_ID']
         if release != context['release_id']: raise ValueError('Другой выпуск/попытка CI')
-        result = execute(staging_token(context), release, os.environ['GYM_MANIFEST_SHA256'])
+        with phase('staging_token'):
+            token = staging_token(context)
+        result = execute(token, release, os.environ['GYM_MANIFEST_SHA256'])
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
             summary.write('Staging: ' + target.ORIGIN + '\n\nВыпуск `' + release + '`, smoke успешен.\n')
     else:
@@ -353,7 +368,9 @@ def main():
         parser.add_argument('--manifest-sha256', required=True)
         parser.add_argument('--validation-gateway', action='store_true')
         args = parser.parse_args()
-        result = execute(Yc(args.yc).token(target.CI), args.release, args.manifest_sha256, validation=args.validation_gateway)
+        with phase('operator_token'):
+            token = Yc(args.yc).token(target.CI)
+        result = execute(token, args.release, args.manifest_sha256, validation=args.validation_gateway)
     output = Path('.local/staging-deployment.json')
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
