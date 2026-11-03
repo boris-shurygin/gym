@@ -386,9 +386,9 @@ export default function Account() {
             </button>
           )}
         </div>
-        {(profile || demo) && (
-          <details className="account-options">
-            <summary>Управление аккаунтом</summary>
+        <details className="account-options">
+          <summary>Управление аккаунтом</summary>
+          {(profile || demo) && (
             <div className="account-actions">
               <a
                 className="secondary"
@@ -417,14 +417,14 @@ export default function Account() {
                 </button>
               )}
             </div>
-          </details>
-        )}
+          )}
+          <Diagnostics
+            key={profile?.owner ?? 'anonymous'}
+            owner={candidate ? undefined : profile?.owner}
+            session={session}
+          />
+        </details>
       </section>
-      <Diagnostics
-        key={profile?.owner ?? 'anonymous'}
-        owner={candidate ? undefined : profile?.owner}
-        session={session}
-      />
       {session && landing && (
         <main className="landing-dashboard">
           <Statistics

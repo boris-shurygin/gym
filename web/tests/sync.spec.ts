@@ -133,6 +133,7 @@ test('добровольная диагностика: отказ отправк
     }[];
   await enter(page);
   const diagnostics = page.locator('details[aria-label="Диагностика и данные"]');
+  await page.getByText('Управление аккаунтом', { exact: true }).click();
   await diagnostics.locator('summary').click();
   const consent = diagnostics.getByRole('checkbox');
   await expect(consent).not.toBeChecked();
@@ -151,8 +152,10 @@ test('добровольная диагностика: отказ отправк
   await record(page, '67', '8');
   await synced(page);
   await expect.poll(async () => (await allWorkouts(request, connection))[0]?.sets[0]?.weight_g).toBe(67000);
+  await page.getByRole('button', { name: '‹ К упражнениям', exact: true }).click();
   await consent.uncheck();
   await page.reload();
+  await page.getByText('Управление аккаунтом', { exact: true }).click();
   await diagnostics.locator('summary').click();
   await expect(consent).not.toBeChecked();
   expect(await telemetry()).toHaveLength(1);
