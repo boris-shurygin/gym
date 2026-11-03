@@ -42,7 +42,7 @@ export default function Diagnostics({ owner, session }: { owner?: string; sessio
     };
   }, [owner, client]);
   return (
-    <details className="card" aria-label="Диагностика и данные">
+    <details className="diagnostics-settings" aria-label="Диагностика и данные">
       <summary>Диагностика и данные</summary>
       <p>
         Gym хранит логин Яндекса, программу и историю тренировок в Yandex Cloud в России, а локальную копию —
