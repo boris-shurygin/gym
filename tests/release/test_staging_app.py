@@ -1,7 +1,9 @@
 import unittest
 import copy
+import io
 import json
 from unittest.mock import Mock, patch
+from urllib.error import HTTPError
 
 from infra import staging_app_access as access, staging_target as target
 from infra import staging_app as app
@@ -141,6 +143,24 @@ class DeploymentOrderTests(unittest.TestCase):
         with self.assertRaises(RuntimeError): app.execute('unused', RELEASE, 'd' * 64)
         self.assertNotIn('gateway', self.events)
         self.assertNotIn('receipt', self.events)
+
+    def test_http_failure_identifies_api_creation_and_never_retries_it(self):
+        error = HTTPError(app.FUNCTIONS + '/functions/v1/versions?private=query-secret', 500,
+            'private response', {'x-request-id': 'cloud-request-123'}, None)
+        self.mocks['function_version'].side_effect = error
+        with patch('sys.stdout', new_callable=io.StringIO) as output:
+            with self.assertRaises(HTTPError) as caught:
+                app.execute('unused', RELEASE, 'd' * 64)
+        self.assertIs(caught.exception, error)
+        self.mocks['function_version'].assert_called_once()
+        self.mocks['upload_web'].assert_not_called()
+        self.mocks['switch_gateway'].assert_not_called()
+        self.assertNotIn('receipt', self.events)
+        failed = next(json.loads(line) for line in output.getvalue().splitlines()
+            if json.loads(line).get('state') == 'failed')
+        self.assertEqual(failed['phase'], 'function_version')
+        self.assertEqual(failed['request_ids'], {'x-request-id': 'cloud-request-123'})
+        self.assertNotIn('query-secret', output.getvalue())
 
     def test_failed_smoke_does_not_publish_success(self):
         self.mocks['smoke'].side_effect = InterventionRequired('smoke failed')
